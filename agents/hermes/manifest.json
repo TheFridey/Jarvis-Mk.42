@@ -1,0 +1,13 @@
+{
+  "id": "agents.hermes",
+  "version": "0.42.0",
+  "displayName": "Hermes",
+  "role": "Communications: drafts and (on approval) sends messages",
+  "leasePolicy": { "maxWallTimeMs": 240000, "maxContextUnits": 200000, "maxCostUnits": 60 },
+  "proposalScope": {
+    "kinds": ["draft", "capability_invocation", "clarification_request"],
+    "capabilities": ["capabilities.communications"]
+  },
+  "modelHints": { "tasks": ["reason", "summarize"], "locality": "prefer-local" },
+  "notes": "Sending external communications is riskClass HIGH: requires live approval or an explicit standing grant, and simulate-first. Drafting to self is MEDIUM."
+}

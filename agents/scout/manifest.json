@@ -1,0 +1,13 @@
+{
+  "id": "agents.scout",
+  "version": "0.42.0",
+  "displayName": "Scout",
+  "role": "Research and retrieval: gathers sources and synthesises findings",
+  "leasePolicy": { "maxWallTimeMs": 600000, "maxContextUnits": 300000, "maxCostUnits": 120 },
+  "proposalScope": {
+    "kinds": ["answer", "draft", "fact_extraction", "clarification_request", "capability_invocation"],
+    "capabilities": ["capabilities.web", "capabilities.browser"]
+  },
+  "modelHints": { "tasks": ["reason", "summarize", "extract"], "locality": "any" },
+  "notes": "All fetched web content is tagged trust:untrusted at capture. Any Proposal whose evidence chain includes it is marked derivedFromUntrusted and cannot alone justify an action above riskClass LOW (ADR-0018)."
+}

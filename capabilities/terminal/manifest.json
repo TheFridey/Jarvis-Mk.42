@@ -1,0 +1,21 @@
+{
+  "id": "capabilities.terminal",
+  "version": "0.42.0",
+  "requiredScopes": ["terminal:workspace"],
+  "trustTierMin": "owned-secure",
+  "resourceKeySelector": "$.workspaceId",
+  "actions": [
+    {
+      "name": "run_command",
+      "inputSchema": { "type": "object", "properties": { "workspaceId": { "type": "string" }, "command": { "type": "string" }, "timeoutMs": { "type": "number" } }, "required": ["workspaceId", "command"] },
+      "outputSchema": { "type": "object", "properties": { "exitCode": { "type": "number" }, "stdout": { "type": "string" }, "stderr": { "type": "string" } } },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulate": "dryRunExplainCommand",
+      "simulatable": true,
+      "verify": "verifyExpectedPostState",
+      "idempotent": false,
+      "sideEffects": ["executes an arbitrary command in a workspace shell"]
+    }
+  ]
+}

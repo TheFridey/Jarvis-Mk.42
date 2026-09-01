@@ -1,0 +1,34 @@
+{
+  "id": "capabilities.docker",
+  "version": "0.42.0",
+  "requiredScopes": ["docker:local"],
+  "trustTierMin": "kernel-local",
+  "resourceKeySelector": "$.containerRef",
+  "actions": [
+    {
+      "name": "compose_up",
+      "inputSchema": { "type": "object", "properties": { "project": { "type": "string" }, "services": { "type": "array" } }, "required": ["project"] },
+      "outputSchema": { "type": "object", "properties": { "started": { "type": "array" } } },
+      "riskClass": "HIGH",
+      "reversible": true,
+      "rollback": "composeDown",
+      "simulate": "composeConfigResolve",
+      "simulatable": true,
+      "verify": "verifyServicesHealthy",
+      "idempotent": true,
+      "sideEffects": ["creates/starts containers on the local Docker host"]
+    },
+    {
+      "name": "remove_container",
+      "inputSchema": { "type": "object", "properties": { "containerRef": { "type": "string" } }, "required": ["containerRef"] },
+      "outputSchema": { "type": "object" },
+      "riskClass": "CRITICAL",
+      "reversible": false,
+      "simulate": "describeContainerAndDependents",
+      "simulatable": true,
+      "verify": "verifyContainerGone",
+      "idempotent": true,
+      "sideEffects": ["permanently removes a container and its writable layer"]
+    }
+  ]
+}

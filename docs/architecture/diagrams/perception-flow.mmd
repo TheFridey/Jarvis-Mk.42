@@ -1,0 +1,23 @@
+%% Sensors -> local processing -> Observation events -> Context Compiler / World Model.
+%% Perception never reasons, never calls a model for reasoning, never writes the World Model.
+%% See ../PERCEPTION_MODEL.md.
+flowchart LR
+    MIC[Microphone] --> VAD[Local VAD] --> WW{Wake word?\n(fully local, low-latency)}
+    WW -->|no| DROP[discard on host]
+    WW -->|yes| WAKE[[wake.detected]] --> ASR[Local ASR\n(whisper.cpp / equivalent)]
+    CAM[Camera] --> CV[Local CV\nhands / pose / presence / scene tags]
+    SCRN[Screen / OS hooks] --> TELE[Screen / app / cursor telemetry\ndebounce + aggregate]
+    ENV[Environmental sensors] --> THR[Threshold only]
+
+    ASR --> OBS[[jarvis.perception.* Observation events\nclass: signal]]
+    CV --> OBS
+    TELE --> OBS
+    THR --> OBS
+
+    OBS --> NATS[(NATS JetStream — SIGNAL stream\n7-day rolling retention)]
+    NATS --> CTX[Context Compiler\nmultimodal fusion: voice + gaze + cursor + app + presence]
+    NATS --> WMI[World Model ingestion\npromote durable signals to facts]
+
+    CV -. raw frames NEVER leave host (L27) .- CV
+    MIC -. raw audio NEVER leaves host (L27) .- MIC
+    OBS -. NATS down: bounded local ring buffer, drop-oldest, gap marker on reconnect .- OBS

@@ -1,0 +1,13 @@
+{
+  "id": "agents.hephaestus",
+  "version": "0.42.0",
+  "displayName": "Hephaestus",
+  "role": "Build and infrastructure automation authoring",
+  "leasePolicy": { "maxWallTimeMs": 900000, "maxContextUnits": 350000, "maxCostUnits": 200 },
+  "proposalScope": {
+    "kinds": ["plan", "capability_invocation", "draft", "clarification_request"],
+    "capabilities": ["capabilities.docker", "capabilities.terminal", "capabilities.filesystem", "capabilities.github"]
+  },
+  "modelHints": { "tasks": ["code", "plan", "reason"], "locality": "prefer-local" },
+  "notes": "Authors build/infra automation. Deploy-class actions are riskClass HIGH or CRITICAL: simulate-first, approval or dual control. No standing authority to deploy."
+}

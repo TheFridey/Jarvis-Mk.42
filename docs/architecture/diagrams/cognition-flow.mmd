@@ -1,0 +1,36 @@
+%% ContextFrame -> cognition/agents -> Proposal -> validation -> policy -> execution.
+%% See ../COGNITION_MODEL.md and ../MK42_ARCHITECTURE.md §8.
+sequenceDiagram
+    autonumber
+    participant P as Perception
+    participant CTX as Context Compiler (Kernel)
+    participant WM as World Model
+    participant MEM as Memory
+    participant COG as Cognition / Agent (no creds, no effects)
+    participant GW as Model Gateway (holds provider keys)
+    participant VAL as Validator
+    participant POL as Policy Engine (deterministic)
+    participant PERM as Permission Engine
+    participant EXE as Capability Executor
+    participant AD as Adapter (out-of-process, scoped cred)
+
+    P->>CTX: Observation events (signal)
+    CTX->>WM: time-scoped fact query (+ freshness hint)
+    CTX->>MEM: top-k recall (relevance floor)
+    Note over CTX: fill ContextFrame by priority tiers,\nstop at context-unit budget, mark unknowns + truncation
+    CTX->>COG: ContextFrame
+    COG->>GW: ModelRequest (provider-neutral, locality constraint)
+    GW-->>COG: ModelResponse
+    COG->>VAL: Proposal (untrusted; may be derivedFromUntrusted)
+    VAL->>POL: validated proposal + resolved riskClass
+    POL-->>EXE: ALLOW | DENY | REQUIRE_APPROVAL
+    Note over POL: LLM PolicyRecommendation may be ONE input,\nnever the verdict (L21)
+    EXE->>PERM: acquire authority for requiredScopes
+    PERM-->>EXE: scoped TTL authority token
+    EXE->>EXE: freshness barrier (re-read grant) + capability.started
+    EXE->>EXE: simulate if riskClass >= HIGH (dry-run cred) -> approval
+    EXE->>AD: execute
+    AD-->>EXE: raw result
+    EXE->>EXE: verify effect against the world (mandatory)
+    EXE-->>WM: emit capability.verified + derived facts (epistemicStatus: observed)
+    EXE-->>COG: outcome for follow-up planning

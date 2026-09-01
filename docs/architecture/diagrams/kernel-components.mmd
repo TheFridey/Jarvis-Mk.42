@@ -1,0 +1,53 @@
+%% Kernel components and their internal dependency edges.
+%% Dependency direction: ingress -> sense-making -> intent -> authority ->
+%% catalogues -> orchestration. The spine (Event, State, Audit) is depended on
+%% by all and depends on none.
+flowchart LR
+    subgraph ingress["Ingress"]
+        IDN[Identity Manager]
+        SES[Session Manager]
+    end
+    subgraph spine["Spine (depended on by all, depends on none)"]
+        EVT[Event Manager\nowns Event Log]
+        STATE[State Manager\nowns Projected State]
+        AUD[Audit Manager\nappend-only trail]
+    end
+    subgraph sense["Sense-making"]
+        CTX[Context Compiler\nbuilds ContextFrame]
+        PRES[Presence Manager\nowns node registry + presence]
+    end
+    subgraph intent["Intent"]
+        OBJ[Objective Engine\nwhat + why]
+    end
+    subgraph authority["Authority"]
+        POL[Policy Engine\ndeterministic]
+        PERM[Permission Engine\ngrants + tokens]
+    end
+    subgraph catalogues["Catalogues (CRUD + events)"]
+        CAPR[Capability Registry]
+        MODR[Model Registry]
+    end
+    subgraph orch["Orchestration"]
+        AGRT[Agent Runtime]
+        SCHED[Scheduler\nwhen]
+        NOTIF[Notification Manager]
+        HLTH[Health Manager\ndegradation state]
+    end
+    EXE[Capability Executor\nsole path to effects]
+
+    IDN --> SES --> CTX
+    PRES --> CTX
+    STATE --> CTX
+    CTX --> OBJ --> SCHED --> AGRT
+    AGRT -- "validated Proposal" --> POL --> PERM --> EXE
+    CAPR --> EXE
+    MODR -. routing metadata .-> AGRT
+    EXE -- "result + verify events" --> EVT
+    OBJ --> EVT
+    PERM --> EVT
+    POL --> EVT
+    EVT --> STATE
+    EVT --> AUD
+    HLTH -. gates routing/approval .-> POL
+    HLTH -. monitors .-> AGRT
+    NOTIF --> SES

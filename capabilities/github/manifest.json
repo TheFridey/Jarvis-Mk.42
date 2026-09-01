@@ -1,0 +1,34 @@
+{
+  "id": "capabilities.github",
+  "version": "0.42.0",
+  "requiredScopes": ["github:repo"],
+  "trustTierMin": "kernel-local",
+  "resourceKeySelector": "$.repo",
+  "actions": [
+    {
+      "name": "open_pull_request",
+      "inputSchema": { "type": "object", "properties": { "repo": { "type": "string" }, "head": { "type": "string" }, "base": { "type": "string" }, "title": { "type": "string" }, "body": { "type": "string" } }, "required": ["repo", "head", "base", "title"] },
+      "outputSchema": { "type": "object", "properties": { "number": { "type": "number" }, "url": { "type": "string" } } },
+      "riskClass": "MEDIUM",
+      "reversible": true,
+      "rollback": "closePullRequest",
+      "simulate": "previewPullRequest",
+      "simulatable": true,
+      "verify": "verifyPullRequestExists",
+      "idempotent": true,
+      "sideEffects": ["creates a pull request on a repo-scoped token"]
+    },
+    {
+      "name": "push",
+      "inputSchema": { "type": "object", "properties": { "repo": { "type": "string" }, "ref": { "type": "string" } }, "required": ["repo", "ref"] },
+      "outputSchema": { "type": "object" },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulate": "previewPushDiff",
+      "simulatable": true,
+      "verify": "verifyRemoteRefUpdated",
+      "idempotent": true,
+      "sideEffects": ["updates a remote ref"]
+    }
+  ]
+}

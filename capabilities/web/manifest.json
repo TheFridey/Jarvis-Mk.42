@@ -1,0 +1,22 @@
+{
+  "id": "capabilities.web",
+  "version": "0.42.0",
+  "requiredScopes": ["web:fetch"],
+  "trustTierMin": "kernel-local",
+  "actions": [
+    {
+      "name": "fetch",
+      "inputSchema": { "type": "object", "properties": { "url": { "type": "string" }, "method": { "type": "string" } }, "required": ["url"] },
+      "outputSchema": { "type": "object", "properties": { "status": { "type": "number" }, "body": { "type": "string" }, "contentType": { "type": "string" } } },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": true,
+      "verify": "verifyResponseReceived",
+      "idempotent": true,
+      "sideEffects": [
+        "retrieves an external resource",
+        "response body is tagged trust:untrusted, origin:<url>; any Proposal derived from it is derivedFromUntrusted (ADR-0018)"
+      ]
+    }
+  ]
+}

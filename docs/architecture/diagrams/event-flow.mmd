@@ -1,0 +1,20 @@
+%% Command -> decision -> transactional write (event + outbox) -> NATS -> projections & consumers.
+%% See ../EVENT_ARCHITECTURE.md and ../STATE_MODEL.md.
+flowchart TB
+    CMD[Command / Proposal] --> VAL[Validator\nschema + safety + provenance tag]
+    VAL -->|reject| REJ[[emit *.rejected]]
+    VAL -->|accept| DEC[Owning Kernel component decides]
+    DEC --> TX{{PostgreSQL transaction}}
+    TX --> ELOG[(events — append-only ledger\npartitioned by class + time)]
+    TX --> PSW[(projection write, if this component also owns a read model)]
+    TX --> OBX[(outbox row)]
+    OBX --> RELAY[Outbox relay] --> JS[(NATS JetStream\nLEDGER / SIGNAL / DERIVED)]
+    ELOG -. backfill after NATS outage .-> PROJ
+    JS --> PROJ[Projectors\none per read model · idempotent on Event.id · checkpointed]
+    PROJ --> PS[(projections.* — current authoritative values)]
+    JS --> WMI[World Model ingestion]
+    JS --> NOT[Notification Manager]
+    JS --> AUDC[Audit Manager]
+    JS --> PSUB[Perception / diagnostics subscribers]
+    PS --> RAPI[Read APIs\noptional asOfEventPosition wait] --> UI[Experience Plane]
+    RDS[(Redis / memory — ephemeral cache)] -. serves .- RAPI

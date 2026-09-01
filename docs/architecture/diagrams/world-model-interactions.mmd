@@ -1,0 +1,47 @@
+%% How beliefs get in and out of the World Model. Writers: Kernel ingestion only.
+%% See ../WORLD_MODEL.md.
+flowchart TB
+    subgraph inputs["Inputs (never write world_model.* directly)"]
+        OBS[Perception Observation events]
+        PROP[Validated cognition Proposal\n(extracted candidate facts)]
+        ASSERT[Principal assertion\n(Experience -> Command)]
+        RETR[web / research result\n(tagged trust: untrusted)]
+    end
+
+    OBS --> ING[World Model Ingestion (Kernel)]
+    PROP --> ING
+    ASSERT --> ING
+    RETR --> VALU[Validator + untrusted tagging\nderivedFromUntrusted = true] --> ING
+
+    ING --> ER[Entity resolution\ndeterministic keys -> similarity (pgvector) -> create]
+    ER --> DD{Dedupe / supersession / conflict}
+    DD -->|new| W[write fact + evidence\nprovenance + confidence + epistemicStatus mandatory]
+    DD -->|refines| SUP[write fact, set supersedesFactId\narchive old on validTo]
+    DD -->|contradicts| CON[write fact + open conflict record\n(no silent overwrite)]
+
+    W --> E1[[emit jarvis.world.fact.asserted]]
+    SUP --> E1
+    CON --> E2[[emit jarvis.world.conflict.recorded]]
+
+    subgraph store["world_model schema"]
+        ENT[(entities)]
+        REL[(entity_relationships)]
+        F[(facts)]
+        FA[(facts_archive)]
+        EV[(evidence graph)]
+        CF[(conflicts)]
+    end
+    W --> F
+    SUP --> F
+    SUP --> FA
+    W --> EV
+
+    subgraph readers["Readers (query API only)"]
+        CTX[Context Compiler]
+        COG[Cognition]
+        DIAG[Diagnostics]
+    end
+    F --> Q[Temporal query API\ncurrentlyBelieved / believedAt / history\n+ 'I don't know' as a real result]
+    Q --> CTX
+    Q --> COG
+    Q --> DIAG

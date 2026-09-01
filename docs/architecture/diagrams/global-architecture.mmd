@@ -1,0 +1,90 @@
+%% Global architecture — the seven planes and their traffic.
+%% Rendered inline in ../MK42_ARCHITECTURE.md §4.
+flowchart TB
+    subgraph EXP["EXPERIENCE PLANE (consumes state, owns none — L6)"]
+        DESK[Desktop / multi-monitor shell — Tauri]
+        VOICEUI[Voice surface]
+        SPATIALUI[Spatial UI / gesture]
+        MOBILE[Mobile / display nodes]
+        ARF[future AR / wearables]
+    end
+
+    subgraph KERNEL["JARVIS KERNEL — apps/core (protected · persistent · authoritative)"]
+        direction LR
+        K1[Identity]:::k
+        K2[Session]:::k
+        K3[Event Mgr]:::k
+        K4[State Mgr]:::k
+        K5[Context Compiler]:::k
+        K6[Presence]:::k
+        K7[Objective Engine]:::k
+        K8[Policy Engine]:::k
+        K9[Permission Engine]:::k
+        K10[Capability Registry]:::k
+        K11[Model Registry]:::k
+        K12[Agent Runtime]:::k
+        K13[Scheduler]:::k
+        K14[Notification]:::k
+        K15[Health]:::k
+        K16[Audit]:::k
+        KE[Capability Executor]:::k
+    end
+
+    subgraph PERC["PERCEPTION PLANE — local-first (apps/voice, apps/vision)"]
+        P1[Realtime audio / wake / ASR]
+        P2[Vision / hands / pose / presence]
+        P3[Screen / app / cursor telemetry]
+        P4[Environmental / digital telemetry]
+    end
+
+    subgraph COG["COGNITION PLANE"]
+        G[Model Gateway — apps/gateway]
+        R[Reasoning / planning / synthesis]
+        AG[Agents: oracle forge scout argus hermes sentinel atlas mnemosyne prometheus daedalus hephaestus]
+    end
+
+    subgraph WM["WORLD MODEL + MEMORY (separate systems — L8)"]
+        WME[Entities / relationships]
+        WMF[Facts / evidence / confidence / temporal validity]
+        MEM[(Memory: episodes / recall)]
+    end
+
+    subgraph AGENCY["AGENCY PLANE — capabilities/* (out-of-process adapters)"]
+        C1[browser]
+        C2[windows / filesystem / terminal]
+        C3[github / docker / infra]
+        C4[communications]
+        C5[scalesmiths]
+        C6[future smart-home / robotics]
+    end
+
+    subgraph DATA["DATA PLANE"]
+        PG[(PostgreSQL + pgvector — authority)]
+        RDS[(Redis — ephemeral)]
+        NATS[(NATS JetStream — transport)]
+        OBJ[(Object storage — MinIO)]
+        OTEL[(OpenTelemetry)]
+    end
+
+    subgraph INFRA["INFRASTRUCTURE PLANE"]
+        WS[Workstation node]
+        LS[Local server node]
+        GPU[future GPU / edge]
+        CLOUD[Cloud model APIs only]
+    end
+
+    EXP -- "Command / Proposal (validated)" --> KERNEL
+    KERNEL -- "read-only views / notifications" --> EXP
+    PERC -- "Observation events (signal class)" --> KERNEL
+    KERNEL -- "ContextFrame" --> COG
+    COG -- "Proposal (untrusted)" --> KERNEL
+    KERNEL -- "invoke via Executor" --> AGENCY
+    AGENCY -- "result + verification events" --> KERNEL
+    KERNEL <--> WM
+    R --> G
+    AG --> G
+    G --> CLOUD
+    KERNEL <--> DATA
+    KERNEL -. runs on .- INFRA
+
+    classDef k fill:#eef,stroke:#557;

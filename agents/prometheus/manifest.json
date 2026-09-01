@@ -1,0 +1,13 @@
+{
+  "id": "agents.prometheus",
+  "version": "0.42.0",
+  "displayName": "Prometheus",
+  "role": "Planning and foresight: supports objective decomposition and look-ahead",
+  "leasePolicy": { "maxWallTimeMs": 420000, "maxContextUnits": 350000, "maxCostUnits": 120 },
+  "proposalScope": {
+    "kinds": ["plan", "answer", "clarification_request"],
+    "capabilities": []
+  },
+  "modelHints": { "tasks": ["plan", "reason"], "locality": "any" },
+  "notes": "Produces typed Plans (ordered steps with preconditions + expected effects). Each step is a proposal; the Executor and Policy Engine gate it at execution time. The Objective Engine, not this agent, writes objective state."
+}

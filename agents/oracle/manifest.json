@@ -1,0 +1,13 @@
+{
+  "id": "agents.oracle",
+  "version": "0.42.0",
+  "displayName": "Oracle",
+  "role": "General reasoning and question answering over a compiled ContextFrame",
+  "leasePolicy": { "maxWallTimeMs": 120000, "maxContextUnits": 200000, "maxCostUnits": 50 },
+  "proposalScope": {
+    "kinds": ["answer", "plan", "clarification_request", "fact_extraction"],
+    "capabilities": []
+  },
+  "modelHints": { "tasks": ["reason"], "locality": "any" },
+  "notes": "Proposes; never acts. Output is untrusted until the Validator passes it. May emit fact_extraction candidates for World Model ingestion (re-validated there)."
+}

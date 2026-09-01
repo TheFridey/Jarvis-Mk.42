@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.next/
+target/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+coverage/
+.turbo/
+.pnpm-store/
+
+# superpowers SDD scratch
+.superpowers/

@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@jarvis/contracts": ["packages/contracts/src/index.ts"],
+      "@jarvis/validation": ["packages/validation/src/index.ts"],
+      "@jarvis/persistence": ["packages/persistence/src/index.ts"],
+      "@jarvis/telemetry": ["packages/telemetry/src/index.ts"],
+      "@jarvis/testkit": ["packages/testkit/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/test/**/*.ts",
+    "apps/*/src/**/*.ts",
+    "apps/*/test/**/*.ts",
+    "*.config.ts",
+    "eslint.config.js"
+  ],
+  "exclude": ["node_modules", "**/dist", "**/.next", "target"]
+}

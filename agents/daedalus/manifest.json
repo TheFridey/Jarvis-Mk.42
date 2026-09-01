@@ -1,0 +1,13 @@
+{
+  "id": "agents.daedalus",
+  "version": "0.42.0",
+  "displayName": "Daedalus",
+  "role": "Design and architecture reasoning; constructs simulation scenarios",
+  "leasePolicy": { "maxWallTimeMs": 600000, "maxContextUnits": 400000, "maxCostUnits": 160 },
+  "proposalScope": {
+    "kinds": ["answer", "plan", "draft", "clarification_request"],
+    "capabilities": []
+  },
+  "modelHints": { "tasks": ["reason", "plan"], "locality": "any" },
+  "notes": "May request capability simulate runs (via a plan step) to ground predictions; simulate executes under the Executor's dry-run credential scope. Proposes no real effects."
+}

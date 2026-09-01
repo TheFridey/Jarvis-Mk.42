@@ -1,0 +1,28 @@
+%% The single Capability Executor pipeline — the only path to an effect.
+%% See ../AGENCY_MODEL.md §3.
+flowchart TB
+    IN[Validated invocation intent\n(from Proposal / Objective / Command)] --> RC[Resolve riskClass + required authority tier]
+    RC --> POL[Policy Engine\ndeterministic: ALLOW / DENY / REQUIRE_APPROVAL]
+    POL -->|DENY| S1[[emit capability.denied]]
+    POL -->|REQUIRE_APPROVAL| APR{Operator approval\n(+ simulated effect if available)}
+    APR -->|reject| S2[[emit capability.denied]]
+    APR -->|timeout / unreachable| FC[[FAIL CLOSED: queue, do not execute\nunless standing grant allows]]
+    POL -->|ALLOW| MINT
+    APR -->|approve| MINT[Permission Engine\nmint scoped TTL authority token]
+    MINT --> BAR[Freshness barrier:\nre-read grant version in same tx as capability.started]
+    BAR -->|grant stale / revoked| S3[[emit capability.aborted]]
+    BAR --> LEASE[Acquire resourceKey lease if declared]
+    LEASE --> SIM{riskClass >= HIGH?}
+    SIM -->|yes & simulatable| SR[adapter.simulate under dry-run cred\n-> predicted effect -> approval]
+    SIM -->|yes & not simulatable| ESC[Escalate approval:\n'no simulation available']
+    SIM -->|no| EXEC
+    SR --> EXEC[adapter.execute\nout-of-process · scoped cred · wall-time cap]
+    ESC --> EXEC
+    EXEC --> VER[adapter.verify\nagainst the world — mandatory]
+    VER -->|verified| OK[[emit capability.verified\n+ World Model facts (observed)\n+ release lease]]
+    VER -->|failed & reversible| RB[adapter.rollback] --> RBD[[emit capability.rolled_back]]
+    VER -->|failed & irreversible| AL[[emit capability.verification_failed\n-> Health + Notification + Audit]]
+
+    subgraph multi["Multi-step actions"]
+        MS[per-step verify + compensate;\ncrash mid-action -> saga compensation on restart\n(capability.started with no terminal event)]
+    end

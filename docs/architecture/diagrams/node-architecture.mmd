@@ -1,0 +1,43 @@
+%% Node architecture. MK.42 = 2 nodes. Future node types attach via the same Node Protocol.
+%% See ../SYSTEM_BOUNDARIES.md §9 and ../../protocols/node-protocol.md.
+flowchart TB
+    subgraph MK42["MK.42 — Docker Compose, LAN"]
+        subgraph WS["Workstation node — trust: owned-secure"]
+            SHELL[Tauri desktop shell]
+            VOICE[apps/voice]
+            VISION[apps/vision]
+            TELE[screen/cursor telemetry]
+            WINCAP[windows capability adapter]
+            DIAG[diagnostics UI]
+        end
+        subgraph LS["Local server node — trust: kernel-local"]
+            CORE[apps/core — Kernel]
+            GW[apps/gateway]
+            PG[(PostgreSQL + pgvector)]
+            RDS[(Redis)]
+            NATS[(NATS JetStream)]
+            OBJ[(MinIO)]
+            OTEL[(OTel collector)]
+            POOL[agent worker pool]
+            ADAPT[filesystem / terminal / github / docker / web / browser / scalesmiths adapters]
+        end
+    end
+
+    subgraph FUTURE["Future node types — same Node Protocol, no Kernel change"]
+        PHONE[Phone / tablet — owned-mobile]
+        DISPLAY[TV / display — owned-secure or guest]
+        GPUN[GPU / edge node — local inference]
+        AR[AR headset — pose/gaze/hands + spatial UI surface]
+        ROBOT[Robot / device controller — CRITICAL capabilities]
+        RELAY[apps/relay — edge termination for off-LAN nodes]
+    end
+
+    WS -- "mTLS WebSocket / NATS:\nauth, declare sensors+capabilities, heartbeat, scoped subscriptions" --> LS
+    CLOUD[Cloud model APIs] <-- "inference only" --> GW
+
+    PHONE -.-> LS
+    DISPLAY -.-> LS
+    GPUN -.-> LS
+    AR -.-> LS
+    ROBOT -.-> LS
+    PHONE -.via.-> RELAY -.-> LS

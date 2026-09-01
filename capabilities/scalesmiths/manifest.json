@@ -1,0 +1,32 @@
+{
+  "id": "capabilities.scalesmiths",
+  "version": "0.42.0",
+  "requiredScopes": ["scalesmiths:ops"],
+  "trustTierMin": "kernel-local",
+  "notes": "ScaleSmiths is modelled as a first-class business entity in the World Model (WORLD_MODEL.md §1). This adapter is how JARVIS acts on its behalf. It crosses a trust boundary to external ScaleSmiths systems with its own scoped credentials, distinct from every other adapter's. Concrete actions are defined as the integration surface is built out (ROADMAP.md MK.50).",
+  "actions": [
+    {
+      "name": "read_business_state",
+      "inputSchema": { "type": "object", "properties": { "domain": { "type": "string", "enum": ["projects", "infrastructure", "people", "software", "accounts"] } }, "required": ["domain"] },
+      "outputSchema": { "type": "object" },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": true,
+      "verify": "verifyResponseShape",
+      "idempotent": true,
+      "sideEffects": ["reads ScaleSmiths operational state via a scoped integration credential"]
+    },
+    {
+      "name": "apply_operational_change",
+      "inputSchema": { "type": "object", "properties": { "domain": { "type": "string" }, "change": { "type": "object" } }, "required": ["domain", "change"] },
+      "outputSchema": { "type": "object" },
+      "riskClass": "CRITICAL",
+      "reversible": false,
+      "simulate": "simulateBusinessChange",
+      "simulatable": true,
+      "verify": "verifyChangeApplied",
+      "idempotent": false,
+      "sideEffects": ["mutates ScaleSmiths business systems; dual control + simulate-first"]
+    }
+  ]
+}

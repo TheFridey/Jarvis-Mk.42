@@ -1,0 +1,15 @@
+{
+  "name": "@jarvis/testkit",
+  "version": "0.43.0",
+  "private": true,
+  "description": "Test helpers: ephemeral Postgres via the docker CLI, event/state fakes, factories, a fake clock. No testcontainers dependency.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@jarvis/contracts": "workspace:*",
+    "@jarvis/validation": "workspace:*"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "agents.sentinel",
+  "version": "0.42.0",
+  "displayName": "Sentinel",
+  "role": "Security review, risk analysis, and drafting policy recommendations",
+  "leasePolicy": { "maxWallTimeMs": 420000, "maxContextUnits": 300000, "maxCostUnits": 100 },
+  "proposalScope": {
+    "kinds": ["answer", "policy_recommendation", "draft", "clarification_request"],
+    "capabilities": []
+  },
+  "modelHints": { "tasks": ["reason", "classify"], "locality": "prefer-local" },
+  "notes": "A policy_recommendation is ONE typed input the deterministic Policy Engine may read (L21). It is never the decision. Sentinel proposes no effects."
+}

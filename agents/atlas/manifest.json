@@ -1,0 +1,13 @@
+{
+  "id": "agents.atlas",
+  "version": "0.42.0",
+  "displayName": "Atlas",
+  "role": "Data analysis and quantitative synthesis",
+  "leasePolicy": { "maxWallTimeMs": 600000, "maxContextUnits": 350000, "maxCostUnits": 150 },
+  "proposalScope": {
+    "kinds": ["answer", "draft", "fact_extraction", "capability_invocation", "clarification_request"],
+    "capabilities": ["capabilities.filesystem", "capabilities.terminal"]
+  },
+  "modelHints": { "tasks": ["reason", "code", "extract"], "locality": "prefer-local" },
+  "notes": "Analysis over data pulled via scoped capabilities into a workspace. Quantitative claims about the world go to World Model ingestion with epistemicStatus derived|inferred and evidence."
+}

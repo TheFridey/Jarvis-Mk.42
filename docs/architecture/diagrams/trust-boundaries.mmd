@@ -1,0 +1,37 @@
+%% Trust boundaries. Model/agent/web output is untrusted input. Security is architectural (L30).
+%% See ../SECURITY_MODEL.md.
+flowchart TB
+    subgraph U["UNTRUSTED — validate before ANY influence"]
+        WEB[Web / fetched content\ntagged origin + untrusted]
+        MO[Model output]
+        AO[Agent output — pre-validation]
+        EXT[External API responses]
+        GN[Guest / mobile node input]
+    end
+
+    subgraph S["SEMI-TRUSTED — authenticated · scoped · sandboxed"]
+        GW[Model Gateway\nholds provider keys ONLY]
+        AD[Capability adapters\nown scoped resource cred ONLY]
+        PP[Perception processes\npublish jarvis.perception.> ONLY]
+        ND[Owned nodes\ndeclared trust tier]
+    end
+
+    subgraph T["TRUSTED — the spine"]
+        K[Kernel components]
+        PE[Policy + Permission Engines\ndeterministic]
+        DB[(PostgreSQL: events · projections · world_model · memory · audit)]
+        AU[Audit Manager — append-only]
+    end
+
+    U -->|Validator: schema + safety + provenance tagging| S
+    S -->|typed contracts + events + scoped creds| T
+    MO -. holds NO credentials · cannot call capabilities · cannot write state\n=> jailbreak escalates to nothing .-> K
+    WEB -. any Proposal derived from this => derivedFromUntrusted=true\n=> cannot justify action > riskClass LOW .-> PE
+
+    subgraph creds["Credential partitioning"]
+        c1[Kernel: DB + NATS(ledger) creds]
+        c2[Gateway: provider API keys]
+        c3[Each adapter: its own scoped resource cred]
+        c4[Agents: NOTHING]
+        c5[Experience surfaces: scoped session token]
+    end

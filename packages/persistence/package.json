@@ -1,0 +1,19 @@
+{
+  "name": "@jarvis/persistence",
+  "version": "0.43.0",
+  "private": true,
+  "description": "PostgreSQL access for the Kernel: connection pool, Drizzle schema for typed reads, and a SQL migration runner. PostgreSQL is the only authoritative store (ADR-0002).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "db:migrate": "tsx src/migrate-cli.ts"
+  },
+  "dependencies": {
+    "@jarvis/contracts": "workspace:*",
+    "drizzle-orm": "^0.36.4",
+    "postgres": "^3.4.5"
+  }
+}

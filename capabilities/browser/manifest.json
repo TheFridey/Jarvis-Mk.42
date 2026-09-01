@@ -1,0 +1,32 @@
+{
+  "id": "capabilities.browser",
+  "version": "0.42.0",
+  "requiredScopes": ["browser:session"],
+  "trustTierMin": "owned-secure",
+  "resourceKeySelector": "$.sessionId",
+  "actions": [
+    {
+      "name": "navigate",
+      "inputSchema": { "type": "object", "properties": { "sessionId": { "type": "string" }, "url": { "type": "string" } }, "required": ["sessionId", "url"] },
+      "outputSchema": { "type": "object", "properties": { "finalUrl": { "type": "string" }, "title": { "type": "string" } } },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": true,
+      "verify": "verifyPageLoaded",
+      "idempotent": true,
+      "sideEffects": ["loads a page in a controlled browser session; captured content is tagged untrusted"]
+    },
+    {
+      "name": "act",
+      "inputSchema": { "type": "object", "properties": { "sessionId": { "type": "string" }, "steps": { "type": "array" } }, "required": ["sessionId", "steps"] },
+      "outputSchema": { "type": "object" },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulate": "simulateInteractionPlan",
+      "simulatable": true,
+      "verify": "verifyExpectedDomState",
+      "idempotent": false,
+      "sideEffects": ["performs clicks / form fills / submissions that may cause remote side effects"]
+    }
+  ]
+}

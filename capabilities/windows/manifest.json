@@ -1,0 +1,32 @@
+{
+  "id": "capabilities.windows",
+  "version": "0.42.0",
+  "requiredScopes": ["os:workstation"],
+  "trustTierMin": "owned-secure",
+  "actions": [
+    {
+      "name": "focus_window",
+      "inputSchema": { "type": "object", "properties": { "windowRef": { "type": "string" } }, "required": ["windowRef"] },
+      "outputSchema": { "type": "object", "properties": { "focused": { "type": "boolean" } } },
+      "riskClass": "LOW",
+      "reversible": true,
+      "rollback": "restorePreviousFocus",
+      "simulatable": true,
+      "verify": "verifyWindowFocused",
+      "idempotent": true,
+      "sideEffects": ["changes the foreground window on the workstation"]
+    },
+    {
+      "name": "send_input",
+      "inputSchema": { "type": "object", "properties": { "windowRef": { "type": "string" }, "events": { "type": "array" } }, "required": ["windowRef", "events"] },
+      "outputSchema": { "type": "object" },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulate": "describeSyntheticInput",
+      "simulatable": true,
+      "verify": "verifyExpectedUiState",
+      "idempotent": false,
+      "sideEffects": ["injects synthetic keyboard/mouse input into an application"]
+    }
+  ]
+}

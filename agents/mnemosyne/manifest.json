@@ -1,0 +1,13 @@
+{
+  "id": "agents.mnemosyne",
+  "version": "0.42.0",
+  "displayName": "Mnemosyne",
+  "role": "Memory curation: summarisation, episode linking, decay proposals",
+  "leasePolicy": { "maxWallTimeMs": 300000, "maxContextUnits": 300000, "maxCostUnits": 80 },
+  "proposalScope": {
+    "kinds": ["draft", "fact_extraction", "clarification_request"],
+    "capabilities": []
+  },
+  "modelHints": { "tasks": ["summarize", "extract"], "locality": "prefer-local" },
+  "notes": "Proposes Memory summaries, links, and decay candidates; the Memory service applies them. May propose fact_extraction of durable beliefs implied by episodes (World Model ingestion re-validates, evidence points at the episode)."
+}

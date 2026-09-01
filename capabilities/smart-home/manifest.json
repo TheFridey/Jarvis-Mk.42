@@ -1,0 +1,9 @@
+{
+  "id": "capabilities.smart-home",
+  "version": "0.0.0-future",
+  "status": "PLACEHOLDER — not registered in MK.42",
+  "requiredScopes": ["devices:control"],
+  "trustTierMin": "owned-secure",
+  "notes": "Future (ROADMAP.md MK.51+ / MK.80+ for robotics). Physical device control and, later, robot motion. Every action here will be riskClass HIGH or CRITICAL: simulate-first mandatory, physical-world verification, dual control for motion. The Executor pipeline already gates it — no new mechanism is needed, only a manifest, an adapter on a device/robot node, and new observation types.",
+  "actions": []
+}

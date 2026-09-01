@@ -1,0 +1,15 @@
+{
+  "name": "@jarvis/validation",
+  "version": "0.43.0",
+  "private": true,
+  "description": "The Validator: zod schemas + validators for every contract that crosses a JARVIS boundary. Sits on every untrusted -> Kernel path (SECURITY_MODEL.md sec 4).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@jarvis/contracts": "workspace:*",
+    "zod": "^3.23.8"
+  }
+}

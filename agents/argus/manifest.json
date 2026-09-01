@@ -1,0 +1,13 @@
+{
+  "id": "agents.argus",
+  "version": "0.42.0",
+  "displayName": "Argus",
+  "role": "Monitoring and watch tasks: surfaces anomalies over telemetry and the event stream",
+  "leasePolicy": { "maxWallTimeMs": 300000, "maxContextUnits": 250000, "maxCostUnits": 60 },
+  "proposalScope": {
+    "kinds": ["answer", "clarification_request", "capability_invocation"],
+    "capabilities": ["capabilities.docker", "capabilities.github"]
+  },
+  "modelHints": { "tasks": ["classify", "reason"], "locality": "prefer-local" },
+  "notes": "Reads telemetry and events (read-only). Surfaces findings as Proposals / notifications; any remediation is a proposed capability invocation, gated normally."
+}

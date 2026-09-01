@@ -1,0 +1,33 @@
+{
+  "id": "capabilities.filesystem",
+  "version": "0.42.0",
+  "requiredScopes": ["fs:workspace"],
+  "trustTierMin": "owned-secure",
+  "resourceKeySelector": "$.path",
+  "actions": [
+    {
+      "name": "read_file",
+      "inputSchema": { "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"] },
+      "outputSchema": { "type": "object", "properties": { "content": { "type": "string" }, "hash": { "type": "string" } } },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": true,
+      "verify": "verifyReadReturnedContent",
+      "idempotent": true,
+      "sideEffects": ["reads a file within the workspace root"]
+    },
+    {
+      "name": "write_file",
+      "inputSchema": { "type": "object", "properties": { "path": { "type": "string" }, "content": { "type": "string" } }, "required": ["path", "content"] },
+      "outputSchema": { "type": "object", "properties": { "hash": { "type": "string" } } },
+      "riskClass": "MEDIUM",
+      "reversible": true,
+      "rollback": "restorePreviousFileContent",
+      "simulate": "simulateWriteDiff",
+      "simulatable": true,
+      "verify": "verifyFileHashMatches",
+      "idempotent": true,
+      "sideEffects": ["creates or overwrites a file within the workspace root"]
+    }
+  ]
+}
