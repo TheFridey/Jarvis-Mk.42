@@ -15,3 +15,6 @@ coverage/
 
 # superpowers SDD scratch
 .superpowers/
+
+# git worktrees
+.worktrees/
