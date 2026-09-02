@@ -46,7 +46,7 @@ create table events.events_memory_candidate partition of events.events for value
 create table events.events_security         partition of events.events for values in ('SECURITY');
 create table events.events_diagnostic       partition of events.events for values in ('DIAGNOSTIC');
 
-create unique index events_global_seq_uq on events.events (global_seq);
+create unique index events_global_seq_uq on events.events (retention_class, global_seq);
 create index events_subject_idx      on events.events (subject_kind, subject_id, global_seq);
 create index events_correlation_idx  on events.events (correlation_id);
 create index events_causation_idx    on events.events (causation_id);
