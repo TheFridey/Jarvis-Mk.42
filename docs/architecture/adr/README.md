@@ -55,3 +55,6 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0018](0018-structural-injection-defense.md) | Structural (not prompt) prompt-injection defense | Accepted | High |
 | [0019](0019-operating-modes.md) | JARVIS operating modes (7-mode state machine) | Accepted | Low |
 | [0020](0020-knowledge-subsystem-boundary.md) | Knowledge subsystem boundary (ATLAS / MNEMOSYNE) | Accepted | Moderate |
+| [0021](0021-causal-hypothesis-model.md) | Causal hypothesis model — foundations only | Accepted | Low |
+| [0022](0022-memory-consolidation.md) | Memory consolidation ("DREAMING") | Accepted | Low |
+| [0023](0023-memory-retrieval-ranking.md) | Memory retrieval ranking — seven factors | Accepted | Low |
