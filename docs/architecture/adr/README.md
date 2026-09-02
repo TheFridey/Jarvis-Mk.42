@@ -54,3 +54,4 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0017](0017-authoritative-state-ownership.md) | Single authoritative state, Kernel-owned | Accepted | Severe |
 | [0018](0018-structural-injection-defense.md) | Structural (not prompt) prompt-injection defense | Accepted | High |
 | [0019](0019-operating-modes.md) | JARVIS operating modes (7-mode state machine) | Accepted | Low |
+| [0020](0020-knowledge-subsystem-boundary.md) | Knowledge subsystem boundary (ATLAS / MNEMOSYNE) | Accepted | Moderate |
