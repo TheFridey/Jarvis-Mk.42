@@ -1,0 +1,34 @@
+%% How knowledge gets in: one mediator, routed to ATLAS and/or MNEMOSYNE as
+%% SEPARATE records. Writers: Knowledge Ingestion only. See ../ATLAS_MODEL.md,
+%% ../MNEMOSYNE_MODEL.md, ../adr/0020-knowledge-subsystem-boundary.md.
+flowchart TB
+    subgraph inputs["Inputs (never write atlas.* / mnemosyne.* directly)"]
+        OBS[Perception observation events]
+        PROP[Validated cognition proposal]
+        ASSERT[Principal assertion -> Command]
+        CONS[DREAMING consolidation proposal]
+    end
+
+    OBS --> KI[Knowledge Ingestion (Kernel-internal, sole writer)]
+    PROP --> KI
+    ASSERT --> KI
+    CONS --> KI
+
+    KI --> STAMP[stamp provenance + privacyClass + untrusted tag]
+    STAMP --> ER[entity resolution (once)]
+    ER --> ROUTE{route by IngestionKind}
+
+    ROUTE -->|observation| AOBS[(atlas.observations)]
+    ROUTE -->|extracted fact| AFACT[dedupe / supersede / conflict]
+    ROUTE -->|episode| MEPI[(mnemosyne.episodes)]
+    ROUTE -->|fact + experience| BOTH[atlas fact + mnemosyne episode\ncross-linked by evidence.ref]
+
+    AFACT -->|new / refines| AF[(atlas.facts + evidence)]
+    AFACT -->|contradicts| AC[(atlas.conflicts — no overwrite)]
+    BOTH --> AF
+    BOTH --> MEPI
+
+    AF --> E1[[emit jarvis.world.fact.asserted / superseded]]
+    AC --> E2[[emit jarvis.world.conflict.recorded]]
+    MEPI --> E3[[emit jarvis.memory.episode.recorded]]
+    AOBS --> E4[[promotion evaluator (scheduled) -> proposal, not a direct write]]

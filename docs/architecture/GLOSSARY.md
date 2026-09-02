@@ -127,6 +127,39 @@ optional spatial extent.
 **Episode** — a bounded slice of experience stored in Memory, with time
 bounds, participants, and a link back to its source events.
 
+**ATLAS** — the implemented name for the temporal World Model subsystem (MK.46).
+Schema `atlas`. Not to be confused with the `atlas` agent (data analysis) —
+capitalised ATLAS is the subsystem, lower-case `atlas` is a disposable worker.
+
+**MNEMOSYNE** — the implemented name for the Memory subsystem (MK.46). Schema
+`mnemosyne`. Not to be confused with the `mnemosyne` agent (memory curation) —
+capitalised MNEMOSYNE is the subsystem, lower-case `mnemosyne` is a disposable
+worker.
+
+**Knowledge Ingestion** — the Kernel-internal protected service that is the sole
+writer to `atlas.*` and `mnemosyne.*` (ADR-0020). Executor-class: protected, not
+one of the frozen 16.
+
+**RelationKind** — the four-rung ladder for `atlas.causal_hypotheses`:
+`chronological` < `correlated` < `hypothesised_cause` < `established_cause`.
+Cognition may propose at most `hypothesised_cause` (ADR-0021).
+
+**MemoryClass** — one of `episodic`, `semantic`, `procedural`, `preference` (the
+four durable, schema-backed MNEMOSYNE classes). `working` / `session` / `spatial`
+memory are pointers to other Kernel owners; `entity memory` is a query.
+
+**Memory Candidate** — a scored, not-yet-accepted item in
+`mnemosyne.candidates`. Disposition: `accepted | merged | rejected | expired |
+deferred`. Nothing becomes an Episode without passing this gate.
+
+**DREAMING** — the internal nickname for MNEMOSYNE's scheduled offline
+consolidation routine (ADR-0022). Knowledge consolidation, not consciousness.
+Emits proposals only.
+
+**Morning Insight** — MNEMOSYNE surfacing "I noticed something overnight" via the
+Notification Manager, only for real, evidence-backed, threshold-significant,
+context-relevant, not-already-surfaced insights.
+
 ## Cognition
 
 **Model Gateway** — the single egress point to all inference providers

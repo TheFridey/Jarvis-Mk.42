@@ -15,3 +15,5 @@ subject; these files are the standalone copies for rendering / editing.
 | `world-model-interactions.mmd` | Inputs → ingestion → facts/evidence → queries | `WORLD_MODEL.md` |
 | `node-architecture.mmd` | MK.42 nodes + future node types via the Node Protocol | `SYSTEM_BOUNDARIES.md` §9 |
 | `trust-boundaries.mmd` | Untrusted / semi-trusted / trusted zones + crossings | `SECURITY_MODEL.md` |
+| `atlas-ingestion.mmd` | Knowledge ingestion: one mediator routed to ATLAS and/or MNEMOSYNE as separate records | `ATLAS_MODEL.md` |
+| `mnemosyne-consolidation.mmd` | DREAMING consolidation: reads broadly, emits proposals through Knowledge Ingestion | `MNEMOSYNE_MODEL.md` |

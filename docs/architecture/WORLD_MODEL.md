@@ -1,5 +1,12 @@
 # World Model
 
+> **Superseded by [`ATLAS_MODEL.md`](ATLAS_MODEL.md) (MK.46).** ATLAS is the
+> implemented name for the World Model subsystem. This document is retained for
+> historical context (the GENESIS sketch) and for the `world_model` → `atlas`
+> schema rename recorded in [ADR-0020](adr/0020-knowledge-subsystem-boundary.md).
+
+<details><summary>Historical GENESIS sketch</summary>
+
 The current, structured, provenance-bearing model of the world. Answers "what
 is true now, and why" (L8, L11–L17).
 
@@ -192,3 +199,5 @@ This is what lets JARVIS reason about change over time rather than only "now".
 - **Eventual**: fact attributes, evidence graph, entity-resolution similarity
   links. `ContextFrame`s carry a freshness hint so cognition knows the World
   Model may be seconds behind the latest observation.
+
+</details>

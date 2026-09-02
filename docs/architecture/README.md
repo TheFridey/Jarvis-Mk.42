@@ -16,15 +16,17 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 6 | [`DATA_OWNERSHIP.md`](DATA_OWNERSHIP.md) | The definitive owner of every category of state; consistency requirements |
 | 7 | [`STATE_MODEL.md`](STATE_MODEL.md) | Event Log, Projected State, Ephemeral State; event sourcing scope |
 | 8 | [`EVENT_ARCHITECTURE.md`](EVENT_ARCHITECTURE.md) | Envelope, subjects, outbox, ordering, idempotency, retention |
-| 9 | [`WORLD_MODEL.md`](WORLD_MODEL.md) | Entities, facts, evidence, provenance, confidence, temporal validity, belief revision |
-| 10 | [`COGNITION_MODEL.md`](COGNITION_MODEL.md) | Model Gateway, reasoning, agents, proposals, provider replaceability |
-| 11 | [`PERCEPTION_MODEL.md`](PERCEPTION_MODEL.md) | Sensors → observations; local-first; the perception/cognition wall |
-| 12 | [`AGENCY_MODEL.md`](AGENCY_MODEL.md) | Capabilities, the Executor pipeline, simulation, verification, rollback |
-| 13 | [`SECURITY_MODEL.md`](SECURITY_MODEL.md) | Trust boundaries, risk→authority tiers, structural injection defense, audit |
-| 14 | [`LOCALITY_MODEL.md`](LOCALITY_MODEL.md) | What runs on-device vs local server vs cloud, and why |
-| 15 | [`FAILURE_MODEL.md`](FAILURE_MODEL.md) | Degradation ladder for every dependency failure |
-| 16 | [`ROADMAP.md`](ROADMAP.md) | MK.42 → MK.100 evolution without foundation loss |
-| 17 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
+| 9 | [`WORLD_MODEL.md`](WORLD_MODEL.md) | Entities, facts, evidence, provenance, confidence, temporal validity, belief revision (superseded by `ATLAS_MODEL.md`) |
+| 10 | [`ATLAS_MODEL.md`](ATLAS_MODEL.md) | ATLAS — the temporal world model: `atlas.*` schema, promotion pipeline, causal hypotheses, `AtlasQuery` (MK.46) |
+| 11 | [`MNEMOSYNE_MODEL.md`](MNEMOSYNE_MODEL.md) | MNEMOSYNE — memory: durable classes, candidate pipeline, DREAMING consolidation, seven-factor recall (MK.46) |
+| 12 | [`COGNITION_MODEL.md`](COGNITION_MODEL.md) | Model Gateway, reasoning, agents, proposals, provider replaceability |
+| 13 | [`PERCEPTION_MODEL.md`](PERCEPTION_MODEL.md) | Sensors → observations; local-first; the perception/cognition wall |
+| 14 | [`AGENCY_MODEL.md`](AGENCY_MODEL.md) | Capabilities, the Executor pipeline, simulation, verification, rollback |
+| 15 | [`SECURITY_MODEL.md`](SECURITY_MODEL.md) | Trust boundaries, risk→authority tiers, structural injection defense, audit |
+| 16 | [`LOCALITY_MODEL.md`](LOCALITY_MODEL.md) | What runs on-device vs local server vs cloud, and why |
+| 17 | [`FAILURE_MODEL.md`](FAILURE_MODEL.md) | Degradation ladder for every dependency failure |
+| 18 | [`ROADMAP.md`](ROADMAP.md) | MK.42 → MK.100 evolution without foundation loss |
+| 19 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
 
 ## Decision records
 

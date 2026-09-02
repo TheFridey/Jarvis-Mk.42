@@ -1,0 +1,30 @@
+%% DREAMING: a scheduled routine that READS broadly and emits PROPOSALS ONLY,
+%% back through Knowledge Ingestion. It never writes atlas.* / mnemosyne.*
+%% directly. See ../MNEMOSYNE_MODEL.md, ../adr/0022-memory-consolidation.md.
+flowchart TB
+    SCHED[Scheduler: memory.consolidate routine (off-peak)] --> RUN[Consolidation pass]
+
+    subgraph reads["Reads (no writes)"]
+        EVT[events]
+        EPI[mnemosyne.episodes]
+        CAND[mnemosyne.candidates]
+        OBJ[objective progress]
+        PROC[mnemosyne.procedures]
+        WM[working memory (Redis)]
+    end
+    reads --> RUN
+
+    RUN --> OPS{deterministic rules (MK.46)\n+ mnemosyne agent (post-MK.45)}
+    OPS --> P1[compress repetition / merge duplicates]
+    OPS --> P2[promote durable knowledge -> semantic]
+    OPS --> P3[strengthen supported / decay stale]
+    OPS --> P4[surface contradictions -> ATLAS conflict]
+    OPS --> P5[update procedures]
+    OPS --> P6[candidate insights (evidence mandatory)]
+
+    P1 & P2 & P3 & P4 & P5 & P6 --> KI[Knowledge Ingestion (proposals only)]
+    RUN --> LOG[(mnemosyne.consolidation_runs)]
+    P6 --> INS[(mnemosyne.insights)]
+    INS --> GATE{surfacing gate:\nsignificance >= threshold AND relevant\nAND not surfaced AND evidence-backed}
+    GATE -->|pass| NOTIFY[[emit jarvis.memory.insight.available -> Notification Manager]]
+    GATE -->|fail / none| HOLD[no notification — the normal case]

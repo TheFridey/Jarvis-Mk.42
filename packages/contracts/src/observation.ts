@@ -8,7 +8,7 @@
  * write the World Model or call a reasoning model (L7).
  */
 
-import type { NodeId, Timestamp, Ulid } from './common.ts';
+import type { NodeId, PrincipalId, Timestamp, Ulid } from './common.ts';
 
 /** Coarse family of the sensed signal. */
 export type ObservationDomain =
@@ -58,4 +58,47 @@ export interface ObservationRef {
   type: string;
   observedAt: Timestamp;
   summary: string;
+}
+
+/**
+ * AtlasObservation — the row ATLAS keeps as a durable index into a (soon to
+ * expire) perception signal event. Distinct from `Observation` above:
+ * `Observation` is what perception emits; `AtlasObservation` is what the
+ * Knowledge Ingestion mediator writes to `atlas.observations`.
+ *
+ * Not all observations become Facts. A scheduled promotion evaluator aggregates
+ * corroborating rows and, above threshold, PROPOSES a fact — it never writes one
+ * directly (ATLAS_MODEL.md §Observation layer).
+ */
+export interface AtlasObservation {
+  id: Ulid;
+
+  /** The perception signal event this indexes. May already be expired. */
+  eventId: Ulid;
+
+  kind: string;
+  summary: string;
+
+  /** Producing component / sensor id. */
+  source: string;
+
+  /** Node whose sensor produced the underlying signal. */
+  node: NodeId;
+
+  observedAt: Timestamp;
+  confidence: number;
+
+  location?: { spaceId: string; ref?: string };
+
+  /** Object-storage reference to the evidence artifact (frame, clip), if any. */
+  rawRef?: string;
+
+  /** Rolling window. Unpromoted observations are dropped past this. */
+  expiresAt: Timestamp;
+
+  /** Set once the promotion evaluator's proposal produced a fact. */
+  promotedToFactId?: Ulid;
+
+  /** Scoping key (L34). `atlas.observations.principal_id` is `not null`. */
+  principalId: PrincipalId;
 }

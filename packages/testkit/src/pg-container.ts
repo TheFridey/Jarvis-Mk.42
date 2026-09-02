@@ -11,8 +11,14 @@
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
+import postgres from 'postgres';
 
 const execFile = promisify(execFileCb);
+
+/** Thrown by the host-side connectivity probe loop when the published port never
+ *  becomes connectable. A sentinel class so the outer readiness loop can
+ *  re-throw it by `instanceof` rather than matching a message string. */
+class ProbeUnreachable extends Error {}
 
 export async function isDockerAvailable(): Promise<boolean> {
   if (process.env.JARVIS_TEST_DB_URL) return true;
@@ -64,10 +70,31 @@ export async function startEphemeralPg(): Promise<EphemeralPg> {
     try {
       const { stdout } = await execFile('docker', ['exec', name, 'pg_isready', '-U', 'jarvis', '-d', 'jarvis']);
       if (/accepting connections/.test(stdout)) {
-        await delay(500);
-        return { url, stop };
+        // pg_isready says the server is up *inside* the container; now confirm the
+        // published port is actually connectable from the host before handing back the url.
+        for (let attempt = 1; ; attempt++) {
+          const probe = postgres(url, { max: 1, connect_timeout: 5, onnotice: () => undefined });
+          try {
+            await probe`select 1`;
+            await probe.end({ timeout: 5 });
+            return { url, stop };
+          } catch {
+            await probe.end({ timeout: 5 }).catch(() => undefined);
+            if (attempt >= 20 || Date.now() >= deadline) {
+              await stop();
+              throw new ProbeUnreachable(
+                'ephemeral postgres port not connectable from host after readiness',
+              );
+            }
+            await delay(500);
+          }
+        }
       }
-    } catch {
+    } catch (err) {
+      // If the error is from the probe loop (port not connectable), propagate it.
+      if (err instanceof ProbeUnreachable) {
+        throw err;
+      }
       /* not ready */
     }
     await delay(750);

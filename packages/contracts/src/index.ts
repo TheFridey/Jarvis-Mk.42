@@ -14,6 +14,7 @@ export * from './event-names.ts';
 export * from './entity.ts';
 export * from './fact.ts';
 export * from './observation.ts';
+export * from './causal.ts';
 export * from './context-frame.ts';
 export * from './context.ts';
 export * from './proposal.ts';
@@ -35,3 +36,14 @@ export * from './scheduler.ts';
 export * from './notification.ts';
 export * from './state.ts';
 export * from './diagnostics.ts';
+
+// --- Knowledge (MK.46) ---
+// `Episode` is re-exported as `MemoryEpisode` to avoid colliding with the
+// ContextFrame `Episode` in context-frame.ts. Import from './memory.ts' directly
+// for the unaliased name.
+export type { MemoryClass, Episode as MemoryEpisode, SemanticMemory, ProcedureStep, Procedure, Preference } from './memory.ts';
+export * from './memory-candidate.ts';
+export * from './memory-insight.ts';
+export * from './knowledge-ingestion.ts';
+export * from './atlas-query.ts';
+export * from './memory-recall.ts';

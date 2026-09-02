@@ -52,6 +52,22 @@ export const EventNames = {
   // --- Event fabric self-observations ---
   EventRejected: 'jarvis.kernel.event.rejected',
   EventDeadLettered: 'jarvis.kernel.event.dead_lettered',
+
+  // --- World (ATLAS beliefs) — MK.46 ---
+  WorldFactAsserted: 'jarvis.world.fact.asserted',
+  WorldFactSuperseded: 'jarvis.world.fact.superseded',
+  WorldConflictRecorded: 'jarvis.world.conflict.recorded',
+  WorldEntityMerged: 'jarvis.world.entity.merged',
+  WorldForgotten: 'jarvis.world.record.forgotten',
+  WorldCausalHypothesised: 'jarvis.world.causal.hypothesised',
+
+  // --- Memory (MNEMOSYNE experience) — MK.46 ---
+  MemoryEpisodeRecorded: 'jarvis.memory.episode.recorded',
+  MemoryCandidateScored: 'jarvis.memory.candidate.scored',
+  MemoryCandidateDisposed: 'jarvis.memory.candidate.disposed',
+  MemoryConsolidationCompleted: 'jarvis.memory.consolidation.completed',
+  MemoryInsightAvailable: 'jarvis.memory.insight.available',
+  MemoryForgotten: 'jarvis.memory.record.forgotten',
 } as const;
 
 export type EventName = (typeof EventNames)[keyof typeof EventNames];

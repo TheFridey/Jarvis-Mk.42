@@ -68,6 +68,13 @@ Memory (episodes, recall, decay) as separate schemas/services. Ingestion
 pipeline. `mnemosyne`. **Exit**: every fact has provenance+confidence; "I don't
 know" is a real answer; conflict recorded not overwritten.
 
+**Status (2026-09-01):** Foundation landed — contracts (`causal`, `memory`,
+`memory-candidate`, `memory-insight`, `knowledge-ingestion`, `atlas-query`,
+`memory-recall`; `entity`/`fact`/`observation` extended), schemas `atlas` +
+`mnemosyne` (migrations 0005/0006), ADR-0020..0023, `ATLAS_MODEL.md` +
+`MNEMOSYNE_MODEL.md`. Services (ingestion mediator, ATLAS read/write, MNEMOSYNE
+recall/consolidation/insight) are the next sub-plans.
+
 ### MK.47 — Perception
 `apps/voice` (wake, ASR local), `apps/vision` (presence, hands, pose),
 screen/cursor telemetry, multimodal fusion in the Context Compiler. **Exit**:
