@@ -14,7 +14,7 @@
 
 import type { CorrelationId, PrincipalId, Timestamp, Ulid } from './common.ts';
 import type { EpistemicStatus, Provenance } from './provenance.ts';
-import type { PrivacyClass } from './entity.ts';
+import type { PrivacyClass } from './event.ts';
 
 export type IngestionKind =
   | 'perception_observation'

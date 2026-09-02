@@ -2,6 +2,11 @@
 -- Writers: the Kernel Knowledge Ingestion mediator ONLY.
 -- Schema name is `mnemosyne` (ADR-0020 renames the older `memory` sketch).
 -- NOT authoritative truth. Append + summarise + decay.
+--
+-- Requires a superuser or CREATEROLE connection: this migration runs `create role`
+-- and `grant usage on schema events`. MK.46 runs migrations as the bootstrap
+-- superuser. If migrations later run as a restricted role, move the role DDL to
+-- infrastructure/postgres/init (20-roles.sql).
 
 create schema if not exists mnemosyne;
 create extension if not exists vector;
@@ -19,6 +24,9 @@ create table if not exists mnemosyne.episodes (
   source_event_ids   text[]      not null default '{}',
   salience           double precision not null default 0
                        check (salience >= 0 and salience <= 1),
+  confidence         double precision not null
+                       check (confidence >= 0 and confidence <= 1),
+  provenance         jsonb       not null,
   privacy_class      text        not null default 'INTERNAL'
                        check (privacy_class in ('PUBLIC','INTERNAL','SENSITIVE','RESTRICTED')),
   scene_ref          text,
@@ -39,6 +47,7 @@ create table if not exists mnemosyne.semantic (
   id                 text        primary key,
   statement          text        not null,
   confidence         double precision not null check (confidence >= 0 and confidence <= 1),
+  provenance         jsonb       not null,
   source_episode_ids text[]      not null default '{}',
   privacy_class      text        not null default 'INTERNAL'
                        check (privacy_class in ('PUBLIC','INTERNAL','SENSITIVE','RESTRICTED')),
@@ -118,6 +127,7 @@ create table if not exists mnemosyne.insights (
   id                   text        primary key,
   statement            text        not null,
   significance         double precision not null check (significance >= 0 and significance <= 1),
+  provenance           jsonb       not null,
   evidence             text[]      not null,
   surfaced             boolean     not null default false,
   surfaced_at          timestamptz,

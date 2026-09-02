@@ -1,6 +1,11 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { isDockerAvailable, startEphemeralPg, type EphemeralPg } from '@jarvis/testkit';
+
+const migrationPath = (file: string) =>
+  fileURLToPath(new URL(`../../../packages/persistence/src/migrations/${file}`, import.meta.url));
 
 const dockerOk = await isDockerAvailable();
 
@@ -81,11 +86,21 @@ describe.skipIf(!dockerOk)('MK.46 knowledge schema (integration)', () => {
     expect(result.alreadyApplied).toContain('0006_mnemosyne.sql');
   });
 
+  it('applying 0005 and 0006 SQL a second time does not throw (guard discipline)', async () => {
+    for (const file of ['0005_atlas.sql', '0006_mnemosyne.sql']) {
+      const text = await readFile(migrationPath(file), 'utf8');
+      // first re-apply
+      await expect(pg.sql.unsafe(text)).resolves.toBeDefined();
+      // second re-apply — exercises `create ... if not exists` + guarded-role blocks
+      await expect(pg.sql.unsafe(text)).resolves.toBeDefined();
+    }
+  });
+
   it('rejects an insight row with empty evidence (evidence chain mandatory)', async () => {
     await expect(
       pg.sql`insert into mnemosyne.insights
-        (id, statement, significance, evidence, consolidation_run_id, principal_id)
-        values ('01TEST', 'x', 0.9, '{}', '01RUN', 'p1')`,
+        (id, statement, significance, provenance, evidence, consolidation_run_id, principal_id)
+        values ('01TEST', 'x', 0.9, '{}', '{}', '01RUN', 'p1')`,
     ).rejects.toThrow(/insights_evidence_nonempty_ck/);
   });
 
@@ -97,6 +112,22 @@ describe.skipIf(!dockerOk)('MK.46 knowledge schema (integration)', () => {
       pg.sql`insert into atlas.facts
         (id, subject_entity_id, attribute, value, epistemic_status, provenance, confidence, principal_id)
         values ('01F', '01ENT', 'role', '"x"', 'asserted', '{}', 1.5, 'p1')`,
-    ).rejects.toThrow();
+    ).rejects.toThrow(/facts_confidence_ck/);
+  });
+
+  it('rejects a fact row whose status is not active (facts_status_active_ck)', async () => {
+    await pg.sql`insert into atlas.entities (id, type, canonical_name, principal_id)
+                 values ('01ENT', 'person', 'Test', 'p1') on conflict do nothing`;
+    await expect(
+      pg.sql`insert into atlas.facts
+        (id, subject_entity_id, attribute, value, epistemic_status, provenance, confidence, status, principal_id)
+        values ('01FS', '01ENT', 'role', '"x"', 'asserted', '{}', 0.9, 'superseded', 'p1')`,
+    ).rejects.toThrow(/facts_status_active_ck/);
+  });
+
+  it('jarvis_atlas has NO usage on projections (ADR-0020 boundary proof point 1)', async () => {
+    const rows = await pg.sql<{ h: boolean }[]>`
+      select has_schema_privilege('jarvis_atlas', 'projections', 'usage') as h`;
+    expect(rows[0]?.h).toBe(false);
   });
 });

@@ -16,8 +16,8 @@ Subordinate to [`PRINCIPLES.md`](PRINCIPLES.md),
 | **Event Log** | What has happened? | Source of truth for **history** | PG `events` | Append-only, never rewritten |
 | **Projected State** | What are the current values? | Source of truth for **current authoritative values** | PG `projections.*` | Overwritten by projectors only |
 | **Ephemeral Runtime State** | What is happening right now, operationally? | Not authoritative; reconstructible | Redis + in-memory | Free |
-| **World Model** | What is true about the world, and why? | Source of truth for **beliefs** (with provenance) | PG `world_model.*` | Belief revision; archive, don't delete |
-| **Memory** | What experience is relevant to now? — see [`MNEMOSYNE_MODEL.md`](MNEMOSYNE_MODEL.md) | A cognitive resource, not truth | PG `memory.*` + pgvector | Append + summarise + decay |
+| **World Model** | What is true about the world, and why? — see [`ATLAS_MODEL.md`](ATLAS_MODEL.md) | Source of truth for **beliefs** (with provenance) | PG `atlas.*` | Belief revision; archive, don't delete |
+| **Memory** | What experience is relevant to now? — see [`MNEMOSYNE_MODEL.md`](MNEMOSYNE_MODEL.md) | A cognitive resource, not truth | PG `mnemosyne.*` + pgvector | Append + summarise + decay |
 
 "One authoritative logical system state" (L5) = **Event Log + Projected
 State**. The World Model and Memory are separate systems (L8) that the Kernel

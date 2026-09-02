@@ -1,6 +1,11 @@
 -- ATLAS — the temporal world model (docs/architecture/ATLAS_MODEL.md, ADR-0020).
 -- Writers: the Kernel Knowledge Ingestion mediator ONLY.
 -- Schema name is `atlas` (ADR-0020 renames the older `world_model` sketch).
+--
+-- Requires a superuser or CREATEROLE connection: this migration runs `create role`
+-- and `grant usage on schema events`. MK.46 runs migrations as the bootstrap
+-- superuser. If migrations later run as a restricted role, move the role DDL to
+-- infrastructure/postgres/init (20-roles.sql).
 
 create schema if not exists atlas;
 create extension if not exists vector;
@@ -35,6 +40,7 @@ create table if not exists atlas.entity_aliases (
   created_at timestamptz not null default now(),
   primary key (entity_id, alias)
 );
+create index if not exists entity_aliases_alias_idx on atlas.entity_aliases (alias);
 
 -- Relationships (first-class, temporal) --------------------------------------- --
 create table if not exists atlas.entity_relationships (
@@ -65,7 +71,8 @@ create table if not exists atlas.facts (
                        check (epistemic_status in
                          ('observed','asserted','retrieved','inferred','predicted','derived')),
   provenance         jsonb       not null,
-  confidence         double precision not null check (confidence >= 0 and confidence <= 1),
+  confidence         double precision not null
+                       constraint facts_confidence_ck check (confidence >= 0 and confidence <= 1),
   valid_from         timestamptz not null default now(),
   valid_to           timestamptz,
   status             text        not null default 'active'
@@ -92,9 +99,11 @@ create table if not exists atlas.facts_archive (
   attribute          text        not null,
   predicate          text,
   value              jsonb       not null,
-  epistemic_status   text        not null,
+  epistemic_status   text        not null
+                       check (epistemic_status in
+                         ('observed','asserted','retrieved','inferred','predicted','derived')),
   provenance         jsonb       not null,
-  confidence         double precision not null,
+  confidence         double precision not null check (confidence >= 0 and confidence <= 1),
   valid_from         timestamptz not null,
   valid_to           timestamptz,
   status             text        not null
@@ -102,7 +111,8 @@ create table if not exists atlas.facts_archive (
   supersedes_fact_id text,
   superseded_at      timestamptz not null,
   contradiction_of   text[]      not null default '{}',
-  privacy_class      text        not null,
+  privacy_class      text        not null
+                       check (privacy_class in ('PUBLIC','INTERNAL','SENSITIVE','RESTRICTED')),
   principal_id       text        not null,
   created_at         timestamptz not null,
   archived_at        timestamptz not null default now()

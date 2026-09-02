@@ -20,6 +20,12 @@ PostgreSQL is the **only** authoritative datastore (ADR-0002, ADR-0017).
 Schema names `atlas` / `mnemosyne` per ADR-0020 (renamed from the `world_model` /
 `memory` sketch).
 
+> **MK.46 note.** Per-schema role creation for `atlas` / `mnemosyne`
+> (`jarvis_atlas`, `jarvis_mnemosyne`) currently lives in the migrations
+> (`0005_atlas.sql` / `0006_mnemosyne.sql`), not `20-roles.sql`. Those migrations
+> therefore require a superuser or `CREATEROLE` connection. If migrations later
+> run as a restricted role, move the role DDL here into `20-roles.sql`.
+
 ## Backup
 
 - Continuous WAL archiving to `minio://pg-wal`.

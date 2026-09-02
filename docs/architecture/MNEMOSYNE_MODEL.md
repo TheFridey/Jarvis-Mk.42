@@ -52,8 +52,8 @@ ADR-0017: working and session memory are not re-owned by MNEMOSYNE.
 
 Tables: `episodes`, `semantic`, `procedures`, `preferences`, `candidates`,
 `consolidation_runs`, `insights`. pgvector + HNSW indexes for recall; `episodes`
-is class / time-partitioned; `principalId` on every table (L34); the schema has
-its own per-schema DB role.
+is a plain table (archival is move-based, not declarative partitioning);
+`principalId` on every table (L34); the schema has its own per-schema DB role.
 
 - `episodes` — narrative units. Time bounds, `participants` (ATLAS entity ids),
   `summary`, body ref (raw body to object storage past a threshold), source-event
@@ -112,7 +112,7 @@ rules only. It is knowledge consolidation, not consciousness. Rationale:
 ## 6 Morning Insight
 
 `mnemosyne.insights` — consolidation writes candidate insights with
-`significance`, `evidence[]`, `surfaced boolean`, `supersededBy`. A surfacing
+`significance`, `provenance`, `evidence[]`, `surfaced boolean`, `supersededBy`. A surfacing
 check emits `jarvis.memory.insight.available` **only** when: significance ≥
 threshold **and** relevant to a current objective / context **and** not already
 surfaced **and** evidence-backed. The **Notification Manager** (frozen-16

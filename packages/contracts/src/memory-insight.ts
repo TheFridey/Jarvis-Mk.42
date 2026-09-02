@@ -9,6 +9,7 @@
  */
 
 import type { PrincipalId, Timestamp, Ulid } from './common.ts';
+import type { Provenance } from './provenance.ts';
 
 export type InsightSignificance = number; // 0..1
 
@@ -19,6 +20,9 @@ export interface Insight {
   /** Supporting refs: episode ids, fact ids, event ids. Non-empty — an insight
    *  with no evidence chain is rejected at ingestion. */
   evidence: Ulid[];
+  /** How this insight came to be held (L11); a consolidation output with no
+   *  evidence chain is rejected at ingestion (ADR-0022). */
+  provenance: Provenance;
   surfaced: boolean;
   surfacedAt?: Timestamp;
   supersededBy?: Ulid;

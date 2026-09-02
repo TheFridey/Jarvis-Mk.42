@@ -43,7 +43,8 @@ A documented enum, but still an **open set** — new types are data, not code:
 
 `person`, `organisation`, `business`, `project`, `device`, `node`, `location`,
 `room`, `repository`, `software`, `service`, `document`, `infrastructure`,
-`account`, `objective`, `asset`, `physical_object`, `concept`, `event`.
+`account`, `objective`, `asset`, `physical_object`, `concept`, `event`,
+`app_window`.
 
 **Reference-shell entities.** `objective`, `node`, and `device` entities are
 identity nodes only — the authoritative record lives in `projections.objectives`
@@ -65,14 +66,16 @@ it already does for `JarvisMode.FOCUSED` vs `PresenceState.FOCUSED`.
 | `id` | ULID, stable |
 | `type` | from the §1.1 vocabulary |
 | `canonicalName` | string |
-| `aliases` | `text[]` — new vs the MK.43 contract |
+| `aliases` | stored as rows in the `atlas.entity_aliases` child table, assembled into `Entity.aliases[]` on read — new vs the MK.43 contract |
 | `metadata` | `jsonb` — new |
 | `privacyClass` | `PUBLIC \| INTERNAL \| SENSITIVE \| RESTRICTED` (reuses the event-envelope enum) — new |
 | `principalId` | scoping key (L34) |
 | `spatialExtent` | optional Scene Graph reference (existing) |
 | `createdAt`, `updatedAt` | existing |
 
-`atlas.entity_aliases` carries alias rows preserved across merges.
+`atlas.entity_aliases` carries alias rows preserved across merges. Alias lookups
+MUST join `atlas.entities` for `principalId` scoping — `entity_aliases` has no
+`principalId` column (it is a pure child table with `on delete cascade`).
 
 ### 2.2 Relationships (first-class, temporal)
 
@@ -108,8 +111,14 @@ Relationship queries are always time-scoped, mirroring the fact query API.
 | `contradictionOf` | new — `ulid[]` explicit links, complementing the `conflicts` table |
 | `createdAt`, `supersededAt` | `supersededAt` new, for `changedBetween` queries |
 
-`atlas.facts_archive` — same shape; superseded / expired facts move here (LIST
-partition by `status`), out of the hot query path, evidence graph retained.
+`atlas.facts_archive` — a plain table of the same shape. A background job
+`insert … delete`s superseded / expired rows into it, out of the hot query path;
+the evidence graph is retained. No declarative partitioning — bounded moves at
+human-scale volume, per the events-table precedent in `migrator.ts`.
+
+Only `status = 'active'` rows are storable in `atlas.facts` (enforced by
+`facts_status_active_ck`); the archival job `insert … delete`s into
+`atlas.facts_archive` rather than `update`-ing status in place.
 
 ### 2.4 Evidence
 
@@ -119,11 +128,15 @@ partition by `status`), out of the hot query path, evidence graph retained.
 | Field | Notes |
 |---|---|
 | `id` | ULID |
-| `subjectKind`, `subjectId` | what the evidence supports (`fact` \| `relationship` \| `observation` …) |
-| `kind` | `observation \| source_document \| parent_fact \| principal_assertion \| inference_run` |
-| `ref` | signal-event id \| url \| fact id \| session id \| run id |
+| `subjectKind`, `subjectId` | what the evidence supports (`fact \| relationship \| causal_hypothesis`) |
+| `kind` | `observation \| source_document \| parent_fact \| principal_assertion \| inference_run \| episode` (matches the `atlas.evidence.kind` CHECK exactly) |
+| `ref` | signal-event id \| url \| fact id \| session/episode id \| run id |
 | `weight` | optional contribution weight |
 | `note` | optional |
+| `principalId` | scoping key (L34); `atlas.evidence.principal_id` is `not null` |
+
+`kind = 'episode'` (with `ref` an `episodeId`) is the only legal ATLAS -> MNEMOSYNE
+coupling (ADR-0020 point 2); content is never copied.
 
 ### 2.5 Conflicts
 
@@ -150,8 +163,9 @@ resolved_by_principal \| accepted_ambiguity`), `recordedAt`.
 `atlas.causal_hypotheses` — see §7.
 
 All tables carry `principalId` (L34); pgvector columns + HNSW indexes support
-entity resolution and recall; `facts` is LIST-partitioned by `status`; the schema
-has its own per-schema DB role.
+entity resolution and recall; `facts` is a plain table holding only
+`status = 'active'` rows, with a background job moving the rest into
+`facts_archive` (§2.3); the schema has its own per-schema DB role.
 
 ## 3 Provenance, confidence, epistemic status (L11–L17)
 

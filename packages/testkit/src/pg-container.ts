@@ -15,6 +15,11 @@ import postgres from 'postgres';
 
 const execFile = promisify(execFileCb);
 
+/** Thrown by the host-side connectivity probe loop when the published port never
+ *  becomes connectable. A sentinel class so the outer readiness loop can
+ *  re-throw it by `instanceof` rather than matching a message string. */
+class ProbeUnreachable extends Error {}
+
 export async function isDockerAvailable(): Promise<boolean> {
   if (process.env.JARVIS_TEST_DB_URL) return true;
   if (process.env.JARVIS_NO_DOCKER === '1') return false;
@@ -75,9 +80,11 @@ export async function startEphemeralPg(): Promise<EphemeralPg> {
             return { url, stop };
           } catch {
             await probe.end({ timeout: 5 }).catch(() => undefined);
-            if (attempt >= 20) {
+            if (attempt >= 20 || Date.now() >= deadline) {
               await stop();
-              throw new Error('ephemeral postgres port not connectable from host after readiness');
+              throw new ProbeUnreachable(
+                'ephemeral postgres port not connectable from host after readiness',
+              );
             }
             await delay(500);
           }
@@ -85,7 +92,7 @@ export async function startEphemeralPg(): Promise<EphemeralPg> {
       }
     } catch (err) {
       // If the error is from the probe loop (port not connectable), propagate it.
-      if (err instanceof Error && err.message === 'ephemeral postgres port not connectable from host after readiness') {
+      if (err instanceof ProbeUnreachable) {
         throw err;
       }
       /* not ready */

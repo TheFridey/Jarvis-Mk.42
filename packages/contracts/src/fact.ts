@@ -14,9 +14,15 @@
  *    overwritten (L16)
  *  - a fact is never merely key=value: `predicate` carries the
  *    subject–predicate–object form when the statement is relational
+ *
+ * `status`, `privacyClass`, and `contradictionOf` are REQUIRED, not optional:
+ * the Knowledge Ingestion service always fills them (defaults `status: 'active'`,
+ * `privacyClass: 'INTERNAL'`, `contradictionOf: []`), so every producer sees
+ * them present. A partially-populated belief row is an epistemics defect, not a
+ * valid state (L11) — mirrors the same rule on `Entity`.
  */
 
-import type { Confidence, Timestamp, Ulid } from './common.ts';
+import type { Confidence, PrincipalId, Timestamp, Ulid } from './common.ts';
 import type { EpistemicStatus, Provenance } from './provenance.ts';
 import type { PrivacyClass } from './event.ts';
 
@@ -65,22 +71,33 @@ export interface Fact {
   createdAt: Timestamp;
 }
 
-/** A link from a Fact to the material that supports it (L15). */
+/**
+ * A link from a belief to the material that supports it (L15). Mirrors the
+ * shared `atlas.evidence` table: one evidence graph spanning facts,
+ * relationships, and causal hypotheses, discriminated by `subjectKind`. The
+ * `'episode'` kind is the only legal ATLAS -> MNEMOSYNE coupling (ADR-0020
+ * point 2): an evidence row may cite a MNEMOSYNE episode id via `ref`; content
+ * is never copied.
+ */
 export type EvidenceKind =
   | 'observation'
   | 'source_document'
   | 'parent_fact'
   | 'principal_assertion'
-  | 'inference_run';
+  | 'inference_run'
+  | 'episode';
 
 export interface Evidence {
   id: Ulid;
-  factId: Ulid;
+  /** What this evidence supports. */
+  subjectKind: 'fact' | 'relationship' | 'causal_hypothesis';
+  subjectId: Ulid;
   kind: EvidenceKind;
   /** signal-event id | url | fact id | session/episode id | run id. */
   ref: string;
   weight?: number;
   note?: string;
+  principalId: PrincipalId;
 }
 
 /** An unresolved disagreement between two facts (WORLD_MODEL.md §5). */
@@ -98,6 +115,7 @@ export interface FactConflict {
   factIdA: Ulid;
   factIdB: Ulid;
   status: ConflictStatus;
+  principalId: PrincipalId;
   recordedAt: Timestamp;
 }
 

@@ -77,7 +77,9 @@ multi-factor retrieval — each a chance to blur the boundary.
 ## Consequences
 - `packages/contracts` gains `causal.ts`, `memory.ts`, `memory-candidate.ts`,
   `memory-insight.ts`, `knowledge-ingestion.ts`, `atlas-query.ts`,
-  `memory-recall.ts`; `entity.ts` / `fact.ts` / `observation.ts` extended;
+  `memory-recall.ts`; `entity.ts` / `fact.ts` / `observation.ts` extended —
+  these add required fields to `Entity` / `Fact` / `EntityRelationship`,
+  source-breaking for producers, of which there are none at MK.46;
   `event-names.ts` gains `jarvis.world.*` and `jarvis.memory.*` (including the
   tombstone events `jarvis.world.record.forgotten` and
   `jarvis.memory.record.forgotten`).

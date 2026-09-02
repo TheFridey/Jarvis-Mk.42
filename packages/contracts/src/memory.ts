@@ -13,7 +13,8 @@
  */
 
 import type { Confidence, PrincipalId, Timestamp, Ulid } from './common.ts';
-import type { PrivacyClass } from './entity.ts';
+import type { PrivacyClass } from './event.ts';
+import type { Provenance } from './provenance.ts';
 
 export type MemoryClass = 'episodic' | 'semantic' | 'procedural' | 'preference';
 
@@ -39,6 +40,13 @@ export interface Episode {
   /** 0..1 importance estimate; drives retention and recall ranking. */
   salience: number;
 
+  /** 0..1 confidence in the episode's account (MNEMOSYNE_MODEL.md §3). */
+  confidence: Confidence;
+
+  /** How this episode came to be held (L11). Feeds `sourceAuthority()` in the
+   *  recall formula (MNEMOSYNE_MODEL.md §7). */
+  provenance: Provenance;
+
   privacyClass: PrivacyClass;
 
   /** Reference into the Scene service, if the episode is spatially situated. */
@@ -57,6 +65,8 @@ export interface SemanticMemory {
   id: Ulid;
   statement: string;
   confidence: Confidence;
+  /** How this learned statement came to be held (L11). */
+  provenance: Provenance;
   sourceEpisodeIds: Ulid[];
   privacyClass: PrivacyClass;
   /** relevance × age drives the prune-candidate score (MNEMOSYNE_MODEL.md §Forgetting). */

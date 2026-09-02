@@ -46,6 +46,10 @@ create table events.events_memory_candidate partition of events.events for value
 create table events.events_security         partition of events.events for values in ('SECURITY');
 create table events.events_diagnostic       partition of events.events for values in ('DIAGNOSTIC');
 
+-- MK.46: index was `(global_seq)` alone; corrected to include the partition key
+-- (Postgres requires a unique index on a list-partitioned table to include it).
+-- Edited in place (normally forbidden) because no database had ever applied this
+-- migration — the integration suite could not run pre-MK.46. See progress ledger.
 create unique index events_global_seq_uq on events.events (retention_class, global_seq);
 create index events_subject_idx      on events.events (subject_kind, subject_id, global_seq);
 create index events_correlation_idx  on events.events (correlation_id);

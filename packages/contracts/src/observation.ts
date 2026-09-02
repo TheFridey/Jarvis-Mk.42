@@ -8,7 +8,7 @@
  * write the World Model or call a reasoning model (L7).
  */
 
-import type { NodeId, Timestamp, Ulid } from './common.ts';
+import type { NodeId, PrincipalId, Timestamp, Ulid } from './common.ts';
 
 /** Coarse family of the sensed signal. */
 export type ObservationDomain =
@@ -98,4 +98,7 @@ export interface AtlasObservation {
 
   /** Set once the promotion evaluator's proposal produced a fact. */
   promotedToFactId?: Ulid;
+
+  /** Scoping key (L34). `atlas.observations.principal_id` is `not null`. */
+  principalId: PrincipalId;
 }
