@@ -17,7 +17,7 @@ Subordinate to [`PRINCIPLES.md`](PRINCIPLES.md),
 | **Projected State** | What are the current values? | Source of truth for **current authoritative values** | PG `projections.*` | Overwritten by projectors only |
 | **Ephemeral Runtime State** | What is happening right now, operationally? | Not authoritative; reconstructible | Redis + in-memory | Free |
 | **World Model** | What is true about the world, and why? | Source of truth for **beliefs** (with provenance) | PG `world_model.*` | Belief revision; archive, don't delete |
-| **Memory** | What experience is relevant to now? | A cognitive resource, not truth | PG `memory.*` + pgvector | Append + summarise + decay |
+| **Memory** | What experience is relevant to now? — see [`MNEMOSYNE_MODEL.md`](MNEMOSYNE_MODEL.md) | A cognitive resource, not truth | PG `memory.*` + pgvector | Append + summarise + decay |
 
 "One authoritative logical system state" (L5) = **Event Log + Projected
 State**. The World Model and Memory are separate systems (L8) that the Kernel
@@ -106,11 +106,9 @@ adding a projector and treating the stream as canonical.
 - **World Model facts**: when a fact's `validTo` passes or it is superseded, it
   moves to `facts_archive` (separate partition, out of the hot query path). The
   evidence graph is retained. A background job runs supersession + archival.
-- **Memory**: episodes older than a threshold are summarised into rolling
-  higher-level summaries; raw episode bodies past a longer threshold move to
-  object storage with only metadata + embedding retained hot; low-relevance
-  embeddings decay (relevance score × age → prune candidate). Configurable;
-  never touches ledger events.
+- **Memory** (MNEMOSYNE): retention, summarisation, and decay are defined in
+  [`MNEMOSYNE_MODEL.md`](MNEMOSYNE_MODEL.md) §Forgetting. Never touches ledger
+  events.
 - **Projected State**: bounded by definition (current values, not history).
 - **Audit**: retained indefinitely but partitioned by time; old partitions can
   be moved to cold storage while staying queryable.
