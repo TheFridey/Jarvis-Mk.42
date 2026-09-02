@@ -6,7 +6,7 @@ PostgreSQL is the **only** authoritative datastore (ADR-0002, ADR-0017).
 
 1. `00-extensions.sql` — `CREATE EXTENSION vector;` (pgvector, ADR-0011).
 2. `10-schemas.sql` — create schemas: `identity`, `session`, `events`,
-   `projections`, `policy`, `catalogue`, `world_model`, `memory`, `audit`,
+   `projections`, `policy`, `catalogue`, `atlas`, `mnemosyne`, `audit`,
    `scene`.
 3. `20-roles.sql` — one DB role per Kernel module, each `GRANT`ed on **its own
    schema only** plus `SELECT` on `events` (`DATA_OWNERSHIP.md` §3). This is
@@ -14,8 +14,11 @@ PostgreSQL is the **only** authoritative datastore (ADR-0002, ADR-0017).
 4. `30-partitions.sql` — `events` partitioned by `class` (list) then by `time`
    (range, monthly). Signal partitions are dropped past the 7-day window;
    audit/ledger old partitions are detached to cold storage.
-5. `40-vector-indexes.sql` — HNSW indexes on `memory.*` and
-   `world_model.entities` embedding columns.
+5. `40-vector-indexes.sql` — HNSW indexes on `mnemosyne.*` and
+   `atlas.entities` embedding columns.
+
+Schema names `atlas` / `mnemosyne` per ADR-0020 (renamed from the `world_model` /
+`memory` sketch).
 
 ## Backup
 

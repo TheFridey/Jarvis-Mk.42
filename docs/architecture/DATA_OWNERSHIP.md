@@ -35,12 +35,20 @@ authoritative copy lives. "Consistency" = the guarantee the owner provides.
 | **Capabilities** (manifests, versions) | Capability Registry | PG `catalogue.capabilities` | Strong | in-process |
 | **Model registrations** | Model Registry | PG `catalogue.models` | Strong | in-process + gateway pull |
 | **Agents** (roster manifests) | source-controlled in `agents/*`; **agent lease/run records** | Agent Runtime | PG `projections.agent_runs` + Redis leases | Redis |
-| **Memories** (episodes, summaries, embeddings) | Memory service | PG `memory.*` + pgvector + object storage refs | Eventual | pgvector index is derived |
-| **Entities** | World Model service | PG `world_model.entities` | Strong for identity/type; eventual for attributes | — |
-| **Entity relationships** | World Model service | PG `world_model.entity_relationships` | Strong | — |
-| **Facts** | World Model service | PG `world_model.facts` (+ `facts_archive`) | Eventual; conflicts recorded not resolved-by-write | — |
-| **Observations** (index/reference; raw signal events expire) | World Model service (index); Event Manager (the signal events themselves) | PG `world_model.observations` (index) + `events` (signal class, rolling window) | Eventual | — |
-| **Evidence graph** | World Model service | PG `world_model.evidence` | Eventual | — |
+| **Entities** (ATLAS) | Knowledge Ingestion (writer); ATLAS service (owner/reader) | PG `atlas.entities` (+ `entity_aliases`) | Strong for identity/type; eventual for attributes | — |
+| **Entity relationships** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.entity_relationships` | Strong | — |
+| **Facts** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.facts` (+ `facts_archive`) | Eventual; conflicts recorded not resolved-by-write | — |
+| **Evidence graph** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.evidence` | Eventual | — |
+| **Conflicts** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.conflicts` | Eventual | — |
+| **Observation index** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.observations` | Eventual | — |
+| **Causal hypotheses** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.causal_hypotheses` | Eventual | — |
+| **Episodes** (MNEMOSYNE) | Knowledge Ingestion (writer); MNEMOSYNE service | PG `mnemosyne.episodes` + pgvector + object storage refs | Eventual | pgvector index is derived |
+| **Semantic memory** (MNEMOSYNE) | Knowledge Ingestion (writer); MNEMOSYNE service | PG `mnemosyne.semantic` + pgvector | Eventual | — |
+| **Procedures** (MNEMOSYNE) | Knowledge Ingestion (writer); MNEMOSYNE service | PG `mnemosyne.procedures` | Eventual | — |
+| **Preferences** (MNEMOSYNE) | Knowledge Ingestion (writer); MNEMOSYNE service | PG `mnemosyne.preferences` | Eventual | — |
+| **Memory candidates** (MNEMOSYNE) | Knowledge Ingestion (writer); MNEMOSYNE service | PG `mnemosyne.candidates` | Eventual | — |
+| **Consolidation runs** (MNEMOSYNE) | MNEMOSYNE consolidation routine | PG `mnemosyne.consolidation_runs` | Eventual | — |
+| **Insights** (MNEMOSYNE) | Knowledge Ingestion (writer); MNEMOSYNE service | PG `mnemosyne.insights` | Eventual | — |
 | **Scene state** (spatial abstraction: surfaces, node positions, entity spatial extent) | Scene service (`packages/scene`), a Kernel module | PG `scene.*` for durable placement; Redis for live positions | Strong for durable placement; Ephemeral for live | Redis |
 | **Spatial state** (transient: current gaze target, cursor dwell, hand pose) | Perception (emits) → Context Compiler (consumes); **not persisted** beyond signal-event window | `events` (signal class) | Ephemeral | n/a |
 | **Node state — registry** (a node exists, its declared sensors/caps, trust tier, owner) | Presence Manager | PG `projections.nodes` | Strong | — |
@@ -51,6 +59,13 @@ authoritative copy lives. "Consistency" = the guarantee the owner provides.
 | **Health state** | Health Manager | Redis (current) + `events` (transitions) | Ephemeral current, durable transitions | n/a |
 | **Telemetry** (traces/metrics/logs) | OTel collector / backend | outside PostgreSQL | best-effort | n/a |
 | **Blobs** (screenshots, clips, artefacts, exports) | the producing component owns the *reference*; bytes in object storage | MinIO | immutable objects | CDN/local (future) |
+
+**Knowledge Ingestion** is the single writer to `atlas.*` and `mnemosyne.*` — a
+Kernel-internal protected service (Executor-class), not a frozen-16 component
+(ADR-0020). Perception, cognition, agents, and interfaces reach it only via
+observations, validated proposals, or principal-assertion commands.
+`working` / `session` / `spatial` memory are NOT MNEMOSYNE-owned: they remain
+with the Ephemeral store, Session Manager, and Scene service respectively.
 
 ## 2. Strong vs eventual — where each is required
 

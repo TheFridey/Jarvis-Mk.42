@@ -54,6 +54,11 @@ subsystem, invoked by the flow after Policy+Permission; it is not a
 16th top-level component but is equally protected. It is documented in
 `AGENCY_MODEL.md`.
 
+**Knowledge Ingestion** is likewise a Kernel-internal protected service of the
+knowledge subsystem — the sole writer to `atlas.*` (ATLAS) and `mnemosyne.*`
+(MNEMOSYNE). It is not a 17th top-level component. It is documented in
+`ATLAS_MODEL.md`, `MNEMOSYNE_MODEL.md`, and `adr/0020-knowledge-subsystem-boundary.md`.
+
 ## 2. Kernel-wide forbidden dependencies
 
 No Kernel component may:
