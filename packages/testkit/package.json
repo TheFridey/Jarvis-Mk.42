@@ -10,6 +10,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@jarvis/contracts": "workspace:*",
-    "@jarvis/validation": "workspace:*"
+    "@jarvis/validation": "workspace:*",
+    "postgres": "^3.4.5"
   }
 }
