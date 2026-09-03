@@ -17,6 +17,7 @@
     "packages/*/test/**/*.ts",
     "apps/*/src/**/*.ts",
     "apps/*/test/**/*.ts",
+    "capabilities/**/*.ts",
     "*.config.ts",
     "eslint.config.js"
   ],

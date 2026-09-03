@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { z } from 'zod';
 import { defineCapability } from '@jarvis/capability-sdk';
 const within = (root: string, file: string) => { const r = resolve(root); const f = resolve(file); if (f !== r && !f.startsWith(`${r}\\`) && !f.startsWith(`${r}/`)) throw new Error('path outside credential scope'); return f; };

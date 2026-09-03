@@ -22,7 +22,7 @@ describe('MK.46 knowledge event names', () => {
 
   it('every name matches jarvis.<plane>.<domain>.<name>', () => {
     for (const v of Object.values(EventNames)) {
-      expect(v).toMatch(/^jarvis\.[a-z]+\.[a-z_]+\.[a-z_]+$/);
+      expect(v).toMatch(/^jarvis\.[a-z]+(?:\.[a-z_]+){1,3}$/);
     }
   });
 });

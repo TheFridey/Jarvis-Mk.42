@@ -18,7 +18,8 @@ export interface CapabilityDefinition {
   id: string; version: string; description: string; provider: string;
   executionEnvironment: Capability['executionEnvironment']; auditPolicy: Capability['auditPolicy']; privacyRequirements: Capability['privacyRequirements'];
   trustTierMin?: Capability['trustTierMin']; resourceKeySelector?: string; active?: boolean;
-  actions: Record<string, ActionDefinition<never, never> | ActionDefinition>;
+  // The runtime schemas validate concrete values before these erased action slots run.
+  actions: Record<string, ActionDefinition<any, any>>;
 }
 export interface CapabilityModule { manifest: Capability & { active?: boolean }; actions: CapabilityDefinition['actions']; }
 
