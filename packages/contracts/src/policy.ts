@@ -10,6 +10,7 @@
  */
 
 import type { PrincipalId, Timestamp } from './common.ts';
+import type { EventLocation } from './event.ts';
 import type { PolicyVerdict } from './proposal.ts';
 import type { RiskClass } from './capability.ts';
 
@@ -33,6 +34,15 @@ export interface PolicyContext {
   /** Optional advisory input; never dispositive on its own. */
   llmRecommendation?: PolicyVerdict;
   now: Timestamp;
+  resourceRef: string;
+  originNodeId: string;
+  location?: EventLocation;
+  authTrustLevel: 'untrusted' | 'provisional' | 'trusted' | 'verified';
+  authMethod: string;
+  jarvisMode: string;
+  sessionId?: string;
+  activeObjectiveGate?: 'autonomous' | 'conditional' | 'approval' | 'hard_confirmation';
+  recentDenialCount: number;
 }
 
 export interface PolicyQuery {
@@ -63,9 +73,20 @@ export interface PolicyRule {
    * Serialised predicate over PolicyQuery. The engine evaluates it
    * deterministically. (Concrete DSL/AST defined by packages/permissions.)
    */
-  predicate: unknown;
+  predicate: PolicyPredicate;
   effect: PolicyVerdict;
   /** Higher priority wins on conflict; DENY always beats ALLOW at equal rank. */
   priority: number;
   enabled: boolean;
 }
+
+export type PolicyPredicate =
+  | { op: 'and' | 'or'; args: PolicyPredicate[] }
+  | { op: 'not'; arg: PolicyPredicate }
+  | { op: 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte'; path: string; value: unknown }
+  | { op: 'in' | 'not-in'; path: string; values: unknown[] }
+  | { op: 'matches'; path: string; pattern: string }
+  | { op: 'path-under'; path: string; prefix: string }
+  | { op: 'time-window'; tz: string; windows: Array<{ dow: number[]; from: string; to: string }> }
+  | { op: 'scope-held'; scope: string }
+  | { op: 'risk-at-least'; class: RiskClass };

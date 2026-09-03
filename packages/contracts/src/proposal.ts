@@ -19,6 +19,7 @@ export type ProposalKind =
   | 'fact_extraction'
   | 'policy_recommendation'
   | 'capability_invocation'
+  | 'capability_draft'
   | 'clarification_request';
 
 interface ProposalBase {
@@ -94,6 +95,15 @@ export interface ClarificationRequestProposal extends ProposalBase {
   options?: string[];
 }
 
+export interface CapabilityDraftProposal extends ProposalBase {
+  kind: 'capability_draft';
+  manifest: unknown;
+  adapterSource: string;
+  testSource: string;
+  researchNotes: string;
+  declaredEgress: string[];
+}
+
 export type Proposal =
   | AnswerProposal
   | PlanProposal
@@ -101,6 +111,7 @@ export type Proposal =
   | FactExtractionProposal
   | PolicyRecommendationProposal
   | CapabilityInvocationProposal
+  | CapabilityDraftProposal
   | ClarificationRequestProposal;
 
 /** Result of running a Proposal through the Validator (packages/validation). */

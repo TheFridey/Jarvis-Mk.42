@@ -46,7 +46,18 @@ export interface Grant {
   /** Bumped on any change; the Executor's freshness barrier compares this. */
   version: number;
   revokedAt?: Timestamp;
+  resourceConstraints: ResourceConstraint[];
+  nodeConstraints: string[];
+  timeWindows: Array<{ tz: string; dow: number[]; from: string; to: string }>;
 }
+
+export type ResourceConstraint =
+  | { kind: 'repo-allow'; values: string[] }
+  | { kind: 'path-prefix'; value: string }
+  | { kind: 'domain-allow'; values: string[] }
+  | { kind: 'command-allow'; values: string[] }
+  | { kind: 'container-image-allow'; values: string[] }
+  | { kind: 'max-amount'; currency: string; value: number };
 
 /** Short-lived, scoped token minted per authorised invocation. */
 export interface AuthorityToken {
@@ -59,6 +70,7 @@ export interface AuthorityToken {
   mode: 'dry-run' | 'full';
   issuedAt: Timestamp;
   expiresAt: Timestamp;
+  principalId: PrincipalId;
 }
 
 export type ApprovalState = 'pending' | 'approved' | 'rejected' | 'expired';
@@ -75,4 +87,12 @@ export interface ApprovalRequest {
   /** For DUAL: both must be satisfied. */
   requiredAuthorisations: number;
   receivedAuthorisations: number;
+  approvalEvidence?: {
+    kind: 'operator' | 'standing-grant';
+    by?: string;
+    at?: Timestamp;
+    surface?: string;
+    grantId?: Ulid;
+  };
+  confirmationPhraseHash?: string;
 }
