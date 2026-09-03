@@ -1,0 +1,3 @@
+import type { AdapterContext, VerificationReport, VerificationStrategy } from '@jarvis/contracts';
+export interface AdapterRunner { execute(action: string, ctx: AdapterContext, input: unknown): Promise<unknown>; verify(action: string, ctx: AdapterContext, input: unknown, output: unknown, strategy: VerificationStrategy): Promise<VerificationReport>; rollback?(action: string, ctx: AdapterContext, input: unknown): Promise<void>; simulate?(action: string, ctx: AdapterContext, input: unknown): Promise<unknown>; }
+export function runVerification(adapter: AdapterRunner, action: string, ctx: AdapterContext, input: unknown, output: unknown, strategy: VerificationStrategy) { return adapter.verify(action, ctx, input, output, strategy); }
