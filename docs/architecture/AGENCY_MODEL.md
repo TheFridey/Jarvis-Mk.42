@@ -1,172 +1,311 @@
 # Agency Model
 
-How JARVIS acts on the world: capabilities, the single Executor pipeline,
-simulation, verification, rollback, and partial-execution recovery
-(L18–L24, L28, L29).
+How JARVIS acts on the world: capabilities, the single Executor pipeline, the
+action lifecycle, simulation, verification, rollback, partial-execution
+recovery, the credential model, and self-extension (L18–L24, L28–L31, L38).
 
 Subordinate to [`PRINCIPLES.md`](PRINCIPLES.md),
-[`SECURITY_MODEL.md`](SECURITY_MODEL.md).
+[`SECURITY_MODEL.md`](SECURITY_MODEL.md). As-designed by ADR-0016 (manifests +
+single Executor) and its HEPHAESTUS expansion ADR-0025..0030.
 
 ---
 
 ## 1. Principle
 
 **Every consequential action is a capability invocation through one pipeline.**
-There is no other way to affect the world. Cognition, agents, interfaces, and
-the Objective Engine all *propose*; the Capability Executor is the only thing
-that *does*.
+There is no other way to affect the world. Cognition, agents, interfaces, the
+Objective Engine, and even the Guardian playbook *propose*; the Capability
+Executor is the only thing that *does*. Credential partitioning makes the
+Executor the only reachable effect path — an adapter is not linkable or
+callable except from the Adapter Host, which is driven only by the Executor.
 
 ## 2. Capability contract (`packages/contracts/src/capability.ts`)
 
+A capability is **data (a manifest) + an out-of-process adapter**. Registering
+one touches only the Capability Registry (L28); the Kernel binary does not
+change (L29).
+
 ```
 Capability {
-  id             string        -- "capabilities.filesystem"
-  version        semver
-  actions:       CapabilityAction[]
-  requiredScopes string[]       -- named scopes a grant must include
-  resourceKey?   (input) => string   -- for execution mutual-exclusion leases
-  trustTierMin   NodeTrustTier  -- lowest node trust allowed to host the adapter
+  id                    "capabilities.<provider>"          -- ^capabilities\.[a-z][a-z0-9_]*$
+  version               semver
+  description           string
+  provider              string
+  actions               CapabilityAction[]
+  requiredScopes        string[]                            -- grant must include
+  trustTierMin          NodeTrustTier                       -- lowest node trust to host the adapter
+  executionEnvironment  'worker' | 'worker+container' | 'node-local:<nodeId>'
+  auditPolicy           { hashInput, recordOutput: 'none'|'summary'|'full' }
+  privacyRequirements   { maxContentPrivacyClass }
+  resourceKeySelector?  string                              -- mutual-exclusion lease key from input
 }
 
 CapabilityAction {
-  name           string        -- "write_file"
-  inputSchema    JSONSchema
-  outputSchema   JSONSchema
-  riskClass      "AMBIENT" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
-  reversible     boolean
-  rollback?      ActionRef      -- how to undo (required if reversible & side-effecting)
-  simulate?      ActionRef      -- dry-run entry point
-  simulatable    boolean        -- false => Executor escalates approval instead of simulating
-  verify         ActionRef      -- REQUIRED. confirms the effect actually happened (L22)
-  idempotent     boolean        -- per invocationId
-  steps?         Step[]         -- for multi-step actions; each with verify + compensate
-  sideEffects    string[]       -- human-readable declaration, for audit & policy
+  name                  string
+  inputSchema           JSONSchema   (generated from a zod schema by the SDK)
+  outputSchema          JSONSchema
+  riskClass             AMBIENT | LOW | MEDIUM | HIGH | CRITICAL
+  reversible            boolean
+  idempotent            boolean
+  requiredScopes        string[]
+  approvalPolicy         'default' | 'always' | 'hard_confirmation' | 'preauthorized:<scope>'  -- restrict-only
+  timeoutMs             number
+  verificationStrategy  VerificationStrategy   -- REQUIRED, Executor-run (L22)
+  rollbackStrategy?     RollbackStrategy       -- REQUIRED if reversible && sideEffects != []
+  simulate?             ActionRef
+  simulatable           boolean               -- false => Executor escalates approval, never fakes
+  idempotencyKeySelector? string
+  confirmationPhrase?   string                -- REQUIRED present when riskClass == CRITICAL
+  declaredEgress?       string[]              -- hostnames ctx.http may reach
+  steps?                Step[]                -- multi-step; each with verify + compensate
+  sideEffects           string[]              -- human-readable; consumed by policy, Sentinel, audit
 }
+
+VerificationStrategy =
+  | { kind: 'world-read',   adapterRef }         -- re-read the world, assert
+  | { kind: 'event-await',  eventType, matchPath, timeoutMs }
+  | { kind: 'hash-match',   ofPath, expectPath }
+  | { kind: 'health-probe', adapterRef }
+  | { kind: 'state-echo',   adapterRef }         -- device reported-state == requested
+
+RollbackStrategy =
+  | { kind: 'inverse-action',   adapterRef }
+  | { kind: 'restore-snapshot', capturedBy, restoreRef }
+  | { kind: 'saga-compensate' }                  -- steps[].compensate
 ```
 
-A capability is **data + an out-of-process adapter**. Registering one touches
-only the Capability Registry (L28). The Kernel binary does not change (L29).
+Manifests are authored with `@jarvis/capability-sdk` `defineCapability()`
+(ADR-0030); the SDK generates `inputSchema`/`outputSchema` and the worker
+entrypoint. **Security lint** (`scripts/lint.mjs` over `capabilities/**`) makes
+the insecure moves un-shippable: no `process.env` secret read, no
+`child_process`/`vm` unless `provider === 'terminal'`, no bare `fetch` (use
+`ctx.http`), `verify` present per action, `rollback` present per reversible
+side-effecting action, no active-intrusion verb in `sideEffects`.
 
 ## 3. The Executor pipeline (the only path to an effect)
 
 ```mermaid
 flowchart TB
-    P[Proposal: invoke capability X.action with input] --> V[Validator: schema + safety + evidence-trust check]
-    V -->|reject| RJ[emit capability.rejected]
-    V -->|ok| RC[resolve riskClass + required authority tier]
+    P[CapabilityInvocationProposal] --> V[Validator: manifest+version, input schema, evidence-trust -> derivedFromUntrusted]
+    V -->|reject| RJ[REJECTED  -- SECURITY]
+    V -->|ok| RC[resolve riskClass + approvalPolicy override]
     RC --> POL[Policy Engine: deterministic decision]
-    POL -->|DENY| D1[emit capability.denied]
-    POL -->|REQUIRE_APPROVAL| APR[Approval workflow]
-    APR -->|no / timeout / operator unreachable| D2[emit capability.denied  (FAIL CLOSED)]
-    POL -->|ALLOW| MINT
-    APR -->|approved| MINT[Permission Engine: mint scoped TTL authority token]
-    MINT --> BAR[Freshness barrier: re-read grant version; append capability.started in same tx]
-    BAR -->|grant stale/revoked| AB[emit capability.aborted]
-    BAR --> LEASE[acquire resourceKey lease if declared]
-    LEASE --> SIMQ{riskClass >= HIGH?}
-    SIMQ -->|yes & simulatable| SIM[adapter.simulate under dry-run cred -> predicted effect -> approval]
-    SIMQ -->|yes & not simulatable| ESC[escalate approval: explicit 'no simulation available']
+    POL -->|DENY| D1[DENIED  -- SECURITY]
+    POL -->|REQUIRE_APPROVAL| RCH[resourceConstraints check]
+    POL -->|ALLOW| RCH
+    RCH -->|fail| D3[DENIED]
+    RCH -->|approval needed| APR[Approval workflow  -- simulate first if riskClass>=HIGH]
+    APR -->|reject / timeout / unreachable| D2["DENIED  (FAIL CLOSED)  unless standing-grant scope"]
+    APR -->|approved / ALLOW| MINT[Permission Engine: mint scoped TTL AuthorityToken]
+    MINT --> BAR["Freshness barrier (one tx): re-read grant.version; acquire resourceKey lease; append capability.started"]
+    BAR -->|grant stale/revoked| AB[ABORTED  -- SECURITY]
+    BAR --> SIMQ{riskClass >= HIGH?}
+    SIMQ -->|yes & simulatable| SIM[broker dry-run cred -> adapter.simulate -> PredictedEffect -> approval]
+    SIMQ -->|yes & not simulatable| ESC[approval carried 'no simulation available']
     SIMQ -->|no| EXE
-    SIM --> EXE[adapter.execute out-of-process, scoped cred, wall-time cap]
+    SIM --> EXE[broker full cred -> Adapter Host spawns worker -> adapter.execute  out-of-process, scoped, wall-time cap]
     ESC --> EXE
-    EXE --> VER[adapter.verify]
-    VER -->|verified| OK[emit capability.verified + World Model facts + release lease]
-    VER -->|failed & reversible| RB[adapter.rollback] --> RBD[emit capability.rolled_back]
-    VER -->|failed & irreversible| ALERT[emit capability.verification_failed -> Health + Notification + Audit]
+    EXE --> VER[Executor runs verificationStrategy against the world]
+    VER -->|verified| OK[COMPLETED: emit verified + World Model facts + release lease + revoke handle]
+    VER -->|failed & reversible| RB[adapter.rollback -> Executor re-verifies undo] --> RBD[ROLLED_BACK]
+    VER -->|failed & irreversible| ALERT[VERIFICATION_FAILED -- SECURITY -> Health + Notification + Sentinel]
 ```
 
-Every box that emits does so as a **ledger-class event** with the
+Every box emits a **ledger event** (`AUDIT` class; `SECURITY` for denials,
+aborts, verification failures, credential mints, GUARDIAN) with the
 `correlationId` of the originating interaction. The audit trail is complete by
 construction (L31).
 
-## 4. Risk classes → authority tiers (L19)
+## 4. The action lifecycle (`agency.invocations`, owned by the Executor)
 
-Full table in `SECURITY_MODEL.md` §3. Summary:
+One authoritative lifecycle per invocation, folded from the
+`jarvis.agency.invocation.*` event stream so it is restart-recoverable.
 
-| riskClass | Example | Default authority required |
-|---|---|---|
-| AMBIENT | read clipboard, read focused window title | standing grant, no prompt |
-| LOW | read a file in workspace, list a repo | standing grant |
-| MEDIUM | write a file in workspace, open a branch, send a draft to self | standing grant + post-hoc notification |
-| HIGH | run a terminal command, push to a remote, deploy to staging, send external comms, send media to cloud | live approval **or** an explicit pre-authorised standing grant scope; simulate-first |
-| CRITICAL | delete data, prod deploy, financial action, robotics motion, spend money | dual control (operator + explicit confirm), always simulate-first, never auto |
+```
+PROPOSED -> VALIDATED -> POLICY_CHECKED
+  -> (AWAITING_APPROVAL -> APPROVED)?        -- only if policy = REQUIRE_APPROVAL
+  -> (SIMULATING -> SIMULATED)?              -- only if riskClass >= HIGH
+  -> EXECUTING -> VERIFYING -> COMPLETED
 
-The Policy Engine maps `(actor, action, riskClass, context)` to
-`ALLOW | DENY | REQUIRE_APPROVAL` deterministically. An LLM
-`PolicyRecommendation` may be *one input* but never the verdict (L21).
+terminals:  REJECTED | DENIED | ABORTED | FAILED | VERIFICATION_FAILED
+            ROLLING_BACK -> ROLLED_BACK
+            COMPENSATING -> PARTIALLY_COMPLETED
+```
 
-## 5. Simulation (L24, review §16.9)
+Only `LEGAL_INVOCATION_TRANSITIONS` edges occur, and no transition happens
+without its event. The Cognition Orchestrator / Objective Engine / Scheduler
+advance their own plan/objective state **only** by observing a
+`capability.verified` (or terminal-failure) event they did not emit — the
+Orchestrator's preview POLICY/RISK/PERMISSION pass is advisory; the Executor
+re-derives everything at dispatch.
 
-- For `riskClass >= HIGH` the Executor runs `adapter.simulate` **first**. The
-  adapter runs under a Kernel-injected **dry-run credential scope** (read-only
-  / sandbox). The predicted effect is surfaced for approval.
-- An adapter that cannot honour dry-run declares `simulatable: false`. The
-  Executor then does **not** pretend to simulate — it escalates the approval
-  requirement (surfaces "no simulation available for this action" to the
-  approver).
-- Simulation output is itself validated and audited (`capability.simulated`).
+## 5. Risk classes -> authority tiers (L19)
 
-## 6. Verification (L22)
+Full table in `SECURITY_MODEL.md` §3. `AMBIENT | LOW | MEDIUM | HIGH |
+CRITICAL` map to `AMBIENT | STANDARD | ELEVATED | CONFIRMED | DUAL`. The
+manifest assigns `riskClass` per action; the Registry's validator enforces
+minimums by action shape (pure read = AMBIENT; reversible scoped write =
+MEDIUM; irreversible/external/shell/push/staging-deploy/comms/media-egress =
+HIGH; deletion/prod-deploy/spend/financial/robotics-motion/grant-change =
+CRITICAL). `approvalPolicy` can only make an action need **more** authority.
 
-- `verify` is **mandatory** on every action. "Assumed success" is not a code
-  path.
-- `verify` checks the world, not the adapter's return value: file exists with
-  expected hash, branch is on the remote, container is running, message id is
-  in the sent folder, etc.
-- Result: `capability.verified` or `capability.verification_failed` (→ rollback
-  if reversible, → alert if not).
+## 6. Policy (deterministic — ADR-0026)
+
+`evaluate(PolicyQuery) -> ALLOW | DENY | REQUIRE_APPROVAL` is a pure function
+of typed inputs. Rules are a JSON AST over a fixed operator set (no `eval`, no
+model node), stored as versioned data. Evaluation order: engine **hard caps**
+(untrusted-derived above LOW ⇒ DENY; missing required scope ⇒ DENY; GUARDIAN +
+CRITICAL ⇒ DENY) → **rules** by priority (DENY beats REQUIRE_APPROVAL beats
+ALLOW at equal priority) → **fail-closed default** (AMBIENT ⇒ ALLOW, LOW ⇒
+REQUIRE_APPROVAL, MEDIUM+ ⇒ DENY). A rule may reference
+`context.llmRecommendation` **only** to produce `DENY` — rule validation
+rejects anything else (L21). Mode and objective authority are **restrict-only**
+inputs.
+
+## 7. Permission (ADR-0027)
+
+- **Grant**: `scopes[]` + `resourceConstraints[]` (repo / path-prefix / domain
+  / command / container-image allowlists, spend ceiling) + `nodeConstraints` +
+  `timeWindows` + `maxRiskWithoutLiveApproval` + `mayProceedWithoutLiveApproval`
+  (off by default) + `version` (bumped on any change).
+- **Authority token**: minted per authorised invocation, bound to
+  `invocationId` + `grantId`/`grantVersion` + `principalId`, `mode`
+  (`dry-run`|`full`), single-use, ~120 s TTL. Handed to the Executor, never
+  the adapter.
+- **Freshness barrier**: inside the `capability.started` transaction the
+  Executor re-reads `grant.version`/`revoked_at`; any drift ⇒ `ABORTED`, no
+  mint. Long actions hold a revocable lease.
+- **Approval**: `REQUIRE_APPROVAL` surfaces the request (+ simulated effect for
+  `riskClass >= HIGH`) on a trusted surface. Timeout / operator-unreachable ⇒
+  **fail closed** unless a standing grant carries `mayProceedWithoutLiveApproval`
+  for the scope.
+- **Dual control** (CRITICAL): two distinct deliberate operator acts — an
+  `approve` **and** a typed `confirmationPhrase` — from the same session at
+  `authTrustLevel: verified`, within the approval TTL; always simulate-first.
+
+## 8. Credential model (ADR-0025 §2)
+
+- The **Credential Broker** (Kernel-internal service) is the only process
+  holding adapter credential material (loaded from OS keychain / a `0600`
+  secrets file at startup, memory only, never written).
+- Per invocation the Executor calls `broker.mint(invocationId, capabilityId,
+  action, resourceRef, mode)` → a `CredentialHandle`:
+  - **derived** short-lived where the backend supports it (GitHub fine-grained
+    installation token, AWS STS, a signed Docker-proxy token) — the worker
+    redeems it through `ctx.http` / the proxy and never sees the string;
+  - **wrapped-static** otherwise — a `SecretBox` over the IPC channel exposing
+    only `use(fn)` + zeroize;
+  - `dry-run` ⇒ a read-only / sandbox credential, so a faked `simulate` has no
+    real access.
+- The worker→Executor channel runs a **redactor** seeded with the secret
+  fingerprint; a hit ⇒ `«redacted»` + `security.alert.elevated`.
+- `agency.invocations` stores `input_hash`, never `input`. Secrets never enter
+  an event payload, a model context, or an error message.
+
+## 9. Adapters & the Adapter Host (`apps/adapter-host`)
+
+- Run **out-of-process** on the node where the resource lives. One **fresh
+  Node worker per invocation** for `riskClass >= MEDIUM`; a warm pool is
+  permitted only for `AMBIENT`/`LOW` reads. `worker+container` runs the worker
+  inside a fresh restricted container (the JARVIS LABS mechanism).
+- The worker starts with **zero inherited environment**, a fresh scratch
+  working directory, and a single typed IPC channel to the Executor. It cannot
+  open a socket to NATS, the Kernel DB, or the Broker, and cannot emit ledger
+  events.
+- `ctx` (`AdapterContext`) exposes exactly `input`, `mode`, `credential` (a
+  handle), `log` (redaction-filtered), `http` (declared-egress-enforced),
+  `abortSignal`.
+- Adapters cannot escalate scope, skip `verify`, perform real side effects
+  during `simulate`, or self-report success.
+
+### MK.47 (HEPHAESTUS) adapter set — real
+
+`filesystem`, `github`, `docker`, `terminal`, `windows`, `browser`, `web`,
+`telemetry`. Each least-privilege (workspace-rooted FS handle; repo-scoped
+fine-grained token; command-allowlisted Docker socket proxy; **argv-array-only**
+terminal with no shell; fixed Windows API surface; isolated ephemeral browser
+profile; GET-only domain-allowlisted web; read-only telemetry).
+
+### Future interfaces — manifest only
+
+`email`, `calendar`, `scalesmiths`, `smart-home`, `mobile`, `robotics`:
+`defineCapability` manifests with `execute` throwing `NOT_IMPLEMENTED`,
+registered `active: false`. The pipeline already gates them; robotics/smart-home
+are just CRITICAL-heavy manifests on a new node (L38).
+
+## 10. Verification (L22)
+
+- `verify` is **mandatory** and **Executor-run** against the world using a
+  read-only credential — file exists with expected hash; branch is on the
+  remote at the expected SHA; container is healthy; message id is in Sent;
+  device reported-state matches requested. The adapter's `execute` return value
+  and any HTTP 200 are debug fields only.
+- Result: `capability.verified` or `capability.verification_failed`
+  (→ rollback if reversible, → alert if not).
 - Facts derived from a verified effect are written to the World Model with
   `epistemicStatus: observed`, evidence = the verify run.
 
-## 7. Rollback (L23)
+## 11. Rollback (L23) & partial execution
 
-- `reversible: true` + side effects ⇒ `rollback` is required.
-- The Executor invokes `rollback` automatically on post-execution verification
-  failure, and on operator request within the retention window for reversible
-  actions.
-- `rollback` is itself an action with its own `verify`. A failed rollback
-  escalates to CRITICAL alert.
+- `reversible: true` + non-empty `sideEffects` ⇒ `rollbackStrategy` required at
+  registration. The Executor invokes rollback automatically on
+  post-execution verification failure, and on operator request within the
+  retention window.
+- `rollback` produces its own effect and is **itself verified**
+  (`RollbackReport.undone`). Residual items ⇒ **CRITICAL alert + GUARDIAN
+  recommendation**.
+- **Multi-step / saga**: `steps[]` declare per-step `verify` + `compensate`;
+  the Executor emits `capability.step.completed` per step. Crash mid-action ⇒
+  on restart, an `EXECUTING`/`COMPENSATING` row with no terminal event ⇒ the
+  Executor compensates completed steps in reverse (`capability.compensated` /
+  `PARTIALLY_COMPLETED`). Non-idempotent step + uncertainty ⇒ always
+  compensate, never re-run.
 
-## 8. Multi-step actions & partial execution (review §16.13)
+## 12. Self-extension — FORGE + JARVIS LABS (ADR-0029)
 
-- An action with `steps[]` declares per-step `verify` and `compensate`.
-- The Executor runs steps sequentially, emitting `capability.step.completed`
-  per step.
-- **Crash mid-action**: on Kernel restart, a `capability.started` with no
-  terminal event is detected; the Executor reads which
-  `capability.step.completed` events exist and runs `compensate` for those, in
-  reverse order (saga compensation). Emits `capability.compensated`.
-- Adapters must make each step individually idempotent per `invocationId` or
-  declare `idempotent: false`, in which case the Executor will not auto-retry
-  and will always compensate on uncertainty.
+```
+capability_gap event -> forge researches (web, GET-only, untrusted) ->
+CapabilityDraftProposal { manifest, adapterSource, testSource, declaredEgress }
+  -> JARVIS LABS (apps/labs): ephemeral Docker, synthetic creds, mock APIs,
+     throwaway PG + scratch FS, default-deny network, resource limits, full
+     logs, guaranteed teardown -> build + tests + static/security analysis
+  -> HUMAN REVIEW (manifest diff + source + LABS report + dep tree + egress)
+  -> Capability Registry registration (operator-approved Command only; there is
+     no capability.register capability)
+  -> LIVE but PROBATIONARY: effective risk = max(declared, HIGH),
+     approvalPolicy = 'always', Sentinel flags every invocation, until a second
+     operator capability.trust Command
+```
 
-## 9. Adapters (`capabilities/*`)
+JARVIS never edits Kernel / `packages/contracts` / `packages/permissions` /
+`scripts/lint.mjs` / migrations / ADRs in any automated flow. A capability
+adapter is not Kernel code, and it still cannot self-register or self-promote.
 
-- Run **out-of-process**, spawned per invocation or pooled, on the node where
-  the resource lives (e.g. `windows` on each workstation, `docker` on the
-  server).
-- Hold **only their own scoped resource credential** (a GitHub token limited to
-  declared repos; a workspace-rooted filesystem handle; a Docker socket). Never
-  a DB, NATS, or provider credential.
-- Communicate with the Executor over a typed local channel. Cannot emit ledger
-  events themselves (the Executor emits results).
-- Cannot escalate their own scope, skip `verify`, or perform real side effects
-  during `simulate`.
+## 13. Sentinel & Guardian (ADR-0028, `SENTINEL_MODEL.md`)
 
-### MK.42 adapter set
+- **Sentinel** is a deterministic detector service (read-only) + a
+  proposing-only `sentinel` specialist. It raises `jarvis.security.alert.*`.
+  It has **no offensive capability** — the active-intrusion verb denylist is
+  enforced by the SDK, the Registry, and `scripts/lint.mjs`.
+- **Guardian** is the `GUARDIAN` operating mode (ADR-0019) plus a fixed,
+  pre-authorised, **restrict-only** playbook (tighten grants, suspend
+  autonomous external actions, lock CRITICAL, snapshot evidence, isolate a
+  named node, notify). Each playbook step runs **through the Executor
+  pipeline**; Guardian mints no authority, widens no grant, disables no audit,
+  and runs nothing outside the table. Exit requires an operator
+  `security.cleared`.
 
-`browser`, `windows`, `filesystem`, `terminal`, `github`, `docker`, `web`,
-`scalesmiths`. `smart-home` and robotics are future adapters — the pipeline
-already gates them (they are just CRITICAL-heavy manifests on a robot node,
-L38).
-
-## 10. What the Agency Plane must never do
+## 14. What the Agency Plane must never do
 
 - Be invoked outside the Executor pipeline.
-- Skip policy, permission, the freshness barrier, or `verify`.
-- Auto-execute CRITICAL, or execute HIGH without approval/standing-grant +
-  simulate.
-- Let an adapter hold a broad credential or escalate scope.
-- Fall back to ALLOW when an approver is unreachable — it **fails closed**
-  (review §16.9).
+- Skip the Validator, Policy, Permission, the freshness barrier, simulate
+  (≥HIGH), or `verify`.
+- Auto-execute CRITICAL, or execute HIGH without approval / a pre-authorised
+  standing grant + simulate.
+- Let an adapter hold a broad or standing credential, read `process.env` for a
+  secret, or escalate its own scope.
+- Fall back to ALLOW when an approver is unreachable — it **fails closed**.
 - Emit ledger events from an adapter.
+- Register or promote a capability without an operator's signed, verified-trust
+  Command.
+- Contain an offensive/active-intrusion capability.

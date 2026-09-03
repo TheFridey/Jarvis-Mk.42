@@ -18,8 +18,8 @@ service without a redesign.
 | `memory` | Episodes, summaries, pgvector recall, decay/compaction. | → knowledge service |
 | `objectives` | Objective Engine: decomposition, success criteria, serialised transitions. | → planning service |
 | `models` | Model Registry types + routing-policy library (no provider SDKs). | stays with Kernel |
-| `capabilities` | Capability Registry + the Executor pipeline + adapter host contract. | Executor stays with Kernel; adapters already out-of-process |
-| `permissions` | Policy Engine (deterministic evaluator + rule DSL) + Permission Engine (grants, tokens, approvals). | stays with Kernel |
+| `capability-sdk` | `defineCapability()` + zod→JSON-Schema + manifest/worker codegen + testkit + the `capabilities/**` security lint (ADR-0030). Retires the old `capabilities` stub. | n/a (authoring lib) |
+| `permissions` | Policy Engine (total AST evaluator + rule validator + base rule pack, ADR-0026) + Permission Engine (grants, resource constraints, authority-token minting, approval + dual control, freshness barrier, ADR-0027). Pure logic; imported by `apps/core`. | stays with Kernel |
 | `agents` | Agent Runtime: lease, sandbox, budget, control channel, reaping. | → orchestration service |
 | `spatial` | Coordinate spaces, transforms, bounding volumes. | with scene |
 | `scene` | Scene Graph: surfaces, node poses, entity spatial extent (ADR-0015). | → scene service |

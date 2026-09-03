@@ -58,3 +58,9 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0021](0021-causal-hypothesis-model.md) | Causal hypothesis model — foundations only | Accepted | Low |
 | [0022](0022-memory-consolidation.md) | Memory consolidation ("DREAMING") | Accepted | Low |
 | [0023](0023-memory-retrieval-ranking.md) | Memory retrieval ranking — seven factors | Accepted | Low |
+| [0025](0025-agency-plane.md) | Agency Plane — Executor-owned lifecycle, Credential Broker, Adapter Host | Accepted | High |
+| [0026](0026-policy-engine.md) | Deterministic Policy Engine — rule AST, evaluation order, base pack | Accepted | Moderate |
+| [0027](0027-permission-model.md) | Permission model — grants, constraints, authority tokens, freshness barrier, dual control | Accepted | High |
+| [0028](0028-sentinel-guardian.md) | Sentinel (defensive) + Guardian Response Playbook | Accepted | Low |
+| [0029](0029-self-extension-forge-labs.md) | Self-extension — FORGE + JARVIS LABS, operator-gated registration | Accepted | Low |
+| [0030](0030-capability-sdk.md) | Capability SDK — defineCapability, codegen, security lint | Accepted | Low |

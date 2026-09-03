@@ -21,12 +21,13 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 11 | [`MNEMOSYNE_MODEL.md`](MNEMOSYNE_MODEL.md) | MNEMOSYNE — memory: durable classes, candidate pipeline, DREAMING consolidation, seven-factor recall (MK.46) |
 | 12 | [`COGNITION_MODEL.md`](COGNITION_MODEL.md) | Model Gateway, reasoning, agents, proposals, provider replaceability |
 | 13 | [`PERCEPTION_MODEL.md`](PERCEPTION_MODEL.md) | Sensors → observations; local-first; the perception/cognition wall |
-| 14 | [`AGENCY_MODEL.md`](AGENCY_MODEL.md) | Capabilities, the Executor pipeline, simulation, verification, rollback |
-| 15 | [`SECURITY_MODEL.md`](SECURITY_MODEL.md) | Trust boundaries, risk→authority tiers, structural injection defense, audit |
-| 16 | [`LOCALITY_MODEL.md`](LOCALITY_MODEL.md) | What runs on-device vs local server vs cloud, and why |
-| 17 | [`FAILURE_MODEL.md`](FAILURE_MODEL.md) | Degradation ladder for every dependency failure |
-| 18 | [`ROADMAP.md`](ROADMAP.md) | MK.42 → MK.100 evolution without foundation loss |
-| 19 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
+| 14 | [`AGENCY_MODEL.md`](AGENCY_MODEL.md) | Capabilities, the Executor pipeline, the 14-state action lifecycle, credential broker, simulation, verification, rollback, self-extension |
+| 15 | [`SECURITY_MODEL.md`](SECURITY_MODEL.md) | Trust boundaries, risk→authority tiers, policy evaluation order, structural injection defense, credential partitioning, audit |
+| 16 | [`SENTINEL_MODEL.md`](SENTINEL_MODEL.md) | Defensive security intelligence: deterministic detectors, the proposing-only specialist, the Guardian Response Playbook |
+| 17 | [`LOCALITY_MODEL.md`](LOCALITY_MODEL.md) | What runs on-device vs local server vs cloud, and why |
+| 18 | [`FAILURE_MODEL.md`](FAILURE_MODEL.md) | Degradation ladder for every dependency failure |
+| 19 | [`ROADMAP.md`](ROADMAP.md) | MK.42 → MK.100 evolution without foundation loss |
+| 20 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
 
 ## Decision records
 

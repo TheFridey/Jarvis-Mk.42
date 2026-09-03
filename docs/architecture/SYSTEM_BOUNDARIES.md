@@ -24,6 +24,8 @@ communicates only through contracts and events.
 | Desktop shell | `apps/desktop` | workstation | Tauri; user-session lifecycle; pure Experience Plane. |
 | Diagnostics | `apps/diagnostics` | workstation | Operator read-only UI over Kernel APIs; independent deploy so it can inspect a sick Kernel. |
 | Relay (future) | `apps/relay` | edge | Empty in MK.42. Documented seam for node-facing edge termination when nodes live off-LAN. |
+| Adapter Host | `apps/adapter-host` | local server + workstation | Agency worker runtime (HEPHAESTUS, ADR-0025): one zero-environment Node worker per capability invocation; per-invocation credential handle; typed IPC to the Executor only; no store credential. Isolates a compromised adapter to one scoped, short-lived invocation. |
+| JARVIS LABS | `apps/labs` | local server | Isolated experimentation sandbox (HEPHAESTUS, ADR-0029): ephemeral Docker, synthetic credentials, mock APIs, throwaway PG + scratch FS, default-deny network, resource limits, guaranteed teardown. FORGE builds/tests capability drafts here; no route to real Kernel infra; promotion is human-reviewed and operator-gated. |
 
 Everything else is an **in-process Nest module** inside `apps/core`, or a
 **library** in `packages/*`, or an **out-of-process adapter/worker** spawned on

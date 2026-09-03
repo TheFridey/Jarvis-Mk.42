@@ -230,6 +230,70 @@ produced its intended effect (L22).
 **Simulation** — a dry run of a dangerous action producing a predicted effect
 for approval, with no real side effects (L24).
 
+**Action lifecycle** — the 14-state machine the Capability Executor runs each
+invocation through (`PROPOSED → VALIDATED → POLICY_CHECKED → …AWAITING_APPROVAL
+→ APPROVED → SIMULATING → EXECUTING → VERIFYING → COMPLETED`, plus `REJECTED /
+DENIED / ABORTED / FAILED / VERIFICATION_FAILED / ROLLING_BACK → ROLLED_BACK /
+COMPENSATING → PARTIALLY_COMPLETED`). Owned by the Executor as
+`agency.invocations`, folded from `jarvis.agency.invocation.*` events (ADR-0025).
+
+**Freshness barrier** — the Executor's re-read of `grant.version` /
+`revoked_at` **inside** the transaction that writes the `EXECUTING` row and
+appends `capability.started`; a stale or revoked grant ⇒ `ABORTED`, no
+credential minted (ADR-0027).
+
+**Credential Broker** — the only process holding adapter credential *material*
+(in memory, from the OS keychain / a `0600` file). Exposes only
+`mint(invocationId, …) → CredentialHandle`; mints `derived` short-lived tokens
+where a backend supports it, else `wrapped-static`; `dry-run` mode yields a
+read-only credential (ADR-0025 §2).
+
+**Credential handle** — a per-invocation, single-use, TTL'd reference an
+adapter worker uses to act; for `derived` mints the worker never sees the
+secret string.
+
+**Adapter Host** — `apps/adapter-host`; the out-of-process worker runtime the
+Executor drives. Spawns a fresh zero-environment Node worker per invocation for
+`riskClass >= MEDIUM` (pool allowed for cheap reads); `worker+container` runs
+the worker inside a fresh restricted container.
+
+**Capability SDK** — `@jarvis/capability-sdk`; `defineCapability()` + manifest
+/ worker codegen + security lint. "Easy to build correctly, hard to build
+insecurely" (ADR-0030).
+
+**Resource constraint** — a per-grant allowlist that narrows a scope to
+concrete resources: `repo-allow`, `path-prefix`, `domain-allow`,
+`command-allow`, `container-image-allow`, `max-amount` (ADR-0027).
+
+**Dual control** — the CRITICAL authorisation: an operator `approve` **plus** a
+typed `confirmationPhrase`, from the same session at `authTrustLevel:
+verified`, always simulate-first. Two principals is deferred to multi-user.
+
+**Sentinel** — defensive security intelligence: a deterministic Kernel-internal
+detector service raising `jarvis.security.alert.*` + a proposing-only
+`sentinel` specialist. No offensive capability exists or can be registered
+(`SENTINEL_MODEL.md`, ADR-0028).
+
+**Guardian Response Playbook** — the fixed, pre-authorised, **restrict-only**
+action set run (through the Executor) on entering `GUARDIAN` mode: tighten
+grants, suspend autonomous external actions, lock CRITICAL, snapshot evidence,
+isolate a named node, notify. Guardian mints no authority.
+
+**FORGE** — the specialist that *drafts* a new capability (manifest + adapter
+source) as a `CapabilityDraftProposal` from untrusted research; it cannot
+build outside JARVIS LABS and cannot register.
+
+**JARVIS LABS** — `apps/labs`; the isolated experimentation sandbox (ephemeral
+Docker, synthetic credentials, mock APIs, throwaway PG + scratch FS,
+default-deny network, resource limits, guaranteed teardown) where FORGE builds
+and tests a capability draft before mandatory human review and operator-gated
+registration (ADR-0029).
+
+**Probation** — a newly-registered capability's initial state: effective
+`riskClass = max(declared, HIGH)`, `approvalPolicy: 'always'`, every invocation
+flagged by Sentinel, until a second explicit operator `capability.trust`
+command.
+
 ## Perception & spatial
 
 **Perception Plane** — the local-first processes that turn sensors into

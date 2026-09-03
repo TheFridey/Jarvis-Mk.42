@@ -56,6 +56,14 @@ Executor pipeline with one trivial capability (`filesystem` read/write in a
 workspace) end-to-end incl. simulate/verify/rollback. **Exit**: no effect
 possible outside the pipeline; fail-closed proven.
 
+**Collapsed into HEPHAESTUS (2026-09-03).** MK.44 and MK.50 are delivered
+together as the **HEPHAESTUS — Safe Agency** phase: the authority core plus
+the full agency breadth (8 real adapters), the Credential Broker, the Adapter
+Host, the Capability SDK, Sentinel, the Guardian Response Playbook, and FORGE +
+JARVIS LABS self-extension. Architecture: ADR-0025..0030, `AGENCY_MODEL.md`,
+`SENTINEL_MODEL.md`, `docs/security/threat-model.md` (T16–T28). Spec:
+`docs/superpowers/specs/2026-09-03-hephaestus-safe-agency-design.md`.
+
 ### MK.45 — Cognition
 Model Gateway (2+ provider adapters), Model Registry, Context Compiler with the
 budget/priority-tier algorithm, `Proposal` + Validator, Agent Runtime with
@@ -97,6 +105,12 @@ state; all mutation via validated commands.
 `communications` adapters. `forge`, `scout`, `hermes`, `atlas`, `hephaestus`,
 `sentinel`, `argus`, `daedalus`. **Exit**: each adapter scoped-credential only;
 CRITICAL requires dual control.
+
+**Delivered with HEPHAESTUS** (see MK.44 note). The eight real adapters
+(`filesystem`, `github`, `docker`, `terminal`, `windows`, `browser`, `web`,
+`telemetry`), the `sentinel` specialist, and `forge` self-extension land in
+that phase; `email`/`calendar`/`scalesmiths`/`smart-home`/`mobile`/`robotics`
+are manifest-only interfaces (`active: false`) proving the pipeline gates them.
 
 ### MK.51+ — Spatial & multi-node
 Scene Graph population, second workstation, phone node, display node, LiveKit

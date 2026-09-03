@@ -54,6 +54,22 @@ subsystem, invoked by the flow after Policy+Permission; it is not a
 16th top-level component but is equally protected. It is documented in
 `AGENCY_MODEL.md`.
 
+The **Credential Broker** (ADR-0025) is likewise a Kernel-internal protected
+service: it is the only process that holds adapter credential *material* (in
+memory, loaded from the OS keychain / a `0600` secrets file at startup), and it
+exposes only `mint(invocationId, …) → CredentialHandle`. It is not a top-level
+component; it has no effect path and never writes state.
+
+The **Sentinel detector** (ADR-0028) is a Kernel-internal service, read-only
+with respect to every store (like the Audit Manager); it consumes events and
+raises `jarvis.security.alert.*`. It is not a top-level component and holds no
+authority.
+
+The **Adapter Host** (`apps/adapter-host`) and **JARVIS LABS** (`apps/labs`)
+are *deployables*, not Kernel components: out-of-process worker runtimes that
+the Executor drives. They hold no store credential (only a node identity for
+the Executor channel).
+
 **Knowledge Ingestion** is likewise a Kernel-internal protected service of the
 knowledge subsystem — the sole writer to `atlas.*` (ATLAS) and `mnemosyne.*`
 (MNEMOSYNE). It is not a 17th top-level component. It is documented in
