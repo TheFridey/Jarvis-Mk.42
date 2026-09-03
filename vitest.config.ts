@@ -11,6 +11,8 @@ const alias = {
   '@jarvis/testkit': r('./packages/testkit/src/index.ts'),
   '@jarvis/permissions': r('./packages/permissions/src/index.ts'),
   '@jarvis/capability-sdk': r('./packages/capability-sdk/src/index.ts'),
+  '@jarvis/scene': r('./packages/scene/src/index.ts'),
+  '@jarvis/spatial': r('./packages/spatial/src/index.ts'),
 };
 
 const isIntegration = process.env.JARVIS_IT === '1';

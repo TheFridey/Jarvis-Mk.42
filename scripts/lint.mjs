@@ -31,7 +31,7 @@ function walk(dir) {
     const p = join(dir, entry);
     const s = statSync(p);
     if (s.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist') continue;
+      if (entry === 'node_modules' || entry === 'dist' || entry === '.next' || entry === 'out') continue;
       walk(p);
     } else if (entry.endsWith('.ts')) {
       if (ALLOW_FILES.some((re) => re.test(p))) continue;

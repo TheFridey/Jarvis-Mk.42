@@ -10,6 +10,8 @@
       "@jarvis/testkit": ["packages/testkit/src/index.ts"]
       ,"@jarvis/capability-sdk": ["packages/capability-sdk/src/index.ts"]
       ,"@jarvis/permissions": ["packages/permissions/src/index.ts"]
+      ,"@jarvis/scene": ["packages/scene/src/index.ts"]
+      ,"@jarvis/spatial": ["packages/spatial/src/index.ts"]
     }
   },
   "include": [

@@ -1,0 +1,1 @@
+{"name":"@jarvis/spatial","version":"0.49.0","private":true,"type":"module","exports":{".":"./src/index.ts"},"dependencies":{"@jarvis/contracts":"workspace:*"}}

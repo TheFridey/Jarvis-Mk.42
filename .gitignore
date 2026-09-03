@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 .next/
+out/
 target/
 *.tsbuildinfo
 .env
@@ -21,3 +22,5 @@ coverage/
 
 # Claude Code local state (worktrees, scratch)
 .claude/
+jarvis-*-review.png
+.playwright-mcp/
