@@ -1,13 +1,14 @@
 {
   "id": "agents.forge",
-  "version": "0.42.0",
+  "version": "0.47.0",
   "displayName": "Forge",
-  "role": "Software implementation: reads a task and proposes code changes as capability invocations",
+  "role": "Drafts capability extensions for isolated JARVIS LABS review",
   "leasePolicy": { "maxWallTimeMs": 900000, "maxContextUnits": 400000, "maxCostUnits": 200 },
   "proposalScope": {
-    "kinds": ["plan", "capability_invocation", "draft", "clarification_request"],
-    "capabilities": ["capabilities.filesystem", "capabilities.terminal", "capabilities.github", "capabilities.docker"]
+    "kinds": ["capability_draft"],
+    "capabilities": []
   },
+  "allowedTools": ["web_get"],
   "modelHints": { "tasks": ["code", "reason", "plan"], "locality": "prefer-local" },
-  "notes": "Gets results, not a shell. Every proposed fs/terminal/github/docker action passes the full Executor pipeline under a workspace-scoped grant. Cannot escalate its own scope."
+  "notes": "Research is GET-only and untrusted-tagged. FORGE cannot register or invoke capabilities; operator-reviewed LABS promotion is the only activation path."
 }
