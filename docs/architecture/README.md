@@ -28,6 +28,8 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 18 | [`FAILURE_MODEL.md`](FAILURE_MODEL.md) | Degradation ladder for every dependency failure |
 | 19 | [`ROADMAP.md`](ROADMAP.md) | MK.42 → MK.100 evolution without foundation loss |
 | 20 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
+| 21 | [`AUDIT_MK42_ASCENSION.md`](AUDIT_MK42_ASCENSION.md) | Hostile external architecture audit (ASCENSION Stage A): design vs as-built, the hollow-agency-plane finding, scores, required corrections |
+| 22 | [`HARDENING_SPEC_MK42.md`](HARDENING_SPEC_MK42.md) | ASCENSION Stage B implementation direction: task groups H1–H13, chaos/perf/fitness/contract gates, the FOUNDATION_REVIEW template |
 
 ## Decision records
 
