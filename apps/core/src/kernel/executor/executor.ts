@@ -47,7 +47,12 @@ export class CapabilityExecutor {
       if (report.verified) { await this.transition(id, 'COMPLETED', 'verified', { verifyReportRef: createHash('sha256').update(JSON.stringify(report)).digest('hex') }); return { invocationId: id, outcome: 'verified', output, verifyReport: report, finishedAt: this.now() }; }
       if (action.reversible && adapter.rollback) { await this.transition(id, 'ROLLING_BACK', 'rolling_back'); await adapter.rollback(action.name, ctx, proposal.invocation.input); await this.transition(id, 'ROLLED_BACK', 'rolled_back'); return { invocationId: id, outcome: 'rolled_back', verifyReport: report, finishedAt: this.now() }; }
       return this.terminal(id, 'VERIFICATION_FAILED', 'verification_failed', 'world verification failed', 'SECURITY');
-    } catch (error) { return this.terminal(id, 'FAILED', 'failed', error instanceof Error ? error.message : 'adapter failure', 'AUDIT'); }
+    } catch (error) {
+      const state = this.store.get(id)?.state;
+      const reason = error instanceof Error ? error.message : 'adapter failure';
+      if (state === 'VERIFYING' || state === 'ROLLING_BACK') return this.terminal(id, 'VERIFICATION_FAILED', 'verification_failed', reason, 'SECURITY');
+      return this.terminal(id, 'FAILED', 'failed', reason, 'AUDIT');
+    }
     finally { this.leases.release(resource, id); if (handle && this.deps.broker.revoke) await this.deps.broker.revoke(handle.handleId); }
   }
   private context(credential: CredentialHandle, input: unknown): AdapterContext { return { credential, input, mode: credential.mode, abortSignal: new AbortController().signal, log: () => undefined, http: async () => { throw new Error('http unavailable'); } }; }
