@@ -1,0 +1,109 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: J
+        - generic [ref=e8]:
+          - generic [ref=e9]: PRIMARY INTELLIGENCE
+          - strong [ref=e10]:
+            - text: JARVIS
+            - emphasis [ref=e11]: MK.42
+      - group "Presentation state" [ref=e203]:
+        - button "DORMANT" [ref=e204] [cursor=pointer]
+        - button "LISTENING" [active] [ref=e205] [cursor=pointer]
+        - button "THINKING" [ref=e206] [cursor=pointer]
+        - button "WORKING" [ref=e207] [cursor=pointer]
+        - button "ALERT" [ref=e208] [cursor=pointer]
+        - button "GUARDIAN" [ref=e209] [cursor=pointer]
+        - button "DEGRADED" [ref=e210] [cursor=pointer]
+      - generic [ref=e12]:
+        - generic [ref=e13]: SYNCHRONISED
+        - time [ref=e17]: 21:51
+    - region "Semantic workspace" [ref=e18]:
+      - generic:
+        - generic "JARVIS is listening":
+          - generic:
+            - text: LISTENING
+            - strong: JARVIS
+            - generic:
+              - generic: ATLAS
+              - generic: FORGE
+              - generic: WEB
+        - paragraph: I have assembled the current operating picture.
+      - article [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e34]: ACTIVE INTENT
+            - strong [ref=e35]: Objectives
+          - generic [ref=e36]:
+            - button "Focus Objectives" [ref=e37] [cursor=pointer]
+            - button "Pin Objectives" [ref=e44] [cursor=pointer]
+            - button "Collapse Objectives" [ref=e47] [cursor=pointer]
+            - button "Dismiss Objectives" [ref=e51] [cursor=pointer]
+        - generic [ref=e55]:
+          - paragraph [ref=e56]: Shape the primary JARVIS experience
+          - generic [ref=e59]:
+            - term [ref=e60]: Next verified state
+            - definition [ref=e61]: Validate spatial recovery across monitor change
+      - article [ref=e62]:
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - generic [ref=e75]: SYNTHESIS
+            - strong [ref=e76]: Research
+          - generic [ref=e77]:
+            - button "Focus Research" [ref=e78] [cursor=pointer]
+            - button "Pin Research" [ref=e85] [cursor=pointer]
+            - button "Collapse Research" [ref=e88] [cursor=pointer]
+            - button "Dismiss Research" [ref=e92] [cursor=pointer]
+        - generic [ref=e96]:
+          - blockquote [ref=e97]: Spatial interfaces should preserve causality, not decorate it.
+          - generic [ref=e98]:
+            - generic [ref=e99]: 12 sources
+            - generic [ref=e100]: 91% confidence
+      - article [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e114]: SYSTEM FIELD
+            - strong [ref=e115]: Infrastructure
+          - generic [ref=e116]:
+            - button "Focus Infrastructure" [ref=e117] [cursor=pointer]
+            - button "Pin Infrastructure" [ref=e124] [cursor=pointer]
+            - button "Collapse Infrastructure" [ref=e127] [cursor=pointer]
+            - button "Dismiss Infrastructure" [ref=e131] [cursor=pointer]
+        - generic [ref=e135]:
+          - generic [ref=e136]:
+            - generic [ref=e137]: WORKSTATION
+            - generic [ref=e139]: CORE
+            - generic [ref=e141]: LOCAL SERVER
+          - generic [ref=e142]:
+            - generic [ref=e143]:
+              - generic [ref=e144]: "11"
+              - text: nominal
+            - generic [ref=e145]:
+              - generic [ref=e146]: "1"
+              - text: degraded
+            - generic [ref=e147]:
+              - generic [ref=e148]: "2"
+              - text: nodes
+      - article [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - generic [ref=e162]: BUSINESS
+            - strong [ref=e163]: ScaleSmiths
+          - generic [ref=e164]:
+            - button "Focus ScaleSmiths" [ref=e165] [cursor=pointer]
+            - button "Pin ScaleSmiths" [ref=e172] [cursor=pointer]
+            - button "Collapse ScaleSmiths" [ref=e175] [cursor=pointer]
+            - button "Dismiss ScaleSmiths" [ref=e179] [cursor=pointer]
+        - generic [ref=e183]:
+          - paragraph [ref=e184]: Three commitments need attention
+          - paragraph [ref=e185]: Pipeline is steady · one delivery risk
+    - generic [ref=e191]:
+      - button "Begin listening" [ref=e192] [cursor=pointer]
+      - generic [ref=e194]:
+        - generic [ref=e197]: Ask JARVIS, or reference anything in space
+        - generic [ref=e198]: ⌘ K
+      - button "Open diagnostics" [ref=e199] [cursor=pointer]
+    - generic [ref=e211]: AIR TOUCH · READY
+  - button "Open Next.js Dev Tools" [ref=e219] [cursor=pointer]
+  - alert [ref=e202]
