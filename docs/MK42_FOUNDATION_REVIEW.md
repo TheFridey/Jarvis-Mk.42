@@ -34,13 +34,14 @@ Review basis: ASCENSION audit and the load-bearing Agency Plane implementation o
 | `pnpm install` | PASS |
 | `pnpm typecheck` | PASS |
 | `pnpm lint` | PASS |
-| `pnpm test` | PASS - 20 files, 107 tests |
-| `pnpm test:integration` | PASS - 7 files, 45 tests, disposable PostgreSQL and spawned adapter workers |
+| `pnpm test` | PASS - 21 files, 112 tests |
+| `pnpm test:integration` | PASS - 7 files, 47 tests, disposable PostgreSQL, live desktop HTTP ingress, and spawned adapter workers |
 | `pnpm test:contract` | PASS - 10 versioned boundary contracts |
 | `pnpm test:security` | PASS - 17 adversarial security cases |
 | `pnpm fitness` | PASS - 14 prohibited-dependency and authority checks |
 | `pnpm test:chaos` | PASS - 10 deterministic failure simulations |
 | `pnpm backup:drill` | PASS - destructive restore of six authoritative data classes in disposable PostgreSQL |
+| `pnpm build:desktop` | PASS - production Next.js static export and type validation |
 | `pnpm verify:full` | Mandatory aggregate gate; runs every item above |
 
 The integration suite proves rejection of unregistered and policy-denied capabilities, grant enforcement, approval enforcement and expiry, credential failure closure, isolated execution, independent verification, false-success prevention, verified compensation, proposal durability, and correlated lifecycle audit.

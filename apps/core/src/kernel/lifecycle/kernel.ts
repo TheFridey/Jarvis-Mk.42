@@ -62,6 +62,7 @@ import { AgencyRecovery, CapabilityExecutor, createAdapterHost, HostedAdapterRun
 import { CredentialBroker, MemoryCredentialMaterialStore } from '../credential-broker/index.ts';
 import { AgencyIngress } from '../agency-ingress/index.ts';
 import { SentinelDetectorService } from '../sentinel/index.ts';
+import { DesktopGateway } from '../desktop/index.ts';
 import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
 
 import { RedisEphemeralStore, NullEphemeralStore, type EphemeralStore } from './ephemeral.ts';
@@ -301,7 +302,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     busHealthy: () => bus.isHealthy(),
   });
 
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health });
+  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, token: config.desktopToken, nodeId: config.nodeId });
+  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop });
 
   const scheduler = new Scheduler({
     events,
@@ -482,7 +484,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
       // 7. Diagnostics HTTP
       if (!ov.noHttp) {
-        diagnosticsPort = await diagnosticsHttp.listen(config.diagnosticsPort);
+        diagnosticsPort = await diagnosticsHttp.listen(config.diagnosticsPort, config.diagnosticsHost);
       }
       await health.heartbeat({ subsystem: 'diagnostics', status: 'HEALTHY', message: diagnosticsPort ? `:${diagnosticsPort}` : 'disabled' });
 

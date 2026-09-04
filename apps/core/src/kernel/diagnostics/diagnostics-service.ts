@@ -87,6 +87,11 @@ export class DiagnosticsService {
         placeholder: false,
         detail: { pendingOutbox: outboxPending },
       },
+      {
+        name: 'nats',
+        status: healthReport.subsystems.find((item) => item.subsystem === 'nats')?.status ?? 'OFFLINE',
+        placeholder: false,
+      },
       { name: 'model-gateway', status: 'OFFLINE' as HealthStatus, placeholder: true },
       { name: 'rtc', status: 'OFFLINE' as HealthStatus, placeholder: true },
       { name: 'memory-subsystem', status: 'OFFLINE' as HealthStatus, placeholder: true },

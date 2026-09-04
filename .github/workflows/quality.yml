@@ -36,3 +36,4 @@ jobs:
       - run: pnpm fitness
       - run: pnpm test:chaos
       - run: pnpm backup:drill
+      - run: pnpm build:desktop

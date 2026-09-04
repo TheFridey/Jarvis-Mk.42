@@ -29,6 +29,28 @@ Executor / perception rules respectively, not in the shell's trust context.
 
 ## Current status
 
-A Next.js/Tauri experience prototype exists with semantic-scene rendering and
-air-touch UI simulation. Production Kernel transport, authenticated approval
-surfaces, and hardware validation are not complete.
+A Next.js/Tauri experience client exists with semantic-scene rendering,
+Kernel snapshot polling, bounded reconnect, fail-closed proposal submission,
+and nonce/version-bound approval surfaces. The development gateway is
+loopback-only; production Node Protocol authentication and hardware validation
+are not complete.
+
+## Local live workflow
+
+```powershell
+# Terminal 1
+pnpm stack:up
+pnpm db:migrate
+pnpm core:dev
+
+# Terminal 2
+pnpm --filter @jarvis/desktop tauri
+```
+
+Defaults connect to `http://127.0.0.1:7420` with the explicit local-development
+token `dev-desktop-token`. Set matching `JARVIS_DESKTOP_TOKEN` and
+`NEXT_PUBLIC_JARVIS_DESKTOP_TOKEN` values to override it. See
+[`docs/architecture/DESKTOP_TRANSPORT.md`](../../docs/architecture/DESKTOP_TRANSPORT.md).
+
+For visual work without Core, set `NEXT_PUBLIC_JARVIS_DEMO_MODE=1`. The UI is
+then visibly labelled `DEMO MODE`, and authoritative commands are disabled.

@@ -20,11 +20,23 @@ export class ApprovalManager {
   }
   async approve(input: { invocationId: string; operatorId: string; sessionId: string; authTrustLevel: 'trusted' | 'verified'; confirmationPhrase?: string; nonce: string; version: number }) {
     const request = await this.forInvocation(input.invocationId);
-    if (!request || request.state !== 'pending' || this.expired(request) || input.nonce !== request.nonce || input.version !== request.version) return false;
+    if (!request || request.principalId !== input.operatorId || request.state !== 'pending' || this.expired(request) || input.nonce !== request.nonce || input.version !== request.version) return false;
     if (request.riskClass === 'CRITICAL' && (input.authTrustLevel !== 'verified' || !input.confirmationPhrase || this.hash(input.confirmationPhrase) !== request.confirmationPhraseHash)) return false;
     const evidence = { kind: 'operator' as const, by: input.operatorId, at: this.now(), surface: `session:${input.sessionId}` };
     const rows = await this.sql<{ id: string }[]>`update agency.approvals set state='approved', received_authorisations=required_authorisations, approval_evidence=${JSON.stringify(evidence)}, decided_at=${this.now()}, version=version+1 where id=${request.id} and state='pending' and version=${request.version ?? 1} and expires_at>${this.now()} returning id`;
     return rows.length === 1;
+  }
+  async deny(input: { invocationId: string; operatorId: string; sessionId: string; nonce: string; version: number }) {
+    const request = await this.forInvocation(input.invocationId);
+    if (!request || request.principalId !== input.operatorId || request.state !== 'pending' || this.expired(request) || input.nonce !== request.nonce || input.version !== request.version) return false;
+    const evidence = { kind: 'operator' as const, by: input.operatorId, at: this.now(), surface: `session:${input.sessionId}` };
+    const rows = await this.sql<{ id: string }[]>`update agency.approvals set state='rejected', approval_evidence=${JSON.stringify(evidence)}, decided_at=${this.now()}, version=version+1 where id=${request.id} and state='pending' and version=${request.version ?? 1} and expires_at>${this.now()} returning id`;
+    return rows.length === 1;
+  }
+  async listPending(): Promise<ApprovalRequest[]> {
+    const rows = await this.sql<{ invocation_id: string }[]>`select invocation_id from agency.approvals where state='pending' order by requested_at asc limit 50`;
+    const requests = await Promise.all(rows.map((row) => this.forInvocation(row.invocation_id)));
+    return requests.filter((request): request is ApprovalRequest => request?.state === 'pending');
   }
   async forInvocation(invocationId: string): Promise<ApprovalRequest | undefined> {
     const rows = await this.sql<ApprovalRow[]>`select * from agency.approvals where invocation_id=${invocationId} order by requested_at desc limit 1`; const row = rows[0]; if (!row) return undefined;

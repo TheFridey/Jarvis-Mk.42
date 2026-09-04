@@ -15,6 +15,7 @@
     "@jarvis/adapter-host": "workspace:*",
     "@jarvis/contracts": "workspace:*",
     "@jarvis/persistence": "workspace:*",
+    "@jarvis/scene": "workspace:*",
     "@jarvis/telemetry": "workspace:*",
     "@jarvis/validation": "workspace:*",
     "@opentelemetry/api": "^1.9.0",

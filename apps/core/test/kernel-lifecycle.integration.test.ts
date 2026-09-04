@@ -106,4 +106,22 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     expect(report.identity.version).toBe('0.43.0');
     await k.stop();
   });
+
+  it('serves an authenticated desktop snapshot and rejects stale commands', async () => {
+    await truncateAll(ctx.pg);
+    const k = ctx.makeKernel({ noHttp: false });
+    await k.start();
+    const base = `http://${k.config.diagnosticsHost}:${k.diagnosticsPort}`;
+    expect((await fetch(`${base}/desktop/snapshot`)).status).toBe(401);
+    const headers = { authorization: `Bearer ${k.config.desktopToken}`, 'content-type': 'application/json' };
+    const snapshotResponse = await fetch(`${base}/desktop/snapshot`, { headers });
+    expect(snapshotResponse.status).toBe(200);
+    const snapshot = await snapshotResponse.json() as { schemaVersion: number; principalId: string; stateVersion: number; diagnostics: { mode: string }; scene: { presentation: string; version: number } };
+    expect(snapshot).toMatchObject({ schemaVersion: 1, principalId: 'principal-operator', diagnostics: { mode: 'AMBIENT' } });
+    expect(snapshot.scene.version).toBe(snapshot.stateVersion);
+    const stale = await fetch(`${base}/desktop/proposals`, { method: 'POST', headers, body: JSON.stringify({ commandId: 'stale', expectedStateVersion: snapshot.stateVersion - 1, proposal: {} }) });
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ error: 'state_version_conflict', currentStateVersion: snapshot.stateVersion });
+    await k.stop();
+  });
 });

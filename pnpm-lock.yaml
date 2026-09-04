@@ -41,6 +41,9 @@ importers:
       '@jarvis/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
+      '@jarvis/scene':
+        specifier: workspace:*
+        version: link:../../packages/scene
       '@jarvis/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

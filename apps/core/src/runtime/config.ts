@@ -19,6 +19,9 @@ export interface KernelConfig {
   telemetryDisabled: boolean;
 
   diagnosticsPort: number;
+  diagnosticsHost: string;
+  /** Local desktop ingress bearer. Bind the ingress to loopback in development. */
+  desktopToken: string;
 
   /** Bootstrap operator credential (dev). Never logged. */
   bootstrapPrincipalId: string;
@@ -62,6 +65,8 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     telemetryDisabled: envBool('JARVIS_TELEMETRY_DISABLED', false),
 
     diagnosticsPort: envInt('JARVIS_DIAGNOSTICS_PORT', 7420),
+    diagnosticsHost: env('JARVIS_DIAGNOSTICS_HOST', '127.0.0.1'),
+    desktopToken: env('JARVIS_DESKTOP_TOKEN', 'dev-desktop-token'),
 
     bootstrapPrincipalId: env('JARVIS_BOOTSTRAP_PRINCIPAL', 'principal-operator'),
     bootstrapCredential: env('JARVIS_BOOTSTRAP_CREDENTIAL', 'dev-bootstrap-secret'),
