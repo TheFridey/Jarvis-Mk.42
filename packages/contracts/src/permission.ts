@@ -79,6 +79,14 @@ export interface ApprovalRequest {
   id: Ulid;
   invocationId: Ulid;
   riskClass: RiskClass;
+  principalId?: PrincipalId;
+  capabilityId?: string;
+  capabilityVersion?: string;
+  action?: string;
+  inputHash?: string;
+  expiresAt?: Timestamp;
+  nonce?: string;
+  version?: number;
   summary: string;
   simulatedEffect?: unknown;
   state: ApprovalState;

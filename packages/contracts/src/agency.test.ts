@@ -10,7 +10,7 @@ describe('invocation lifecycle table', () => {
 
   it('uses exactly the documented terminals', () => {
     expect([...TERMINAL_INVOCATION_STATES].sort()).toEqual(
-      ['ABORTED', 'COMPLETED', 'DENIED', 'FAILED', 'PARTIALLY_COMPLETED', 'REJECTED', 'ROLLED_BACK', 'VERIFICATION_FAILED'].sort(),
+      ['ABORTED', 'CANCELLED', 'COMPLETED', 'DENIED', 'EXPIRED', 'FAILED', 'PARTIALLY_COMPLETED', 'REJECTED', 'ROLLBACK_FAILED', 'ROLLED_BACK', 'SUCCEEDED', 'UNVERIFIED', 'VERIFICATION_FAILED'].sort(),
     );
   });
 });

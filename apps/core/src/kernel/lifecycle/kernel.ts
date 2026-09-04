@@ -57,8 +57,8 @@ import { NotificationManager } from '../notification/index.ts';
 import { ContextCompiler } from '../context/index.ts';
 import { DiagnosticsHttp, DiagnosticsService } from '../diagnostics/index.ts';
 import { CapabilityRegistry, PgCapabilityStore } from '../capability-registry/index.ts';
-import { AgencyAuthorizer, ApprovalManager, MemoryTokenCache, PermissionManager, PgGrantStore } from '../permission/index.ts';
-import { CapabilityExecutor, createAdapterHost, HostedAdapterRunner, HostedVerificationWorld, KernelExecutorEventSink, PgInvocationStore, PgResourceLeaseManager, VerificationRunner } from '../executor/index.ts';
+import { AgencyAuthorizer, ApprovalManager, PgTokenCache, PermissionManager, PgGrantStore } from '../permission/index.ts';
+import { AgencyRecovery, CapabilityExecutor, createAdapterHost, HostedAdapterRunner, HostedVerificationWorld, KernelExecutorEventSink, PgInvocationStore, PgResourceLeaseManager, VerificationRunner } from '../executor/index.ts';
 import { CredentialBroker, MemoryCredentialMaterialStore } from '../credential-broker/index.ts';
 import { AgencyIngress } from '../agency-ingress/index.ts';
 import { SentinelDetectorService } from '../sentinel/index.ts';
@@ -232,17 +232,18 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const capabilityStore = new PgCapabilityStore(pg.sql);
   const capabilityRegistry = new CapabilityRegistry(capabilityStore);
   const grantStore = new PgGrantStore(pg.sql);
-  const tokenCache = new MemoryTokenCache();
+  const tokenCache = new PgTokenCache(pg.sql);
   const permissions = new PermissionManager(grantStore, tokenCache, () => clock.nowIso());
   const approvals = new ApprovalManager(pg.sql, () => clock.nowIso());
   const authorizer = new AgencyAuthorizer(grantStore, permissions, approvals, () => clock.nowIso());
-  const credentialBroker = new CredentialBroker(new MemoryCredentialMaterialStore(ov.credentialMaterial ?? {}), tokenCache, () => clock.nowIso());
+  const credentialBroker = new CredentialBroker(new MemoryCredentialMaterialStore(ov.credentialMaterial ?? {}), tokenCache, () => clock.nowIso(), pg.sql);
   const adapterHost = ov.adapterHost ?? createAdapterHost();
   const adapterModules = new Map((ov.capabilities ?? []).map((entry) => [entry.manifest.id, entry.moduleUrl]));
   const verification = new VerificationRunner(new HostedVerificationWorld(adapterHost, adapterModules));
   const invocationStore = new PgInvocationStore(pg.sql);
-  const leases = new PgResourceLeaseManager(pg.sql, () => new Date(clock.nowIso()));
+  const leases = new PgResourceLeaseManager(pg.sql, config.instanceId, () => new Date(clock.nowIso()));
   const executorEvents = new KernelExecutorEventSink(events);
+  const agencyRecovery = new AgencyRecovery(pg.sql, invocationStore, executorEvents, () => clock.nowIso());
   const executor = new CapabilityExecutor({
     lookup: (id, version) => capabilityRegistry.lookup(id, version),
     validateInput: validateJsonSchema,
@@ -453,6 +454,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       }
       outboxRelay.start();
       await health.heartbeat({ subsystem: 'event-fabric', status: 'HEALTHY', message: 'outbox relay running' });
+      await agencyRecovery.recoverExpiredLeases();
       await health.heartbeat({ subsystem: 'agency', status: 'HEALTHY', message: `${registeredCapabilities.length} registered capabilities` });
       await health.heartbeat({ subsystem: 'adapter-host', status: 'HEALTHY', message: 'isolated worker host ready' });
 

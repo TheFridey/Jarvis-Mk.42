@@ -17,7 +17,7 @@ export class AgencyAuthorizer implements ExecutorPermission {
       const standing = grant.mayProceedWithoutLiveApproval && risks.indexOf(input.riskClass as RiskClass) <= risks.indexOf(grant.maxRiskWithoutLiveApproval);
       if (standing) approved = true;
       else {
-        const request = await this.approvals.request({ invocationId: input.invocationId, riskClass: input.riskClass as RiskClass, summary: input.summary, ...(input.confirmationPhrase ? { confirmationPhrase: input.confirmationPhrase } : {}) });
+        const request = await this.approvals.request({ invocationId: input.invocationId, principalId: input.principalId, capabilityId: input.capabilityId, capabilityVersion: input.capabilityVersion, action: input.action, inputHash: input.inputHash, riskClass: input.riskClass as RiskClass, summary: input.summary, ...(input.confirmationPhrase ? { confirmationPhrase: input.confirmationPhrase } : {}) });
         approvalRequestId = request.id; approved = request.state === 'approved';
       }
     }

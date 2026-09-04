@@ -171,3 +171,20 @@ no consumer change.
 **High.** The event-sourced projection and the one-transaction barrier are the
 enforcement of L23/L31 and ADR-0027. Going back to in-memory would reintroduce
 the F-AG-6/F-AG-7 holes.
+
+## Implementation note — 2026-09-04
+
+Migration `0010_durable_agency_lifecycle.sql` makes the database enforce legal
+state transitions and PROPOSED-only creation. Invocation identity, proposal,
+policy/permission decisions, attempts, trace lineage, verification, recovery,
+rollback, and outcome metadata are durable. Execution lease acquisition locks
+the invocation and grant in one transaction, checks grant freshness, assigns a
+unique lease owner/id, and advances to `LEASE_ACQUIRED`; heartbeat and
+expired-only takeover are database operations. Cold start classifies an
+expired in-flight effect as `UNVERIFIED` or `ROLLBACK_PENDING` and never
+re-executes it. Redis is not involved in these decisions.
+
+The former consequence text describing an in-memory write-through cache and a
+separate `proposal_dedupe` table is superseded: production reads PostgreSQL
+directly and proposal uniqueness is a partial unique index on
+`agency.invocations.proposal_id`.

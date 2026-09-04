@@ -151,3 +151,12 @@ function; `agency.approvals` is its projection.
 
 **High.** This is the enforcement of L19. Additive fields (per-capability TTL
 override) are Low.
+
+## Implementation note — 2026-09-04
+
+An approval is now durably bound to principal, invocation, capability and
+version, action, canonical input hash, risk, expiry, random nonce, and
+optimistic version. Approval updates compare version and expiry atomically.
+Resume recomputes the input hash and re-runs validation, policy, constraints,
+and grant freshness. A changed argument, stale nonce/version, expired row, or
+different principal fails closed.

@@ -5,7 +5,7 @@ Review basis: ASCENSION audit and the load-bearing Agency Plane implementation o
 
 ## Verdict
 
-**CONDITIONAL GO for continued MK.42 hardening; NO-GO for distributed or autonomous deployment.** The running Kernel now owns the Agency Plane and has one authenticated proposal ingress. Registered capabilities execute through durable policy, permission, approval, credential, isolated adapter, verification, rollback, and audit controls. The remaining MK.43 blockers are the atomic start barrier, distributed token storage, broader observability, recovery drills, and Node Protocol enforcement.
+**CONDITIONAL GO for continued MK.42 hardening; NO-GO for distributed or autonomous deployment.** The running Kernel owns the Agency Plane and PostgreSQL now retains invocation, approval, grant, authority-token and execution-lease truth across restart. Remaining blockers include hardened worker isolation, broader observability, restoration drills, and Node Protocol enforcement.
 
 ## Scores
 
@@ -13,7 +13,7 @@ Review basis: ASCENSION audit and the load-bearing Agency Plane implementation o
 |---|---:|---|
 | Architecture compliance | 7/10 | Agency components are composed in `kernel.ts`; agents and desktop cannot import adapters; UI is not authority. |
 | Security | 6/10 | Fail-closed policy, grants, approval expiry/resume, scoped one-use authority tokens, no-secret handles, and independent verification are enforced. Node identity and production secret storage remain incomplete. |
-| Resilience | 6/10 | PostgreSQL invocation history, proposal uniqueness, durable leases, replay-safe lifecycle events, verified rollback, and health recovery are present. Freshness/lease/start are not yet one transaction. |
+| Resilience | 7/10 | PostgreSQL lifecycle truth, proposal uniqueness, owner/heartbeat leases, expired takeover, restart classification, replay separation, verified rollback, and health recovery are present. |
 | Observability | 3/10 | The complete agency lifecycle is durable and correlation-linked. OpenTelemetry spans and metrics are not yet complete across RTC, model, capability, and response. |
 
 ## Implemented Architecture
@@ -35,7 +35,7 @@ Review basis: ASCENSION audit and the load-bearing Agency Plane implementation o
 | `pnpm typecheck` | PASS |
 | `pnpm lint` | PASS |
 | `pnpm test` | PASS - 20 files, 107 tests |
-| `pnpm test:integration` | PASS - 5 files, 30 tests, real PostgreSQL and spawned adapter workers |
+| `pnpm test:integration` | PASS - 6 files, 44 tests, real PostgreSQL and spawned adapter workers |
 | Architecture/security checks | PASS as part of `pnpm test` |
 
 The integration suite proves rejection of unregistered and policy-denied capabilities, grant enforcement, approval enforcement and expiry, credential failure closure, isolated execution, independent verification, false-success prevention, verified compensation, proposal durability, and correlated lifecycle audit.
@@ -46,8 +46,8 @@ No runtime performance certification is claimed. The full integration gate took 
 
 ## Technical Debt and Known Risks
 
-- Grant freshness, resource lease acquisition, and the `EXECUTING` transition are durable but not a single PostgreSQL transaction. A narrow revocation race remains.
-- Authority tokens and credential handles are process-local. Multi-Kernel operation requires a shared, atomic, single-use token backend and distributed broker design.
+- Grant freshness, execution lease acquisition, attempt increment, and `LEASE_ACQUIRED` are one transaction. The audit event and subsequent `EXECUTING` transition intentionally follow; a crash there is classified on restart without re-execution.
+- Authority tokens are hashed, durable, and atomically single-use. Redeemable credential handles remain deliberately process-local while their lease references are durable.
 - Adapter workers are isolated processes, not a hardened OS sandbox. Filesystem/network/process restrictions still depend on provider implementation and host controls.
 - Credential material storage remains an injected interface; production keychain/KMS integration and ACL validation are not complete.
 - The policy context still has provisional values for operator reachability, node trust, and authentication evidence until Node Protocol/session trust is enforced.
@@ -56,8 +56,8 @@ No runtime performance certification is claimed. The full integration gate took 
 
 ## Required Fixes Before MK.43
 
-1. Make grant freshness, resource lease acquisition, and execution-start recording one atomic transaction.
-2. Add shared single-use authority-token storage and production credential material integration.
+1. Add production credential material integration and hardened worker sandboxing.
+2. Add a recovery worker that executes and independently verifies durable `ROLLBACK_PENDING` compensation jobs; cold start currently classifies and queues them safely.
 3. Complete Node Protocol identity, enrollment, revocation, trust, and authenticated session continuity.
 4. Add end-to-end OpenTelemetry spans/metrics and explicit backpressure/rate limits.
 5. Add contract, chaos, recovery, backup/restore, and performance gates to CI.

@@ -7,7 +7,7 @@ import { VerificationRunner, type AdapterRunner } from './verify-runner.ts';
 import { canonicalJson, valueAtPath } from '../../runtime/canonical-json.ts';
 
 export interface ExecutorEventSink { emit(type: string, payload: Record<string, unknown>, retention: 'AUDIT' | 'SECURITY', context: { correlationId: string; principalId: string; actor: EventActor }): Promise<string>; }
-export interface ExecutorPermission { authorise(input: { invocationId: string; principalId: string; scopes: string[]; riskClass: string; approvalRequired: boolean; summary: string; confirmationPhrase?: string }): Promise<{ ok: boolean; approved?: boolean; approvalRequestId?: string; grantId?: string; grantVersion?: number; authorityToken?: string; verificationAuthorityToken?: string; beforeAuthorityToken?: string; resourceConstraints?: Parameters<typeof checkResourceConstraints>[0] }>; freshnessCheck(id: string, version: number): Promise<'ok' | 'stale' | 'revoked' | 'expired'>; }
+export interface ExecutorPermission { authorise(input: { invocationId: string; principalId: string; capabilityId: string; capabilityVersion: string; action: string; inputHash: string; scopes: string[]; riskClass: string; approvalRequired: boolean; summary: string; confirmationPhrase?: string }): Promise<{ ok: boolean; approved?: boolean; approvalRequestId?: string; grantId?: string; grantVersion?: number; authorityToken?: string; verificationAuthorityToken?: string; beforeAuthorityToken?: string; resourceConstraints?: Parameters<typeof checkResourceConstraints>[0] }>; freshnessCheck(id: string, version: number): Promise<'ok' | 'stale' | 'revoked' | 'expired'>; }
 export interface ExecutorBroker { mint(input: { authorityToken: string; invocationId: string; capabilityId: string; action: string; resourceRef: string; mode: 'dry-run' | 'full'; ttlMs?: number; kind?: CredentialHandle['kind'] }): Promise<CredentialHandle>; revoke?(handleId: string): Promise<void>; }
 export interface ExecutorDeps {
   lookup(id: string, version?: string): Promise<Capability | undefined>;
@@ -28,15 +28,16 @@ export class CapabilityExecutor {
     const id = randomUUID(); const inputHash = createHash('sha256').update(canonicalJson(proposal.invocation.input)).digest('hex');
     const capability = await this.deps.lookup(proposal.invocation.capabilityId, proposal.invocation.capabilityVersion);
     const initial: InvocationLifecycle = { invocationId: id, proposalId: proposal.proposalId, capabilityId: proposal.invocation.capabilityId, capabilityVersion: proposal.invocation.capabilityVersion, action: proposal.invocation.action,
-      state: 'PROPOSED', correlationId: proposal.correlationId, principalId: origin.onBehalfOf ?? origin.id, originActor: origin, riskClass: 'CRITICAL', inputHash, history: [] };
+      state: 'PROPOSED', correlationId: proposal.correlationId, causationId: proposal.provenance.sourceRefs?.[0] ?? proposal.proposalId, traceId: proposal.correlationId, principalId: origin.onBehalfOf ?? origin.id, originActor: origin, riskClass: 'CRITICAL', inputHash, proposal, attemptCount: 0, history: [] };
     await this.store.create(initial); await this.event(id, 'proposed', { capabilityId: initial.capabilityId, version: initial.capabilityVersion, action: initial.action, inputHash });
     const action = capability?.actions.find((candidate) => candidate.name === initial.action);
     if (!capability || !action || !this.deps.validateInput(action.inputSchema, proposal.invocation.input)) return this.terminal(id, 'REJECTED', 'rejected', 'invalid capability, version, action, or input', 'SECURITY');
     initial.riskClass = action.riskClass; await this.store.patch(id, { riskClass: action.riskClass }); await this.transition(id, 'VALIDATED', 'validated');
-    let policy: PolicyDecision; try { policy = await this.deps.evaluate({ capability, action, proposal, origin }); } catch { return this.terminal(id, 'DENIED', 'denied', 'policy unavailable', 'SECURITY'); } await this.transition(id, 'POLICY_CHECKED', 'policy_checked', { verdict: policy.verdict, firedRuleIds: policy.firedRuleIds });
+    let policy: PolicyDecision; try { policy = await this.deps.evaluate({ capability, action, proposal, origin }); } catch { return this.terminal(id, 'DENIED', 'denied', 'policy unavailable', 'SECURITY'); } await this.store.patch(id, { policyDecision: policy }); await this.transition(id, 'POLICY_CHECKED', 'policy_checked', { verdict: policy.verdict, firedRuleIds: policy.firedRuleIds });
     if (policy.verdict === 'DENY') return this.terminal(id, 'DENIED', 'denied', policy.rationale, 'SECURITY');
-    let auth: Awaited<ReturnType<ExecutorPermission['authorise']>>; try { auth = await this.deps.permission.authorise({ invocationId: id, principalId: initial.principalId, scopes: [...capability.requiredScopes], riskClass: action.riskClass, approvalRequired: policy.verdict === 'REQUIRE_APPROVAL', summary: proposal.justification, ...(action.confirmationPhrase ? { confirmationPhrase: action.confirmationPhrase } : {}) }); } catch { return this.terminal(id, 'DENIED', 'denied', 'permission state unavailable', 'SECURITY'); }
+    let auth: Awaited<ReturnType<ExecutorPermission['authorise']>>; try { auth = await this.deps.permission.authorise({ invocationId: id, principalId: initial.principalId, capabilityId: capability.id, capabilityVersion: capability.version, action: action.name, inputHash, scopes: [...capability.requiredScopes], riskClass: action.riskClass, approvalRequired: policy.verdict === 'REQUIRE_APPROVAL', summary: proposal.justification, ...(action.confirmationPhrase ? { confirmationPhrase: action.confirmationPhrase } : {}) }); } catch { return this.terminal(id, 'DENIED', 'denied', 'permission state unavailable', 'SECURITY'); }
     if (!auth.ok || !auth.grantId || auth.grantVersion === undefined) return this.terminal(id, 'DENIED', 'denied', 'permission or approval denied', 'SECURITY');
+    await this.store.patch(id, { permissionDecision: { granted: true, grantId: auth.grantId, grantVersion: auth.grantVersion, approved: auth.approved ?? false } });
     await this.store.patch(id, { grantId: auth.grantId, grantVersion: auth.grantVersion, ...(auth.approvalRequestId ? { approvalRequestId: auth.approvalRequestId } : {}) });
     if (!checkResourceConstraints(auth.resourceConstraints ?? [], proposal.invocation.input, action.name).ok) return this.terminal(id, 'DENIED', 'denied', 'resource constraint denied', 'SECURITY');
     if (policy.verdict === 'REQUIRE_APPROVAL' || action.riskClass === 'CRITICAL') {
@@ -48,6 +49,8 @@ export class CapabilityExecutor {
   }
   private async resumeAwaitingApproval(initial: InvocationLifecycle, proposal: CapabilityInvocationProposal, origin: EventActor): Promise<InvocationResult> {
     const id = initial.invocationId;
+    const resumedInputHash = createHash('sha256').update(canonicalJson(proposal.invocation.input)).digest('hex');
+    if (resumedInputHash !== initial.inputHash) return this.terminal(id, 'DENIED', 'denied', 'approved invocation arguments changed', 'SECURITY');
     const capability = await this.deps.lookup(initial.capabilityId, initial.capabilityVersion);
     const action = capability?.actions.find((candidate) => candidate.name === initial.action);
     if (!capability || !action || !this.deps.validateInput(action.inputSchema, proposal.invocation.input)) return this.terminal(id, 'DENIED', 'denied', 'approval resume validation failed', 'SECURITY');
@@ -55,7 +58,7 @@ export class CapabilityExecutor {
     try { policy = await this.deps.evaluate({ capability, action, proposal, origin }); } catch { return this.terminal(id, 'DENIED', 'denied', 'policy unavailable during approval resume', 'SECURITY'); }
     if (policy.verdict === 'DENY') return this.terminal(id, 'DENIED', 'denied', policy.rationale, 'SECURITY');
     let auth: Awaited<ReturnType<ExecutorPermission['authorise']>>;
-    try { auth = await this.deps.permission.authorise({ invocationId: id, principalId: initial.principalId, scopes: [...capability.requiredScopes], riskClass: action.riskClass, approvalRequired: true, summary: proposal.justification, ...(action.confirmationPhrase ? { confirmationPhrase: action.confirmationPhrase } : {}) }); } catch { return this.terminal(id, 'DENIED', 'denied', 'permission state unavailable during approval resume', 'SECURITY'); }
+    try { auth = await this.deps.permission.authorise({ invocationId: id, principalId: initial.principalId, capabilityId: capability.id, capabilityVersion: capability.version, action: action.name, inputHash: initial.inputHash, scopes: [...capability.requiredScopes], riskClass: action.riskClass, approvalRequired: true, summary: proposal.justification, ...(action.confirmationPhrase ? { confirmationPhrase: action.confirmationPhrase } : {}) }); } catch { return this.terminal(id, 'DENIED', 'denied', 'permission state unavailable during approval resume', 'SECURITY'); }
     if (!auth.ok || !auth.approved || !auth.grantId || auth.grantVersion === undefined) return this.terminal(id, 'DENIED', 'denied', 'approval missing, denied, or expired', 'SECURITY');
     if (!checkResourceConstraints(auth.resourceConstraints ?? [], proposal.invocation.input, action.name).ok) return this.terminal(id, 'DENIED', 'denied', 'resource constraint denied', 'SECURITY');
     await this.store.patch(id, { grantId: auth.grantId, grantVersion: auth.grantVersion, ...(auth.approvalRequestId ? { approvalRequestId: auth.approvalRequestId } : {}) });
@@ -69,8 +72,10 @@ export class CapabilityExecutor {
     const selectedResource = capability.resourceKeySelector ? valueAtPath(proposal.invocation.input, capability.resourceKeySelector) : action.name;
     const resource = `${initial.capabilityId}:${String(selectedResource ?? action.name)}`; if (!await this.leases.acquire(resource, id, action.timeoutMs)) return this.terminal(id, 'ABORTED', 'aborted', 'resource lease unavailable', 'SECURITY');
     await this.store.patch(id, { resourceKey: resource });
+    await this.event(id, 'lease_acquired', { resource });
     let handle: CredentialHandle | undefined;
     let verifyHandle: CredentialHandle | undefined;
+    let beforeHandle: CredentialHandle | undefined;
     try {
       const adapter = this.deps.adapter(capability);
       if (['HIGH', 'CRITICAL'].includes(action.riskClass) && action.simulatable && adapter.simulate) return this.terminal(id, 'ABORTED', 'aborted', 'simulation requires a distinct dry-run authority token', 'SECURITY');
@@ -78,17 +83,19 @@ export class CapabilityExecutor {
       try {
         if (action.reversible) {
           if (!auth.beforeAuthorityToken) return this.terminal(id, 'ABORTED', 'aborted', 'pre-state authority token unavailable', 'SECURITY');
-          const beforeHandle = await this.deps.broker.mint({ authorityToken: auth.beforeAuthorityToken, invocationId: id, capabilityId: capability.id, action: action.verify, resourceRef: resource, mode: 'dry-run', ttlMs: action.timeoutMs, kind: capability.credentialKind ?? 'wrapped-static' });
+          beforeHandle = await this.deps.broker.mint({ authorityToken: auth.beforeAuthorityToken, invocationId: id, capabilityId: capability.id, action: action.verify, resourceRef: resource, mode: 'dry-run', ttlMs: action.timeoutMs, kind: capability.credentialKind ?? 'wrapped-static' });
           before = await this.deps.verification.capture(proposal.invocation.input, action.verificationStrategy, { capability, handle: beforeHandle });
+          await this.store.patch(id, { recoveryState: before, beforeStateRef: createHash('sha256').update(canonicalJson(before)).digest('hex') });
         }
         handle = await this.deps.broker.mint({ authorityToken: auth.authorityToken, invocationId: id, capabilityId: capability.id, action: action.name, resourceRef: resource, mode: 'full', ttlMs: action.timeoutMs, kind: capability.credentialKind ?? 'wrapped-static' });
         verifyHandle = await this.deps.broker.mint({ authorityToken: auth.verificationAuthorityToken, invocationId: id, capabilityId: capability.id, action: action.verify, resourceRef: resource, mode: 'dry-run', ttlMs: action.timeoutMs, kind: capability.credentialKind ?? 'wrapped-static' });
+        await this.store.patch(id, { credentialLeaseRef: handle.handleId });
       } catch (error) { const detail = error instanceof Error ? error.message : 'unknown broker failure'; return this.terminal(id, 'DENIED', 'denied', `credential lease unavailable: ${detail}`, 'SECURITY'); }
       await this.transition(id, 'EXECUTING', 'started', { grantId: auth.grantId, grantVersion: auth.grantVersion });
       const ctx = this.context(handle, proposal.invocation.input); const output = await adapter.execute(action.name, ctx, proposal.invocation.input);
-      await this.transition(id, 'VERIFYING', 'verifying'); const report = await this.deps.verification.run(proposal.invocation.input, output, action.verificationStrategy, { capability, handle: verifyHandle });
+      await this.transition(id, 'VERIFYING', 'verifying'); const report = await this.deps.verification.run(proposal.invocation.input, output, action.verificationStrategy, { capability, handle: verifyHandle }); await this.store.patch(id, { verificationMetadata: report });
       if (report.verified) { await this.transition(id, 'COMPLETED', 'verified', { verifyReportRef: createHash('sha256').update(JSON.stringify(report)).digest('hex') }); return { invocationId: id, outcome: 'verified', output, verifyReport: report, finishedAt: this.now() }; }
-      if (action.reversible && adapter.rollback) { await this.transition(id, 'ROLLING_BACK', 'rolling_back'); await adapter.rollback(action.name, ctx, proposal.invocation.input, before); const undone = await this.deps.verification.rollbackMatches(proposal.invocation.input, action.verificationStrategy, before, { capability, handle: verifyHandle }); if (undone) { await this.transition(id, 'ROLLED_BACK', 'rolled_back', { rollbackReportRef: createHash('sha256').update(canonicalJson({ undone: true })).digest('hex') }); return { invocationId: id, outcome: 'rolled_back', verifyReport: report, finishedAt: this.now() }; } await this.transition(id, 'VERIFICATION_FAILED', 'verification_failed', { verifyReportRef: createHash('sha256').update(canonicalJson({ rollback: 'failed' })).digest('hex') }, 'SECURITY'); return { invocationId: id, outcome: 'verification_failed', verifyReport: report, finishedAt: this.now() }; }
+      if (action.reversible && adapter.rollback) { await this.transition(id, 'ROLLING_BACK', 'rolling_back'); await adapter.rollback(action.name, ctx, proposal.invocation.input, before); const undone = await this.deps.verification.rollbackMatches(proposal.invocation.input, action.verificationStrategy, before, { capability, handle: verifyHandle }); await this.store.patch(id, { rollbackMetadata: { undone } }); if (undone) { await this.transition(id, 'ROLLED_BACK', 'rolled_back', { rollbackReportRef: createHash('sha256').update(canonicalJson({ undone: true })).digest('hex') }); return { invocationId: id, outcome: 'rolled_back', verifyReport: report, finishedAt: this.now() }; } await this.transition(id, 'VERIFICATION_FAILED', 'verification_failed', { verifyReportRef: createHash('sha256').update(canonicalJson({ rollback: 'failed' })).digest('hex') }, 'SECURITY'); return { invocationId: id, outcome: 'verification_failed', verifyReport: report, finishedAt: this.now() }; }
       await this.transition(id, 'VERIFICATION_FAILED', 'verification_failed', { verifyReportRef: createHash('sha256').update(canonicalJson(report)).digest('hex') }, 'SECURITY');
       return { invocationId: id, outcome: 'verification_failed', verifyReport: report, finishedAt: this.now() };
     } catch (error) {
@@ -97,7 +104,7 @@ export class CapabilityExecutor {
       if (state === 'VERIFYING' || state === 'ROLLING_BACK') { await this.transition(id, 'VERIFICATION_FAILED', 'verification_failed', { verifyReportRef: createHash('sha256').update(reason).digest('hex') }, 'SECURITY'); return { invocationId: id, outcome: 'verification_failed', finishedAt: this.now() }; }
       return this.terminal(id, 'FAILED', 'failed', reason, 'AUDIT');
     }
-    finally { await this.leases.release(resource, id); if (handle && this.deps.broker.revoke) await this.deps.broker.revoke(handle.handleId); }
+    finally { await this.leases.release(resource, id); if (this.deps.broker.revoke) for (const credential of [handle, verifyHandle, beforeHandle]) if (credential) await this.deps.broker.revoke(credential.handleId); }
   }
   private context(credential: CredentialHandle, input: unknown): AdapterContext { return { credential, input, mode: credential.mode, abortSignal: new AbortController().signal, log: () => undefined, http: async () => { throw new Error('http unavailable'); } }; }
   private async event(id: string, name: string, payload: Record<string, unknown> = {}, retention: 'AUDIT' | 'SECURITY' = 'AUDIT') { const row = await this.store.get(id); if (!row) throw new Error('invocation not found'); return this.deps.events.emit(`jarvis.agency.invocation.${name}`, { invocationId: id, ...payload }, retention, { correlationId: row.correlationId, principalId: row.principalId, actor: row.originActor }); }

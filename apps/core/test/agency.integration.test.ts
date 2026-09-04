@@ -48,7 +48,8 @@ describe.skipIf(!dockerOk)('load-bearing agency pipeline (integration)', () => {
     await writeFile(join(root, 'approval.txt'), 'before');
     const approval = await k.agency.submit(approvalProposal, { principalId, authenticated: true });
     expect(approval.outcome).toBe('awaiting_approval');
-    expect(await k.approvals.approve({ invocationId: approval.invocationId, operatorId: principalId, sessionId: 'agency-it', authTrustLevel: 'trusted' })).toBe(true);
+    const pendingApproval = await k.approvals.forInvocation(approval.invocationId);
+    expect(await k.approvals.approve({ invocationId: approval.invocationId, operatorId: principalId, sessionId: 'agency-it', authTrustLevel: 'trusted', nonce: pendingApproval!.nonce!, version: pendingApproval!.version! })).toBe(true);
     const approved = await k.agency.submit(approvalProposal, { principalId, authenticated: true });
     const approvalEvents = await k.eventStore.byCorrelation('corr-approval');
     expect(approved.outcome, JSON.stringify(approvalEvents.map((event) => ({ type: event.type, payload: event.payload })))).toBe('verified');
