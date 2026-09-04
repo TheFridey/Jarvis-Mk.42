@@ -6,7 +6,7 @@
  * STATE_MODEL.md sec 3). All writes happen inside the same transaction as the
  * `state.mutated` event (transactional outbox).
  */
-import { type Sql, jsonParam } from '@jarvis/persistence';
+import { type Sql } from '@jarvis/persistence';
 import type {
   StateSlice,
   StateSliceKey,
@@ -43,7 +43,7 @@ export class StateStore {
     for (const key of ALL_SLICE_KEYS) {
       await this.sql`
         insert into projections.state_slices (key, value, version)
-        values (${key}, ${this.sql.json(jsonParam(INITIAL_SLICE_VALUES[key]))}, 0)
+        values (${key}, ${JSON.stringify(INITIAL_SLICE_VALUES[key])}, 0)
         on conflict (key) do nothing`;
     }
     await this.sql`
@@ -101,7 +101,7 @@ export class StateStore {
   ): Promise<void> {
     await tx`
       update projections.state_slices
-      set value = ${tx.json(jsonParam(args.value))},
+      set value = ${JSON.stringify(args.value)},
           version = ${args.newVersion},
           updated_at = now(),
           last_event_id = ${args.eventId},
@@ -122,7 +122,7 @@ export class StateStore {
     const view = await this.view();
     await this.sql`
       insert into projections.snapshots (state_version, checkpoint_event_id, slices)
-      values (${view.stateVersion}, ${checkpointEventId}, ${this.sql.json(jsonParam(view.slices))})`;
+      values (${view.stateVersion}, ${checkpointEventId}, ${JSON.stringify(view.slices)})`;
     await this.sql`
       update projections.state_meta set checkpoint_event_id = ${checkpointEventId} where id = 1`;
     return {

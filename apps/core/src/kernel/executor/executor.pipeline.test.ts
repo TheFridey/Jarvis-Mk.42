@@ -27,7 +27,7 @@ function executor(verdict: 'ALLOW' | 'REQUIRE_APPROVAL', approved: boolean, worl
     lookup: async () => capability,
     validateInput: () => true,
     evaluate: () => ({ verdict, firedRuleIds: [], rationale: verdict }),
-    permission: { authorise: async () => ({ ok: true, approved, grantId: 'grant-1', grantVersion: 1, authorityToken: 'authority' }), freshnessCheck: async () => 'ok' },
+    permission: { authorise: async () => ({ ok: true, approved, grantId: 'grant-1', grantVersion: 1, authorityToken: 'authority', verificationAuthorityToken: 'verify-authority', beforeAuthorityToken: 'before-authority' }), freshnessCheck: async () => 'ok' },
     broker: { mint: async (input) => ({ handleId: 'handle', invocationId: input.invocationId, scope: { capabilityId: input.capabilityId, action: input.action, resourceRef: input.resourceRef }, mode: input.mode, expiresAt: '2099-01-01T00:00:00Z', kind: 'derived' }) },
     adapter: () => ({ execute, verify: selfVerify }),
     verification: new VerificationRunner({ read: async () => worldValue, readPath: async () => worldValue, awaitEvent: async () => false }),

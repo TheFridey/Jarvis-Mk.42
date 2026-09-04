@@ -32,6 +32,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@jarvis/adapter-host':
+        specifier: workspace:*
+        version: link:../adapter-host
       '@jarvis/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

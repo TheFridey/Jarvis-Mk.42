@@ -12,6 +12,7 @@
     "start": "tsx src/main.ts"
   },
   "dependencies": {
+    "@jarvis/adapter-host": "workspace:*",
     "@jarvis/contracts": "workspace:*",
     "@jarvis/persistence": "workspace:*",
     "@jarvis/telemetry": "workspace:*",

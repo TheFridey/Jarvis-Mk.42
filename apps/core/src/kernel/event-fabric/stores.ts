@@ -1,7 +1,7 @@
 /**
  * PostgreSQL-backed implementations of the bus support stores + the outbox.
  */
-import { type Sql, jsonParam } from '@jarvis/persistence';
+import { type Sql } from '@jarvis/persistence';
 import type { Event } from '@jarvis/contracts';
 import type { DeadLetterSink, ProcessedLedger } from './bus.ts';
 
@@ -36,7 +36,7 @@ export class PgDeadLetterSink implements DeadLetterSink {
   async record(entry: { consumer: string; event: Event; attempts: number; lastError: string }): Promise<void> {
     await this.sql`
       insert into events.dead_letter (consumer, event_id, event, attempts, last_error)
-      values (${entry.consumer}, ${entry.event.id}, ${this.sql.json(jsonParam(entry.event))},
+      values (${entry.consumer}, ${entry.event.id}, ${JSON.stringify(entry.event)},
               ${entry.attempts}, ${entry.lastError})`;
   }
   async count(): Promise<number> {
@@ -65,9 +65,9 @@ export class OutboxStore {
   constructor(private readonly sql: Sql) {}
 
   /** Enqueue within an existing transaction (called by the Event Manager). */
-  async enqueueInTx(tx: Sql, eventIds: string[]): Promise<void> {
+  async enqueueInTx(tx: Sql, eventIds: string[], nowIso?: string): Promise<void> {
     for (const id of eventIds) {
-      await tx`insert into events.outbox (event_id) values (${id})`;
+      await tx`insert into events.outbox (event_id, created_at, next_attempt_at) values (${id}, coalesce(${nowIso ?? null}::timestamptz, now()), coalesce(${nowIso ?? null}::timestamptz, now()))`;
     }
   }
 

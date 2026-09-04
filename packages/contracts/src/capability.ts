@@ -86,6 +86,7 @@ export interface Capability {
   version: string; // semver
   description: string;
   provider: string;
+  credentialKind?: 'none' | 'derived' | 'wrapped-static';
   executionEnvironment: 'worker' | 'worker+container' | `node-local:${string}`;
   auditPolicy: { hashInput: boolean; recordOutput: 'none' | 'summary' | 'full' };
   privacyRequirements: { maxContentPrivacyClass: PrivacyClass };

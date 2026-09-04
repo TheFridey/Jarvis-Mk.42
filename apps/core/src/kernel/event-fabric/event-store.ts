@@ -6,7 +6,7 @@
  * Supports correlation lookup, causal-tree reconstruction, per-subject reads,
  * and sequential reads for replay / consumer catch-up (EVENT_ARCHITECTURE.md).
  */
-import { type Sql, jsonParam } from '@jarvis/persistence';
+import { type Sql } from '@jarvis/persistence';
 import type { Event } from '@jarvis/contracts';
 
 export interface StoredEvent extends Event {
@@ -97,15 +97,15 @@ export class EventStore {
           ${e.time}, ${e.recordedAt},
           ${e.source.node}, ${e.source.component}, ${e.subject.kind}, ${e.subject.id},
           ${e.actor.kind}, ${e.actor.id}, ${e.actor.onBehalfOf ?? null},
-          ${tx.json(jsonParam(e.provenance))},
+          ${JSON.stringify(e.provenance)},
           ${e.causationId}, ${e.correlationId}, ${e.principalId}, ${e.privacyClass},
           ${e.traceId ?? null},
-          ${e.location ? tx.json(jsonParam(e.location)) : null},
+          ${e.location ? JSON.stringify(e.location) : null},
           ${e.confidence ?? null},
-          ${e.evidence ? tx.json(jsonParam(e.evidence)) : null},
+          ${e.evidence ? JSON.stringify(e.evidence) : null},
           ${e.expiresAt ?? null},
-          ${tx.json(jsonParam(e.payload))},
-          ${e.meta ? tx.json(jsonParam(e.meta)) : null}
+          ${JSON.stringify(e.payload)},
+          ${e.meta ? JSON.stringify(e.meta) : null}
         )
         on conflict (retention_class, id) do nothing
         returning *

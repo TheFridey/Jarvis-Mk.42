@@ -40,6 +40,7 @@ export interface EmitInput {
   evidence?: string[];
   expiresAt?: string;
   meta?: Record<string, string>;
+  sourceComponent?: string;
 }
 
 export class EventRejectedError extends Error {
@@ -97,7 +98,7 @@ export class EventManager {
       retentionClass: input.retentionClass,
       time,
       recordedAt: now,
-      source: { node: this.deps.nodeId, component: this.deps.component },
+      source: { node: this.deps.nodeId, component: input.sourceComponent ?? this.deps.component },
       subject: input.subject,
       actor: input.actor,
       provenance,
@@ -117,10 +118,11 @@ export class EventManager {
   }
 
   private validateOrThrow(event: Event): void {
+    if (event.type.startsWith('jarvis.agency.invocation.') && event.source.component !== 'capability-executor') {
+      throw new EventRejectedError(event.type, [{ path: 'source.component', code: 'forbidden_source', message: 'agency lifecycle events may only be emitted by capability-executor' }]);
+    }
     const result = validateEventDraft(event);
     if (!result.ok) {
-      // best-effort self-observation; never recurse into failure
-      void this.emitRejected(event.type, result.issues).catch(() => undefined);
       throw new EventRejectedError(event.type, result.issues);
     }
   }
@@ -146,7 +148,7 @@ export class EventManager {
   /** Emit standalone (opens its own transaction for persistence + outbox). */
   async emit(input: EmitInput): Promise<Event> {
     const event = this.buildEvent(input);
-    this.validateOrThrow(event);
+    try { this.validateOrThrow(event); } catch (error) { if (error instanceof EventRejectedError) await this.emitRejected(event.type, error.issues).catch(() => undefined); throw error; }
 
     if (event.retentionClass === 'TRANSIENT') {
       await this.deps.bus.publish(event).catch(() => undefined);
@@ -155,7 +157,7 @@ export class EventManager {
 
     await this.deps.tx.begin(async (tx) => {
       await this.deps.store.appendInTx(tx, [event]);
-      await this.deps.outbox.enqueueInTx(tx, [event.id]);
+      await this.deps.outbox.enqueueInTx(tx, [event.id], event.recordedAt);
     });
     this.appended++;
     return event;
@@ -175,7 +177,7 @@ export class EventManager {
       return event;
     }
     await this.deps.store.appendInTx(tx, [event]);
-    await this.deps.outbox.enqueueInTx(tx, [event.id]);
+    await this.deps.outbox.enqueueInTx(tx, [event.id], event.recordedAt);
     this.appended++;
     return event;
   }

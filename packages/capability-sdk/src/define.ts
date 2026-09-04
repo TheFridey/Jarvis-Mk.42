@@ -17,7 +17,7 @@ export interface ActionDefinition<I = unknown, O = unknown> {
 export interface CapabilityDefinition {
   id: string; version: string; description: string; provider: string;
   executionEnvironment: Capability['executionEnvironment']; auditPolicy: Capability['auditPolicy']; privacyRequirements: Capability['privacyRequirements'];
-  trustTierMin?: Capability['trustTierMin']; resourceKeySelector?: string; active?: boolean;
+  trustTierMin?: Capability['trustTierMin']; resourceKeySelector?: string; active?: boolean; credentialKind?: Capability['credentialKind'];
   // The runtime schemas validate concrete values before these erased action slots run.
   actions: Record<string, ActionDefinition<any, any>>;
 }
@@ -41,7 +41,7 @@ export function defineCapability(def: CapabilityDefinition): CapabilityModule {
     };
   });
   return { manifest: {
-    id: def.id, version: def.version, description: def.description, provider: def.provider,
+    id: def.id, version: def.version, description: def.description, provider: def.provider, credentialKind: def.credentialKind ?? 'wrapped-static',
     executionEnvironment: def.executionEnvironment, auditPolicy: def.auditPolicy, privacyRequirements: def.privacyRequirements,
     actions, requiredScopes: [...new Set(actions.flatMap((_, i) => Object.values(def.actions)[i]?.requiredScopes ?? []))],
     trustTierMin: def.trustTierMin ?? 'owned-secure', resourceKeySelector: def.resourceKeySelector, active: def.active,

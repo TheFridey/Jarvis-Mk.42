@@ -11,7 +11,7 @@
  *    we still apply (the payload carries the full value) but record the gap
  */
 import { EventNames, type Event, type StateSliceKey } from '@jarvis/contracts';
-import { type Sql, jsonParam } from '@jarvis/persistence';
+import { type Sql } from '@jarvis/persistence';
 import { isReplay } from '../event-fabric/replay.ts';
 
 export interface ProjectionStats {
@@ -44,7 +44,7 @@ export class StateProjector {
       // Unknown slice row - create it at this event's version.
       await this.sql`
         insert into projections.state_slices (key, value, version, last_event_id, updated_by_correlation_id)
-        values (${p.key}, ${this.sql.json(jsonParam(p.value))}, ${p.newVersion}, ${event.id}, ${event.correlationId})
+        values (${p.key}, ${JSON.stringify(p.value)}, ${p.newVersion}, ${event.id}, ${event.correlationId})
         on conflict (key) do nothing`;
       this.stats.applied++;
       return;
@@ -57,7 +57,7 @@ export class StateProjector {
 
     await this.sql`
       update projections.state_slices
-      set value = ${this.sql.json(jsonParam(p.value))},
+      set value = ${JSON.stringify(p.value)},
           version = ${p.newVersion},
           updated_at = now(),
           last_event_id = ${event.id},

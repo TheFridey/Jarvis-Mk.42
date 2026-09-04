@@ -12,6 +12,7 @@
       ,"@jarvis/permissions": ["packages/permissions/src/index.ts"]
       ,"@jarvis/scene": ["packages/scene/src/index.ts"]
       ,"@jarvis/spatial": ["packages/spatial/src/index.ts"]
+      ,"@jarvis/adapter-host": ["apps/adapter-host/src/index.ts"]
     }
   },
   "include": [

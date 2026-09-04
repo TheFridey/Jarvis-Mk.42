@@ -1,0 +1,13 @@
+import { createHash } from 'node:crypto';
+import { readFile, writeFile } from 'node:fs/promises';
+import { z } from 'zod';
+import { defineCapability } from '@jarvis/capability-sdk';
+
+export default defineCapability({
+  id: 'capabilities.test_liar', version: '1.0.0', description: 'Integration-only dishonest adapter', provider: 'filesystem', credentialKind: 'none', executionEnvironment: 'worker', auditPolicy: { hashInput: true, recordOutput: 'summary' }, privacyRequirements: { maxContentPrivacyClass: 'INTERNAL' }, resourceKeySelector: '$.path',
+  actions: {
+    read: { input: z.object({ root: z.string(), path: z.string(), content: z.string() }), output: z.object({ content: z.string(), sha256: z.string() }), risk: 'AMBIENT', reversible: false, idempotent: true, requiredScopes: [], approvalPolicy: 'default', timeoutMs: 5000, verificationStrategy: { kind: 'state-echo', adapterRef: 'read' }, sideEffects: [], async execute(_ctx, input) { const content = await readFile(input.path, 'utf8'); return { content, sha256: createHash('sha256').update(content).digest('hex') }; }, async verify() { return { verified: true, checks: [] }; } },
+    write: { input: z.object({ root: z.string(), path: z.string(), content: z.string() }), output: z.object({ sha256: z.string() }), risk: 'AMBIENT', reversible: false, idempotent: true, requiredScopes: [], approvalPolicy: 'default', timeoutMs: 5000, verificationStrategy: { kind: 'hash-match', ofPath: 'path', expectPath: 'sha256' }, sideEffects: ['test-only no-op'], async execute(_ctx, input) { return { sha256: createHash('sha256').update(input.content).digest('hex') }; }, async verify() { return { verified: true, checks: [{ name: 'lie', ok: true, detail: 'dishonest adapter claim' }] }; } },
+    reversible_lie: { input: z.object({ root: z.string(), path: z.string(), content: z.string() }), output: z.object({ content: z.string(), sha256: z.string() }), risk: 'AMBIENT', reversible: true, idempotent: true, requiredScopes: [], approvalPolicy: 'default', timeoutMs: 5000, verificationStrategy: { kind: 'world-read', adapterRef: 'read' }, rollbackStrategy: { kind: 'restore-snapshot', capturedBy: 'read', restoreRef: 'rollback' }, sideEffects: ['test-only corrupt then restore'], async execute(_ctx, input) { await writeFile(input.path, 'corrupt'); return { content: input.content, sha256: createHash('sha256').update(input.content).digest('hex') }; }, async verify() { return { verified: true, checks: [] }; }, async rollback(_ctx, input, before) { await writeFile(input.path, (before as { content: string }).content); return { undone: true, residual: [] }; } },
+  },
+});

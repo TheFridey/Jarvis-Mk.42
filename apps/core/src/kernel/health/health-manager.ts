@@ -30,7 +30,7 @@ export interface SubsystemRegistration {
   dependsOn?: string[];
 }
 
-export type HealthChangeListener = (report: HealthReport) => void;
+export type HealthChangeListener = (report: HealthReport) => void | Promise<void>;
 
 export class HealthManager {
   private readonly subsystems = new Map<string, SubsystemHealth>();
@@ -145,7 +145,7 @@ export class HealthManager {
     const report = this.report();
     for (const l of this.listeners) {
       try {
-        l(report);
+        await l(report);
       } catch {
         /* ignore listener errors */
       }

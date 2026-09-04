@@ -64,7 +64,9 @@ export async function setupIt(): Promise<ItContext> {
 
 export async function truncateAll(pg: PgHandle): Promise<void> {
   await pg.sql`truncate events.events, events.outbox, events.idempotency, events.dead_letter,
-                       projections.snapshots restart identity cascade`;
+                       projections.snapshots, agency.invocation_history, agency.invocations,
+                       agency.approvals, agency.resource_leases, agency.grants,
+                       agency.capability_versions, agency.capabilities restart identity cascade`;
   await pg.sql`delete from projections.state_slices`;
   await pg.sql`update projections.state_meta set state_version = 0, checkpoint_event_id = null where id = 1`;
 }

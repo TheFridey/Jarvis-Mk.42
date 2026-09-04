@@ -16,10 +16,10 @@ export const TERMINAL_INVOCATION_STATES = [
 
 export const LEGAL_INVOCATION_TRANSITIONS: Record<InvocationState, InvocationState[]> = {
   PROPOSED: ['VALIDATED', 'REJECTED'],
-  VALIDATED: ['POLICY_CHECKED', 'REJECTED'],
+  VALIDATED: ['POLICY_CHECKED', 'REJECTED', 'DENIED'],
   POLICY_CHECKED: ['AWAITING_APPROVAL', 'APPROVED', 'DENIED'],
   AWAITING_APPROVAL: ['APPROVED', 'DENIED'],
-  APPROVED: ['SIMULATING', 'EXECUTING', 'ABORTED'],
+  APPROVED: ['SIMULATING', 'EXECUTING', 'ABORTED', 'DENIED'],
   SIMULATING: ['SIMULATED', 'FAILED', 'ABORTED'],
   SIMULATED: ['EXECUTING', 'ABORTED', 'DENIED'],
   EXECUTING: ['VERIFYING', 'FAILED', 'COMPENSATING'],
@@ -61,7 +61,7 @@ export interface CredentialHandle {
   scope: { capabilityId: string; action: string; resourceRef: string };
   mode: 'dry-run' | 'full';
   expiresAt: Timestamp;
-  kind: 'derived' | 'wrapped-static';
+  kind: 'none' | 'derived' | 'wrapped-static';
 }
 
 export interface AdapterContext {

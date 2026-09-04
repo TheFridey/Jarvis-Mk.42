@@ -44,7 +44,10 @@ export function createPg(config: DbConfig): PgHandle {
     max: config.max ?? 20,
     idle_timeout: 20,
     connect_timeout: 10,
-    prepare: true,
+    // Dynamic JSONB-heavy Kernel writes trigger a postgres.js prepared-
+    // statement parameter rebind bug on Windows (object reaches bytes.str).
+    // Extended-protocol parameters remain safely bound with prepare disabled.
+    prepare: false,
     onnotice: () => undefined,
     connection: {
       statement_timeout: config.statementTimeoutMs ?? 15_000,

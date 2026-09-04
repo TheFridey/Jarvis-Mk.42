@@ -1,7 +1,7 @@
 /**
  * PostgreSQL access for the Session Manager (session schema).
  */
-import { type Sql, jsonParam } from '@jarvis/persistence';
+import { type Sql } from '@jarvis/persistence';
 import type { Session, SessionHandoff, SessionState, SessionType } from '@jarvis/contracts';
 
 interface Row {
@@ -46,7 +46,7 @@ export class SessionStore {
       insert into session.sessions
         (id, type, principal_id, nodes, state, started_at, last_activity_at,
          opened_by_correlation_id, parent_session_id, context_ref, version)
-      values (${s.id}, ${s.type}, ${s.principalId}, ${this.sql.json(jsonParam(s.nodes))}, ${s.state},
+      values (${s.id}, ${s.type}, ${s.principalId}, ${JSON.stringify(s.nodes)}, ${s.state},
               ${s.startedAt}, ${s.lastActivityAt}, ${s.openedByCorrelationId},
               ${s.parentSessionId ?? null}, ${s.contextRef ?? null}, ${s.version})`;
   }
@@ -81,8 +81,8 @@ export class SessionStore {
         version = ${args.newVersion},
         last_activity_at = ${args.lastActivityAt},
         ended_at = ${args.endedAt ?? null},
-        handoff = ${args.handoff ? tx.json(jsonParam(args.handoff)) : null},
-        nodes = coalesce(${args.nodes ? tx.json(jsonParam(args.nodes)) : null}, nodes)
+        handoff = ${args.handoff ? JSON.stringify(args.handoff) : null},
+        nodes = coalesce(${args.nodes ? JSON.stringify(args.nodes) : null}, nodes)
       where id = ${args.id}`;
   }
 

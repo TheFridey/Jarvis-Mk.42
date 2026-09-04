@@ -18,8 +18,12 @@
  */
 import {
   EventNames,
+  type Capability,
+  type Grant,
   type JarvisMode,
 } from '@jarvis/contracts';
+import { BASE_RULE_PACK, evaluatePolicy } from '@jarvis/permissions';
+import type { AdapterHost } from '@jarvis/adapter-host';
 import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { startTelemetry, stopTelemetry } from '@jarvis/telemetry';
 
@@ -52,6 +56,13 @@ import { Scheduler } from '../scheduler/index.ts';
 import { NotificationManager } from '../notification/index.ts';
 import { ContextCompiler } from '../context/index.ts';
 import { DiagnosticsHttp, DiagnosticsService } from '../diagnostics/index.ts';
+import { CapabilityRegistry, PgCapabilityStore } from '../capability-registry/index.ts';
+import { AgencyAuthorizer, ApprovalManager, MemoryTokenCache, PermissionManager, PgGrantStore } from '../permission/index.ts';
+import { CapabilityExecutor, createAdapterHost, HostedAdapterRunner, HostedVerificationWorld, KernelExecutorEventSink, PgInvocationStore, PgResourceLeaseManager, VerificationRunner } from '../executor/index.ts';
+import { CredentialBroker, MemoryCredentialMaterialStore } from '../credential-broker/index.ts';
+import { AgencyIngress } from '../agency-ingress/index.ts';
+import { SentinelDetectorService } from '../sentinel/index.ts';
+import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
 
 import { RedisEphemeralStore, NullEphemeralStore, type EphemeralStore } from './ephemeral.ts';
 import { ROUTINE_DEFS } from './routines.ts';
@@ -69,6 +80,10 @@ export interface KernelOverrides {
   noHttp?: boolean;
   /** Skip starting the scheduler tick loop (tests drive ticks manually). */
   noScheduler?: boolean;
+  capabilities?: Array<{ manifest: Capability; moduleUrl: string; artifactHash?: string }>;
+  bootstrapGrants?: Grant[];
+  credentialMaterial?: Record<string, string>;
+  adapterHost?: AdapterHost;
 }
 
 export interface KernelHandle {
@@ -89,6 +104,12 @@ export interface KernelHandle {
   readonly scheduler: Scheduler;
   readonly notifications: NotificationManager;
   readonly context: ContextCompiler;
+  readonly capabilityRegistry: CapabilityRegistry;
+  readonly permissions: PermissionManager;
+  readonly approvals: ApprovalManager;
+  readonly credentialBroker: CredentialBroker;
+  readonly agency: AgencyIngress;
+  readonly sentinel: SentinelDetectorService;
   readonly diagnostics: DiagnosticsService;
   readonly ephemeral: EphemeralStore;
   readonly pg: PgHandle;
@@ -141,6 +162,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   const health = new HealthManager({ state, events, clock, ids });
 
+  let currentPrincipalId = config.bootstrapPrincipalId;
+  let presenceIsPresent = false;
+  let activeObjectiveCount = 0;
+
   const mode = new ModeManager({
     state,
     events,
@@ -149,7 +174,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     minDwellMs: config.modeMinDwellMs,
     guardInputs: () => ({
       presencePresent: presenceIsPresent,
-      activeObjectiveCount: 0,
+      activeObjectiveCount,
       criticalDepsHealthy: health.criticalDepsHealthy(),
     }),
   });
@@ -168,9 +193,6 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     clock,
     ids,
   });
-
-  let currentPrincipalId = config.bootstrapPrincipalId;
-  let presenceIsPresent = false;
 
   const presence = new PresenceManager({
     state,
@@ -192,7 +214,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     },
   });
 
-  const registeredCapabilities: string[] = []; // populated by a later phase
+  const registeredCapabilities: string[] = [];
   const context = new ContextCompiler({
     state,
     eventStore,
@@ -206,6 +228,36 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     config.redisUrl && !ov.forceInProcessBus
       ? new RedisEphemeralStore(config.redisUrl)
       : new NullEphemeralStore();
+
+  const capabilityStore = new PgCapabilityStore(pg.sql);
+  const capabilityRegistry = new CapabilityRegistry(capabilityStore);
+  const grantStore = new PgGrantStore(pg.sql);
+  const tokenCache = new MemoryTokenCache();
+  const permissions = new PermissionManager(grantStore, tokenCache, () => clock.nowIso());
+  const approvals = new ApprovalManager(pg.sql, () => clock.nowIso());
+  const authorizer = new AgencyAuthorizer(grantStore, permissions, approvals, () => clock.nowIso());
+  const credentialBroker = new CredentialBroker(new MemoryCredentialMaterialStore(ov.credentialMaterial ?? {}), tokenCache, () => clock.nowIso());
+  const adapterHost = ov.adapterHost ?? createAdapterHost();
+  const adapterModules = new Map((ov.capabilities ?? []).map((entry) => [entry.manifest.id, entry.moduleUrl]));
+  const verification = new VerificationRunner(new HostedVerificationWorld(adapterHost, adapterModules));
+  const invocationStore = new PgInvocationStore(pg.sql);
+  const leases = new PgResourceLeaseManager(pg.sql, () => new Date(clock.nowIso()));
+  const executorEvents = new KernelExecutorEventSink(events);
+  const executor = new CapabilityExecutor({
+    lookup: (id, version) => capabilityRegistry.lookup(id, version),
+    validateInput: validateJsonSchema,
+    evaluate: async ({ capability, action, proposal, origin }) => { const principalId = origin.onBehalfOf ?? origin.id; const grant = await grantStore.findActive(principalId, capability.requiredScopes, clock.nowIso()); return evaluatePolicy({ actor: { kind: origin.kind === 'agent' ? 'agent' : 'principal', id: origin.id, onBehalfOf: principalId, heldScopes: grant?.scopes ?? [] }, action: { capabilityId: capability.id, action: action.name, riskClass: action.riskClass, requiredScopes: [...capability.requiredScopes] }, context: { operatorReachable: true, degradation: health.overall === 'HEALTHY' ? 'nominal' : 'degraded', derivedFromUntrusted: proposal.provenance.derivedFromUntrusted, hostTrustTier: 'kernel-local', now: clock.nowIso(), resourceRef: String(proposal.invocation.input), originNodeId: config.nodeId, authTrustLevel: 'verified', authMethod: 'kernel-session', jarvisMode: await mode.current(), recentDenialCount: 0 } }, BASE_RULE_PACK); },
+    permission: authorizer,
+    broker: credentialBroker,
+    adapter: (capability) => { const moduleUrl = adapterModules.get(capability.id); if (!moduleUrl) throw new Error('adapter module unavailable'); return new HostedAdapterRunner(adapterHost, capability, moduleUrl); },
+    verification,
+    events: executorEvents,
+    store: invocationStore,
+    leases,
+    now: () => clock.nowIso(),
+  });
+  const agency = new AgencyIngress(executor);
+  const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
     {
@@ -295,14 +347,14 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   async function reconcileModeWithHealth(overall: string): Promise<void> {
     const cur = await mode.current();
-    if (
+    if (cur === 'DEGRADED' && health.criticalDepsHealthy()) {
+      await mode.requestTransition('AMBIENT', 'dependency_recovered', 'critical dependencies healthy');
+    } else if (
       (overall === 'OFFLINE' || overall === 'DEGRADED') &&
       cur !== 'DEGRADED' &&
       cur !== 'GUARDIAN'
     ) {
       await mode.requestTransition('DEGRADED', 'dependency_unhealthy', `overall health ${overall}`);
-    } else if (overall === 'HEALTHY' && cur === 'DEGRADED') {
-      await mode.requestTransition('AMBIENT', 'dependency_recovered', 'critical dependencies healthy');
     }
   }
 
@@ -324,6 +376,12 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     scheduler,
     notifications,
     context,
+    capabilityRegistry,
+    permissions,
+    approvals,
+    credentialBroker,
+    agency,
+    sentinel,
     diagnostics,
     ephemeral,
     pg,
@@ -352,6 +410,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       health.register({ subsystem: 'nats', critical: false });
       health.register({ subsystem: 'scheduler', critical: false });
       health.register({ subsystem: 'diagnostics', critical: false });
+      health.register({ subsystem: 'agency', critical: true, dependsOn: ['postgres'] });
+      health.register({ subsystem: 'adapter-host', critical: true, dependsOn: ['agency'] });
 
       // 1. PostgreSQL
       const dbOk = await pg.ping();
@@ -360,9 +420,20 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         await runMigrations(pg.sql);
       }
 
+      for (const entry of ov.capabilities ?? []) {
+        const registered = await capabilityRegistry.register(entry.manifest, entry.artifactHash ?? 'local-module', 'kernel-bootstrap');
+        if (!registered.ok) throw new Error(`capability registration failed: ${registered.code}`);
+        registeredCapabilities.push(entry.manifest.id);
+        await events.emit({ type: EventNames.CapabilityRegistered, retentionClass: 'AUDIT', privacyClass: 'INTERNAL', subject: { kind: 'capability', id: entry.manifest.id }, actor: { kind: 'system', id: 'capability-registry' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: 'system', payload: { capabilityId: entry.manifest.id, version: entry.manifest.version, registeredBy: 'kernel-bootstrap', artifactHash: entry.artifactHash ?? 'local-module' } });
+      }
+      for (const grant of ov.bootstrapGrants ?? []) { await permissions.issueGrant(grant); await events.emit({ type: EventNames.GrantIssued, retentionClass: 'SECURITY', privacyClass: 'SENSITIVE', subject: { kind: 'grant', id: grant.id }, actor: { kind: 'system', id: 'permission-manager' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: grant.principalId, payload: { grantId: grant.id, principalId: grant.principalId, version: grant.version, scopes: grant.scopes } }); }
+
       // 2. State
       await state.init();
       await this.catchUpState();
+      const objective = await state.getSlice('active_objective');
+      activeObjectiveCount = objective && Object.values(objective.value as Record<string, unknown>).some((value) => value != null && value !== '') ? 1 : 0;
+      state.subscribe(['active_objective'], (update) => { activeObjectiveCount = Object.values(update.slice.value as Record<string, unknown>).some((value) => value != null && value !== '') ? 1 : 0; });
       await health.heartbeat({ subsystem: 'state-manager', status: 'HEALTHY', message: 'projections current' });
 
       // 3. Redis (best-effort, non-critical)
@@ -382,6 +453,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       }
       outboxRelay.start();
       await health.heartbeat({ subsystem: 'event-fabric', status: 'HEALTHY', message: 'outbox relay running' });
+      await health.heartbeat({ subsystem: 'agency', status: 'HEALTHY', message: `${registeredCapabilities.length} registered capabilities` });
+      await health.heartbeat({ subsystem: 'adapter-host', status: 'HEALTHY', message: 'isolated worker host ready' });
 
       // 5. Bootstrap identity
       const { principal } = await identity.ensureBootstrap({
@@ -431,13 +504,14 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
       // Wire ongoing health -> mode (DEGRADED / recovery).
       health.onChange((report) => {
-        void reconcileModeWithHealth(report.overall);
+        return reconcileModeWithHealth(report.overall);
       });
     },
 
     async stop() {
       if (!started) return;
       started = false;
+      agency.stop();
       await events
         .emit({
           type: EventNames.KernelStopping,

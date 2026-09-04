@@ -13,6 +13,7 @@ const alias = {
   '@jarvis/capability-sdk': r('./packages/capability-sdk/src/index.ts'),
   '@jarvis/scene': r('./packages/scene/src/index.ts'),
   '@jarvis/spatial': r('./packages/spatial/src/index.ts'),
+  '@jarvis/adapter-host': r('./apps/adapter-host/src/index.ts'),
 };
 
 const isIntegration = process.env.JARVIS_IT === '1';
@@ -29,5 +30,6 @@ export default defineConfig({
     testTimeout: isIntegration ? 60_000 : 15_000,
     // vitest 2.x: name the logical project so `--project unit` / `--project integration` select it
     name: isIntegration ? 'integration' : 'unit',
+    ...(isIntegration ? { fileParallelism: false, maxWorkers: 1, minWorkers: 1 } : {}),
   },
 });
