@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest';
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import chaos from '../fixtures/chaos-capability.ts';
+import { AdapterHost } from '../../apps/adapter-host/src/host.ts';
+import { NullEphemeralStore } from '../../apps/core/src/kernel/lifecycle/ephemeral.ts';
+import { computeOverall } from '../../apps/core/src/kernel/health/health-policy.ts';
+import { InProcessEventBus } from '../../apps/core/src/kernel/event-fabric/index.ts';
+import { eventSchema } from '@jarvis/validation';
+import { advance } from '../../apps/core/src/kernel/executor/lifecycle.ts';
+const handle = { handleId: 'h', invocationId: 'i', scope: { capabilityId: chaos.manifest.id, action: 'x', resourceRef: 'r' }, mode: 'full' as const, expiresAt: '2099-01-01T00:00:00Z', kind: 'none' as const };
+const job = (action: string, timeoutMs: number) => ({ invocationId: 'i', capabilityId: chaos.manifest.id, version: chaos.manifest.version, action, input: {}, handle, mode: 'full' as const, timeoutMs, riskClass: 'LOW' as const, executionEnvironment: 'worker', moduleUrl: pathToFileURL(resolve('test/fixtures/chaos-capability.ts')).href });
+describe('safe deterministic chaos simulations', () => {
+  it('reports NATS unavailable without inventing health', () => { const result = computeOverall([{ subsystem: 'nats', status: 'OFFLINE', critical: false, dependsOn: [], message: 'simulated', updatedAt: new Date().toISOString() }]); expect(result.overall).toBe('DEGRADED'); });
+  it('keeps Redis unavailable non-authoritative', async () => { const redis = new NullEphemeralStore(); expect(await redis.ping()).toBe(false); });
+  it('contains an Adapter Host worker failure', async () => { await expect(new AdapterHost().run(job('crash', 5000))).rejects.toThrow(/simulated worker crash/); });
+  it('kills a capability that exceeds its deadline', async () => { await expect(new AdapterHost().run(job('hang', 20))).rejects.toThrow(/timeout/); });
+  it('models temporary PostgreSQL failure as fail-closed unavailability', () => { const result = computeOverall([{ subsystem: 'postgres', status: 'OFFLINE', critical: true, dependsOn: [], message: 'simulated', updatedAt: new Date().toISOString() }]); expect(result.overall).toBe('OFFLINE'); });
+  it('rejects stale lease lifecycle jumps', () => { expect(() => advance('INTERRUPTED', 'EXECUTING')).toThrow(/illegal/); });
+  it('deduplicates duplicate event delivery', async () => { const seen = new Set<string>(); const bus = new InProcessEventBus({ seen: async (consumer, id) => seen.has(`${consumer}:${id}`), mark: async (consumer, id) => { seen.add(`${consumer}:${id}`); } }, { record: async () => undefined }); let calls = 0; await bus.subscribe({ consumer: 'c', subjects: ['jarvis.test.>'], handler: async () => { calls++; } }); const event = { id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', type: 'jarvis.test.event.created' } as never; await bus.publish(event); await bus.publish(event); await new Promise((resolve) => setTimeout(resolve, 20)); expect(calls).toBe(1); });
+  it('rejects malformed events deterministically', () => expect(eventSchema.safeParse({ type: 'bad' }).success).toBe(false));
+  it('routes verification failure away from success', () => { expect(advance('VERIFYING', 'VERIFICATION_FAILED').ok).toBe(true); expect(() => advance('VERIFICATION_FAILED', 'COMPLETED')).toThrow(); });
+  it('classifies Core restart during execution as interrupted', () => expect(advance('EXECUTING', 'INTERRUPTED').ok).toBe(true));
+});

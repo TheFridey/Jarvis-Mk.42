@@ -22,6 +22,7 @@ export * from './capability.ts';
 export * from './policy.ts';
 export * from './permission.ts';
 export * from './agency.ts';
+export * from './agent-result.ts';
 export * from './objective.ts';
 export * from './model.ts';
 export * from './node.ts';

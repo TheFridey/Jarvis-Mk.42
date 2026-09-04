@@ -11,7 +11,7 @@ export class CredentialBroker {
   constructor(private readonly material: CredentialMaterialStore, private readonly tokens: AuthorityTokenConsumer, private readonly now = () => new Date().toISOString(), private readonly sql?: Sql) {}
   async mint(input: { authorityToken: string; invocationId: string; capabilityId: string; action: string; resourceRef: string; mode: 'dry-run' | 'full'; kind?: CredentialHandle['kind']; ttlMs?: number }): Promise<CredentialHandle> {
     const authority = await this.tokens.consume(input.authorityToken, this.now());
-    if (!authority || authority.invocationId !== input.invocationId || authority.mode !== input.mode) throw new Error('invalid, expired, or mismatched authority token');
+    if (!authority || Date.parse(authority.expiresAt) <= Date.parse(this.now()) || authority.invocationId !== input.invocationId || authority.mode !== input.mode) throw new Error('invalid, expired, or mismatched authority token');
     const provider = input.capabilityId.replace('capabilities.', '');
     const kind = input.kind ?? 'wrapped-static';
     const material = kind === 'none' ? '' : await this.material.get(provider);

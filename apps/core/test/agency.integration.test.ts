@@ -78,7 +78,7 @@ describe.skipIf(!dockerOk)('load-bearing agency pipeline (integration)', () => {
 
     await writeFile(join(root, 'ok.txt'), 'before');
     const success = await k.agency.submit(proposal('success', deniedManifest.id, deniedManifest.version, 'write_file', { root, path: join(root, 'ok.txt'), content: 'after' }), { principalId, authenticated: true });
-    expect(success.outcome).toBe('verified');
+    expect(success.outcome, JSON.stringify(success)).toBe('verified');
     expect(await readFile(join(root, 'ok.txt'), 'utf8')).toBe('after');
     const events = await k.eventStore.byCorrelation('corr-success');
     expect(events.map((event) => event.type)).toEqual(expect.arrayContaining(['jarvis.agency.invocation.proposed', 'jarvis.agency.invocation.policy_checked', 'jarvis.agency.invocation.started', 'jarvis.agency.invocation.verified']));

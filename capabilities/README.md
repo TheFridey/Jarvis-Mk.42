@@ -1,9 +1,9 @@
 # capabilities/
 
 Capability **manifests** (`docs/architecture/AGENCY_MODEL.md`, ADR-0016). Each
-folder holds a `manifest.json` describing a class of effects. Adapters (the
-out-of-process implementations) are built in later MKs; the manifest is the
-contract they must satisfy.
+folder holds a manifest describing a class of effects. Selected capabilities,
+including filesystem operations, have out-of-process implementations; other
+folders remain contract-only until their providers are implemented and tested.
 
 **Registering a manifest touches only the Capability Registry. The Kernel
 binary does not change** (L28, L29).

@@ -20,7 +20,10 @@ export interface ItContext {
 
 export async function setupIt(): Promise<ItContext> {
   const container = await startEphemeralPg();
-  const pg = createPg({ url: container.url });
+  // Parallel disposable containers can briefly contend for Docker Desktop I/O.
+  // Keep database statements bounded, but allow enough headroom that host load
+  // is not misclassified as an application-level transaction failure.
+  const pg = createPg({ url: container.url, statementTimeoutMs: 60_000 });
   await runMigrations(pg.sql);
   const clock = new FakeClock(Date.parse('2026-09-01T00:00:00.000Z'));
 

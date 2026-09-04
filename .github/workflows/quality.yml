@@ -1,0 +1,38 @@
+name: MK42 Quality Gates
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: mk42-quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: docker pull pgvector/pgvector:pg16
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm test:integration
+        env:
+          JARVIS_IT_WORKERS: 2
+      - run: pnpm test:contract
+      - run: pnpm test:security
+      - run: pnpm fitness
+      - run: pnpm test:chaos
+      - run: pnpm backup:drill

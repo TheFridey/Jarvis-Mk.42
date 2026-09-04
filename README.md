@@ -11,18 +11,20 @@ as cognitive resources.
 > **The models are not JARVIS.** OpenAI, Anthropic, Gemini, local models, TTS,
 > vision — all replaceable. JARVIS is what persists around them.
 
-## This repository is currently the GENESIS phase
+## Current status
 
-MK.42 GENESIS ships:
+MK.42 currently ships:
 
 1. The **architectural constitution** — `docs/architecture/`
 2. **Architecture Decision Records** — `docs/architecture/adr/`
 3. **Diagrams** — `docs/architecture/diagrams/`
-4. An **inert monorepo skeleton** — every directory declares its single purpose
-5. **Typed Kernel contracts** — `packages/contracts/` (compilable, zero implementation)
+4. A running modular Kernel with durable events, state, identity, sessions, health, context and Agency Plane composition
+5. Typed, runtime-validated contracts plus unit, integration, contract, security, fitness, chaos and restore gates
+6. A Tauri/Next.js desktop experience prototype and isolated capability-worker host
 
-There is **no runtime code**. Implementation phases (MK.43+) build on this
-foundation and must obey it.
+This is a hardened foundation, not a finished assistant. Model Gateway provider
+execution, production Node Protocol trust, complete perception/voice services,
+and autonomous operation remain incomplete and must not be inferred from the UI.
 
 ## Read in this order
 
@@ -38,8 +40,8 @@ foundation and must obey it.
 |---|---|
 | `apps/` | Deployable processes. `core` = Kernel. `gateway` = Model Gateway. `voice`/`vision` = perception. `desktop` = Tauri shell. `diagnostics` = operator UI. `relay` = future edge node (empty seam). |
 | `packages/` | In-repo libraries consumed by apps. `contracts` = shared types. `kernel` = Kernel module code. See `packages/README.md`. |
-| `agents/` | Disposable cognitive workers. Manifests only. JARVIS orchestrates them; they own no state. |
-| `capabilities/` | Permissioned effect adapters. Manifests only. Every consequential action passes through one. |
+| `agents/` | Disposable cognitive-worker manifests. The full Agent Runtime remains incomplete. |
+| `capabilities/` | Permissioned effect manifests; selected providers include executable adapters. Every consequential action must pass through the Kernel Executor. |
 | `infrastructure/` | Docker Compose, Postgres, Redis, NATS, observability configuration. |
 | `docs/` | Architecture, ADRs, protocols, security, diagrams. |
 

@@ -1,0 +1,18 @@
+import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
+const root = resolve('.');
+const files = (dir: string): string[] => readdirSync(dir).flatMap((name) => { const path = join(dir, name); return statSync(path).isDirectory() ? files(path) : /\.(ts|tsx)$/.test(path) ? [path] : []; });
+const source = (dir: string) => files(resolve(dir)).map((path) => ({ path: relative(root, path).replaceAll('\\', '/'), text: readFileSync(path, 'utf8') }));
+const rejectImports = (dir: string, pattern: RegExp) => expect(source(dir).filter((file) => pattern.test(file.text)).map((file) => file.path)).toEqual([]);
+describe('architecture fitness boundaries', () => {
+  it('perception does not import cognition or agents', () => rejectImports('packages/scene', /from ['"].*(agents|cognition|model-gateway)/));
+  it('desktop cannot import adapters, Executor, persistence, or authoritative stores', () => rejectImports('apps/desktop', /from ['"].*(adapter-host|capabilities\/|kernel\/executor|persistence|state-store)/));
+  it('agents cannot import adapters, Executor, persistence, or permissions', () => rejectImports('agents', /from ['"].*(adapter-host|capabilities\/|kernel\/executor|persistence|permissions)/));
+  it('provider SDK imports stay inside Model Gateway', () => { const hits = [...source('apps'), ...source('packages')].filter((file) => !file.path.startsWith('apps/gateway/') && /from ['"](?:openai|@anthropic-ai|@google\/generative-ai|cohere-ai)/.test(file.text)); expect(hits.map((hit) => hit.path)).toEqual([]); });
+  it('memory cannot import World Model authority and World Model cannot import Kernel state', () => { rejectImports('packages/memory', /world-model|kernel\/state/); rejectImports('packages/world-model', /kernel\/state|state-store/); });
+  it('capability adapters cannot import policy or permission evaluators', () => rejectImports('capabilities', /from ['"].*(permissions|policy|permission-manager)/));
+  it('raw credential material access is confined to the credential broker boundary', () => { const hits = source('apps/core/src').filter((file) => /MemoryCredentialMaterialStore|CredentialMaterialStore/.test(file.text) && !file.path.includes('/credential-broker/') && !file.path.endsWith('/lifecycle/kernel.ts')); expect(hits.map((hit) => hit.path)).toEqual([]); });
+  it('replay code cannot import Executor, Adapter Host, or capabilities', () => rejectImports('apps/core/src/kernel/event-fabric', /from ['"].*(executor|adapter-host|capabilities\/)/));
+  it('critical completion remains verification-gated', () => { const executor = readFileSync(resolve('apps/core/src/kernel/executor/executor.ts'), 'utf8'); expect(executor).toContain('if (report.verified)'); expect(executor).not.toMatch(/adapter\.verify/); });
+});

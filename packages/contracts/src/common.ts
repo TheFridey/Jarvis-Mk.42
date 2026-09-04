@@ -1,7 +1,7 @@
 /**
  * Common primitive aliases used across all JARVIS contracts.
  *
- * GENESIS PHASE: types only. No runtime code. These shapes are subordinate to
+ * Shared contracts used by runtime and transport boundaries. These shapes are subordinate to
  * docs/architecture/PRINCIPLES.md and may only evolve additively (see
  * docs/architecture/ROADMAP.md "The invariant").
  */

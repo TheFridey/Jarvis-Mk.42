@@ -27,6 +27,8 @@ A small Tauri Rust sidecar provides OS hooks used by the `windows` capability
 adapter and the screen/cursor telemetry collector — those run under the
 Executor / perception rules respectively, not in the shell's trust context.
 
-## GENESIS status
+## Current status
 
-No frontend yet. Built in `ROADMAP.md` MK.49 (Experience).
+A Next.js/Tauri experience prototype exists with semantic-scene rendering and
+air-touch UI simulation. Production Kernel transport, authenticated approval
+surfaces, and hardware validation are not complete.

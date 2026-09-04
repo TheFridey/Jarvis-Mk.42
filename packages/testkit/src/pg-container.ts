@@ -47,19 +47,20 @@ export async function startEphemeralPg(): Promise<EphemeralPg> {
   }
 
   const name = `jarvis-it-pg-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
-  const port = 20000 + Math.floor(Math.random() * 20000);
-
   await execFile('docker', [
     'run', '-d', '--rm',
     '--name', name,
     '-e', 'POSTGRES_USER=jarvis',
     '-e', 'POSTGRES_PASSWORD=jarvis',
     '-e', 'POSTGRES_DB=jarvis',
-    '-p', `${port}:5432`,
+    '-p', '127.0.0.1::5432',
     IMAGE,
   ]);
 
-  const url = `postgres://jarvis:jarvis@localhost:${port}/jarvis`;
+  const { stdout: published } = await execFile('docker', ['port', name, '5432/tcp']);
+  const port = published.trim().match(/:(\d+)$/)?.[1];
+  if (!port) { await execFile('docker', ['rm', '-f', name]).catch(() => undefined); throw new Error('docker did not publish PostgreSQL port'); }
+  const url = `postgres://jarvis:jarvis@127.0.0.1:${port}/jarvis`;
   const stop = async () => {
     await execFile('docker', ['rm', '-f', name]).catch(() => undefined);
   };
