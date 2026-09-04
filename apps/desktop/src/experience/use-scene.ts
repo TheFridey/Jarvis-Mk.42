@@ -1,0 +1,3 @@
+'use client';
+import { useCallback, useEffect, useState } from 'react'; import type { SceneIntent, SemanticScene } from '@jarvis/scene'; import type { SceneTransport } from './scene-client.ts';
+export function useScene(transport: SceneTransport) { const [scene, setScene] = useState<SemanticScene>(); const [connected, setConnected] = useState(true); useEffect(() => transport.subscribe(setScene), [transport]); const submit = useCallback(async (intent: SceneIntent) => { if (!scene) return; try { await transport.submit(intent, scene.version); setConnected(true); } catch { setConnected(false); await transport.reconnect(); } }, [scene, transport]); return { scene, connected, submit }; }

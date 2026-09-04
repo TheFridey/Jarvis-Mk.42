@@ -25,6 +25,7 @@ import type { EventManager } from '../event-fabric/event-manager.ts';
 import type { EventStore } from '../event-fabric/event-store.ts';
 import type { StateManager } from '../state/state-manager.ts';
 import { buildPackage, scoreItem, type RankInput } from './ranking.ts';
+import { canonicalJson } from '../../runtime/canonical-json.ts';
 
 const SLICE_TO_KIND: Partial<Record<StateSliceKey, ContextItemKind>> = {
   active_objective: 'active_objective',
@@ -48,7 +49,7 @@ export interface ContextCompilerDeps {
 }
 
 function hash(v: unknown): string {
-  return createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
+  return createHash('sha256').update(canonicalJson(v)).digest('hex').slice(0, 16);
 }
 
 export class ContextCompiler {
@@ -79,9 +80,8 @@ export class ContextCompiler {
     }
 
     // 2. recent events (bounded)
-    const recent = await this.deps.eventStore.readFrom('0', 40);
-    const tail = recent.slice(-20);
-    for (const e of tail) {
+    const recent = await this.deps.eventStore.readRecent(20);
+    for (const e of recent) {
       candidates.push(
         this.mkItem('recent_event', `${e.type} @ ${e.time}`, { type: e.type, subject: e.subject }, e.privacyClass, {
           ageMs: now - Date.parse(e.time),

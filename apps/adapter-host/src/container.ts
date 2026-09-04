@@ -1,0 +1,2 @@
+export interface ContainerLimits { memoryMb: number; cpus: number; pids: number; wallTimeMs: number; }
+export function restrictedDockerArgs(image: string, command: string[], limits: ContainerLimits) { return ['run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--memory', `${limits.memoryMb}m`, '--cpus', String(limits.cpus), '--pids-limit', String(limits.pids), image, ...command]; }

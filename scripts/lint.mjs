@@ -7,6 +7,7 @@
 // toolchain allows.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { lintCapabilities } from '../packages/capability-sdk/lint/capabilities-lint.mjs';
 
 const ROOTS = ['packages', 'apps'];
 const BAD = [
@@ -30,7 +31,7 @@ function walk(dir) {
     const p = join(dir, entry);
     const s = statSync(p);
     if (s.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist') continue;
+      if (entry === 'node_modules' || entry === 'dist' || entry === '.next' || entry === 'out') continue;
       walk(p);
     } else if (entry.endsWith('.ts')) {
       if (ALLOW_FILES.some((re) => re.test(p))) continue;
@@ -48,6 +49,21 @@ function walk(dir) {
 }
 
 for (const r of ROOTS) walk(r);
+
+const capabilityFiles = [];
+function findCapabilities(dir) {
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry);
+    const s = statSync(p);
+    if (s.isDirectory()) findCapabilities(p);
+    else if (entry.endsWith('.ts')) capabilityFiles.push(p);
+  }
+}
+findCapabilities('capabilities');
+for (const finding of lintCapabilities(capabilityFiles)) {
+  console.error(`${finding.file}  ${finding.message}`);
+  problems++;
+}
 
 if (problems > 0) {
   console.error(`\nlint: ${problems} problem(s)`);

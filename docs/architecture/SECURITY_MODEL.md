@@ -76,7 +76,20 @@ flowchart TB
 - An LLM `PolicyRecommendation` is admissible as **one typed input** to a rule
   (e.g. "if recommendation=DENY, then DENY"), but a rule can never be "return
   whatever the model said". The decision function does not call a model
-  (L21).
+  (L21). Rule validation **rejects** any rule that references
+  `context.llmRecommendation` with an effect other than `DENY`.
+- **Evaluation order** (ADR-0026): engine **hard caps** first —
+  `derivedFromUntrusted` above `riskClass: LOW` ⇒ **DENY**;
+  `requiredScopes ⊄ heldScopes` ⇒ **DENY**; `GUARDIAN` + `CRITICAL` ⇒
+  **DENY** — none overridable by a rule. Then **rules** by priority (**DENY
+  beats REQUIRE_APPROVAL beats ALLOW** at equal priority; first matching DENY
+  wins). Then the **fail-closed default**: `AMBIENT` ⇒ ALLOW, `LOW` ⇒
+  REQUIRE_APPROVAL, `MEDIUM`/`HIGH`/`CRITICAL` ⇒ DENY. An unconfigured system
+  permits only ambient reads.
+- **Mode and objective authority are restrict-only** policy inputs: a rule may
+  branch on `jarvisMode` / `activeObjectiveGate` only to reach a *more*
+  restrictive effect. `AUTONOMOUS` never converts `REQUIRE_APPROVAL` to
+  `ALLOW` (ADR-0019).
 
 ## 4. Structural prompt-injection defense (ADR-0018)
 
@@ -112,14 +125,21 @@ cannot move money, delete data, push code, or write a belief.
 | Holder | Holds | Never holds |
 |---|---|---|
 | Kernel (`apps/core`) | PostgreSQL creds; NATS publish creds for ledger subjects; node-admission signing key | Provider API keys; adapter resource creds |
+| **Credential Broker** (Kernel-internal service) | Adapter credential **material**, in memory only, loaded from OS keychain / a `0600` secrets file at startup; never written anywhere | DB write, NATS, an effect path — it only `mint`s |
 | Model Gateway | Provider API keys (env / OS keychain) | DB, NATS, adapter creds |
-| Each capability adapter | Its own scoped resource credential (repo-scoped token, workspace-rooted FS handle, Docker socket) | DB, NATS, provider, other adapters' creds |
+| Each capability adapter worker | A per-invocation `CredentialHandle` from the Broker, scoped to `(capabilityId, action, resourceRef, mode)`, TTL ≤ invocation; for `derived` mints it never sees the secret string | DB, NATS, provider, other adapters' creds, `process.env` secrets, any standing credential |
 | Agents | **nothing** | everything |
 | Perception processes | Sensor device handles; a scoped NATS publish cred for `jarvis.perception.>` only | DB, provider, adapter creds |
 | Experience surfaces | Per-surface session token (scoped read + command submit) | any store credential |
 
-Secrets are **not** in PostgreSQL. They live in the OS keychain / a secrets
-file / env, loaded per process.
+Secrets are **not** in PostgreSQL. They live in the OS keychain / a `0600`
+secrets file, loaded **only** into the Credential Broker process. Adapters
+receive per-invocation handles, not material; `derived` mints (GitHub
+fine-grained token, AWS STS, signed Docker-proxy token) are redeemed through
+`ctx.http` / a proxy so adapter code never touches the string. The
+worker→Executor channel runs a redactor seeded with the secret fingerprint; a
+hit ⇒ `«redacted»` + `jarvis.security.alert.elevated`. `agency.invocations`
+stores `input_hash`, never `input`. (ADR-0025 §2, ADR-0030.)
 
 ## 6. Node trust tiers (review §16.8)
 
@@ -135,17 +155,25 @@ node registry. It cannot self-upgrade.
 
 ## 7. Approval & dual control
 
-- **REQUIRE_APPROVAL** surfaces the request (with simulated effect if
-  available) to the operator on a trusted surface. Approve / reject / edit-then-
-  approve.
-- **Timeout / unreachable** ⇒ **fail closed** (queued, not executed) unless a
-  standing grant explicitly carries `mayProceedWithoutLiveApproval` for that
-  scope (review §16.9).
-- **Dual control** (CRITICAL): two distinct authorisations — operator approval
-  plus a typed confirmation phrase — and always simulate-first. In MK.42's
-  single-operator setup, "dual" = two separate deliberate acts by the operator
-  on a trusted surface, not two people; the model reserves true two-person
-  control for multi-user.
+- **REQUIRE_APPROVAL** surfaces the request — with the simulated effect for
+  `riskClass >= HIGH` (`simulatable` actions; a non-simulatable one surfaces
+  "no simulation available") — to the operator on a trusted surface
+  (`owned-secure` node, operator identity, `authTrustLevel >= trusted`).
+  Actions: approve / reject / edit-then-approve (an edit re-enters Validator →
+  Policy from the top).
+- **Timeout** (default 15 min) **or operator unreachable** ⇒ **fail closed**
+  (`expired` ⇒ `DENIED`, queued not executed) unless a standing grant carries
+  `mayProceedWithoutLiveApproval` for a scope covering the action, recorded as
+  `approvalEvidence.kind = 'standing-grant'` (review §16.9).
+- **Dual control** (CRITICAL, `requiredAuthorisations = 2`): two distinct
+  deliberate operator acts on a trusted surface — (1) an `approve` on the
+  `ApprovalRequest`, **and** (2) a typed **confirmation phrase** matching the
+  manifest's per-capability `confirmationPhrase`, submitted as a separate
+  `Command` — from the **same `sessionId`**, at **`authTrustLevel: verified`**,
+  both within the approval TTL. CRITICAL is **always** simulate-first. The
+  phrase's hash is stored as `approvalEvidence`. True two-person control (two
+  principals) is deferred to multi-user (ROADMAP MK.90+); the
+  `requiredAuthorisations` field already carries it. (ADR-0027.)
 
 ## 8. Audit (L31)
 
@@ -182,3 +210,20 @@ node registry. It cannot self-upgrade.
 | Replay of an old command | `commandId` dedupe; authority tokens TTL'd; freshness barrier on grants. |
 | Exfiltration via cognition | Cognition can't call capabilities or the network; only the gateway egresses, and only to registered providers with metadata-only logging. Sending data out is a HIGH/CRITICAL capability. |
 | State corruption via race | Single-writer projectors; freshness barrier; per-id serialisation (`STATE_MODEL.md` §5). |
+| Confused deputy / capability privilege escalation | Authority token binds `principalId` + `invocationId`; Policy evaluates the *originating* actor's `heldScopes`; missing scope ⇒ DENY (never "ask"); the Executor holds no ambient authority. (threat-model T19, T20) |
+| Forged ledger event advancing a plan | Only Kernel components hold the ledger-publish credential; `jarvis.agency.invocation.*` accepted only from the Executor `source`; the Orchestrator advances only on events it did not emit. (T21) |
+| Adapter lies about success / verification | `verify` is Executor-run against the world via the manifest `verificationStrategy` under a read-only credential; the adapter return value never flips the state to `COMPLETED`. (T27) |
+| Command injection into the shell adapter | `terminal` takes an argv array only — no shell, no `sh -c`, no interpolation; `argv[0]` must match the grant `command-allow`; HIGH minimum; simulate-first. (T24) |
+| Malicious self-authored extension | Built/tested only in JARVIS LABS with synthetic creds; deterministic static + security-lint + dep-audit + egress gate; mandatory human review; registration operator-only; probation + Sentinel flag. (T23, ADR-0029) |
+
+### Sentinel & Guardian
+
+Detection is a **deterministic** Kernel-internal detector service
+(`SENTINEL_MODEL.md`) — no offensive capability exists or can be registered
+(active-intrusion verb denylist, enforced by the SDK + Registry +
+`scripts/lint.mjs`). The `sentinel` specialist agent **proposes only**.
+`high`/`critical` alerts may drive the deterministic mode transition to
+`GUARDIAN`, whose **restrict-only** response playbook (tighten grants, suspend
+autonomous external actions, lock CRITICAL, snapshot evidence, isolate a named
+node, notify) runs **through the Executor pipeline** — Guardian mints no
+authority, widens no grant, disables no audit, and is operator-reversible only.

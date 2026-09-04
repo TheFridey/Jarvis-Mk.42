@@ -157,6 +157,13 @@ export class EventStore {
     return rows.map(rowToEvent);
   }
 
+  /** Read the newest bounded window, returned in chronological order. */
+  async readRecent(limit = 20): Promise<StoredEvent[]> {
+    const rows = await this.sql<Row[]>`
+      select * from events.events order by global_seq desc limit ${limit}`;
+    return rows.reverse().map(rowToEvent);
+  }
+
   async maxGlobalSeq(): Promise<string> {
     const [row] = await this.sql<{ seq: string | null }[]>`
       select max(global_seq)::text as seq from events.events`;

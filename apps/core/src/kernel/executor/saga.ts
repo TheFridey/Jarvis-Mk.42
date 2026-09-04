@@ -1,0 +1,1 @@
+export async function compensateSteps(steps: Array<{ ordinal: number; compensate: () => Promise<void> }>) { for (const step of [...steps].sort((a, b) => b.ordinal - a.ordinal)) await step.compensate(); }

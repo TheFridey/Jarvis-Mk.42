@@ -1,0 +1,1 @@
+export function makeRedactor(secrets: string[]) { const values = secrets.filter((v) => v.length > 3); return (message: string) => values.reduce((text, secret) => text.split(secret).join('«redacted»'), message); }

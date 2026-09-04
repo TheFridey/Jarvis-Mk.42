@@ -58,3 +58,24 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0021](0021-causal-hypothesis-model.md) | Causal hypothesis model — foundations only | Accepted | Low |
 | [0022](0022-memory-consolidation.md) | Memory consolidation ("DREAMING") | Accepted | Low |
 | [0023](0023-memory-retrieval-ranking.md) | Memory retrieval ranking — seven factors | Accepted | Low |
+| [0025](0025-agency-plane.md) | Agency Plane — Executor-owned lifecycle, Credential Broker, Adapter Host | Accepted | High |
+| [0026](0026-policy-engine.md) | Deterministic Policy Engine — rule AST, evaluation order, base pack | Accepted | Moderate |
+| [0027](0027-permission-model.md) | Permission model — grants, constraints, authority tokens, freshness barrier, dual control | Accepted | High |
+| [0028](0028-sentinel-guardian.md) | Sentinel (defensive) + Guardian Response Playbook | Accepted | Low |
+| [0029](0029-self-extension-forge-labs.md) | Self-extension — FORGE + JARVIS LABS, operator-gated registration | Accepted | Low |
+| [0030](0030-capability-sdk.md) | Capability SDK — defineCapability, codegen, security lint | Accepted | Low |
+| [0031](0031-agency-plane-load-bearing.md) | An agency control is not real until wired + pipeline-tested; documentation honesty | Accepted | Low / Moderate |
+| [0032](0032-executor-run-verification.md) | Executor-run verification & simulation gate; verified rollback | Accepted | High |
+| [0033](0033-durable-invocation-lifecycle.md) | Durable invocation lifecycle, distributed lease, saga recovery, idempotency | Accepted | High |
+| [0034](0034-approval-enforcement.md) | `REQUIRE_APPROVAL` never auto-approves; real operator act; fail-closed; dual control | Accepted | High |
+| [0035](0035-credential-broker-hardening.md) | Credential Broker fails closed; token-gated mint; out-of-process secret handling; real secret storage | Accepted | High |
+| [0036](0036-observability-contract.md) | Observability contract — real OTel SDK, mandatory spans/metrics, ledger↔trace correlation | Accepted | Low |
+| [0037](0037-node-protocol-and-backup.md) | Node Protocol v1 (identity, enrollment, rotation, revocation); backup & restore drilled | Accepted | Moderate |
+| [0038](0038-fitness-and-contract-tests.md) | Architecture-fitness & contract-compatibility gates (real, not grep) | Accepted | Low |
+
+## ASCENSION (Stage A) audit
+
+ADR-0031–0038 are the required corrections from the hostile architecture audit
+in [`../AUDIT_MK42_ASCENSION.md`](../AUDIT_MK42_ASCENSION.md). The Stage B
+implementation direction for Codex is
+[`../HARDENING_SPEC_MK42.md`](../HARDENING_SPEC_MK42.md).

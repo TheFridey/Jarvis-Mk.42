@@ -11,6 +11,7 @@
  */
 
 import type { CorrelationId, Timestamp, Ulid } from './common.ts';
+import type { PrivacyClass } from './event.ts';
 
 export type RiskClass = 'AMBIENT' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -22,6 +23,18 @@ export type NodeTrustTier =
 
 /** A named entry point on the adapter (execute / verify / simulate / rollback). */
 export type ActionRef = string;
+
+export type VerificationStrategy =
+  | { kind: 'world-read'; adapterRef: ActionRef }
+  | { kind: 'event-await'; eventType: string; matchPath: string; timeoutMs: number }
+  | { kind: 'hash-match'; ofPath: string; expectPath: string }
+  | { kind: 'health-probe'; adapterRef: ActionRef }
+  | { kind: 'state-echo'; adapterRef: ActionRef };
+
+export type RollbackStrategy =
+  | { kind: 'inverse-action'; adapterRef: ActionRef }
+  | { kind: 'restore-snapshot'; capturedBy: ActionRef; restoreRef: ActionRef }
+  | { kind: 'saga-compensate' };
 
 export interface CapabilityStep {
   ordinal: number;
@@ -59,11 +72,23 @@ export interface CapabilityAction {
 
   /** Human-readable declaration, consumed by policy and audit. */
   sideEffects: string[];
+  approvalPolicy: 'default' | 'always' | 'hard_confirmation' | `preauthorized:${string}`;
+  timeoutMs: number;
+  verificationStrategy: VerificationStrategy;
+  rollbackStrategy?: RollbackStrategy;
+  idempotencyKeySelector?: string;
+  confirmationPhrase?: string;
+  declaredEgress?: string[];
 }
 
 export interface Capability {
   id: string; // e.g. "capabilities.filesystem"
   version: string; // semver
+  description: string;
+  provider: string;
+  executionEnvironment: 'worker' | 'worker+container' | `node-local:${string}`;
+  auditPolicy: { hashInput: boolean; recordOutput: 'none' | 'summary' | 'full' };
+  privacyRequirements: { maxContentPrivacyClass: PrivacyClass };
   actions: CapabilityAction[];
 
   /** Scope names a grant must include for any action here to be authorised. */
@@ -98,7 +123,11 @@ export type InvocationOutcome =
   | 'verified'
   | 'rolled_back'
   | 'verification_failed'
-  | 'compensated';
+  | 'compensated'
+  | 'partially_completed'
+  | 'failed'
+  | 'simulated'
+  | 'awaiting_approval';
 
 export interface InvocationResult {
   invocationId: Ulid;
