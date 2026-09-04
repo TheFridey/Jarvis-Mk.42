@@ -31,9 +31,10 @@ import { CLIENT_WRITABLE_SLICES, SYSTEM_ONLY_SLICES } from './defaults.ts';
 import { SLICE_SCHEMAS } from './slice-schemas.ts';
 import { StateStore } from './state-store.ts';
 import { SubscriptionRegistry, type StateListener } from './subscriptions.ts';
+import { canonicalJson } from '../../runtime/canonical-json.ts';
 
 function hashValue(v: unknown): string {
-  return createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
+  return createHash('sha256').update(canonicalJson(v)).digest('hex').slice(0, 16);
 }
 
 export interface StateManagerDeps {

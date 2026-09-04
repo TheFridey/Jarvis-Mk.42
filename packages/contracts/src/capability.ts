@@ -126,7 +126,8 @@ export type InvocationOutcome =
   | 'compensated'
   | 'partially_completed'
   | 'failed'
-  | 'simulated';
+  | 'simulated'
+  | 'awaiting_approval';
 
 export interface InvocationResult {
   invocationId: Ulid;

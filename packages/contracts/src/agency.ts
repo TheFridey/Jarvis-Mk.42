@@ -32,6 +32,7 @@ export const LEGAL_INVOCATION_TRANSITIONS: Record<InvocationState, InvocationSta
 
 export interface InvocationLifecycle {
   invocationId: Ulid;
+  proposalId?: string;
   capabilityId: string;
   capabilityVersion: string;
   action: string;

@@ -23,6 +23,8 @@ export type ProposalKind =
   | 'clarification_request';
 
 interface ProposalBase {
+  /** Stable caller-generated id. Retries with the same id must not re-execute. */
+  proposalId: string;
   kind: ProposalKind;
   provenance: Provenance; // carries derivedFromUntrusted
   correlationId: CorrelationId;
