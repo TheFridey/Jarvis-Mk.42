@@ -30,6 +30,10 @@ OpenAI, Anthropic, and local OpenAI-compatible wire adapters, routing, health,
 timeouts, cancellation, usage/cost accounting, and circuit breakers. Core sees
 only the provider-neutral `ModelGatewayPort` and contracts.
 
+Cloud egress is an explicit Kernel/operator decision (`JARVIS_MODEL_CLOUD_ALLOWED`,
+default false). The router also enforces privacy and locality, and falls back
+only across other eligible models after retryable provider failures.
+
 Single egress to all inference. Separate process (holds provider keys, does
 slow network IO, must fail independently of the Kernel — L26, blast radius).
 

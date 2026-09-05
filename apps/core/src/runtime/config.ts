@@ -24,6 +24,7 @@ export interface KernelConfig {
   desktopToken: string;
   modelGatewayUrl: string;
   modelGatewayToken: string;
+  modelCloudAllowed: boolean;
 
   /** Bootstrap operator credential (dev). Never logged. */
   bootstrapPrincipalId: string;
@@ -71,6 +72,7 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     desktopToken: env('JARVIS_DESKTOP_TOKEN', 'dev-desktop-token'),
     modelGatewayUrl: env('JARVIS_MODEL_GATEWAY_URL', 'http://127.0.0.1:7430'),
     modelGatewayToken: env('JARVIS_GATEWAY_TOKEN', 'dev-gateway-token'),
+    modelCloudAllowed: envBool('JARVIS_MODEL_CLOUD_ALLOWED', false),
 
     bootstrapPrincipalId: env('JARVIS_BOOTSTRAP_PRINCIPAL', 'principal-operator'),
     bootstrapCredential: env('JARVIS_BOOTSTRAP_CREDENTIAL', 'dev-bootstrap-secret'),

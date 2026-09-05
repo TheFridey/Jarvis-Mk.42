@@ -41,6 +41,12 @@ export const EventNames = {
   CognitionStarted: 'jarvis.cognition.run.started',
   CognitionCompleted: 'jarvis.cognition.run.completed',
   CognitionRejected: 'jarvis.cognition.run.rejected',
+  CognitionAgentInvoked: 'jarvis.cognition.agent.invoked',
+  CognitionModelSelected: 'jarvis.cognition.model.selected',
+  CognitionProposalCreated: 'jarvis.cognition.proposal.created',
+  CognitionEvidenceReturned: 'jarvis.cognition.evidence.returned',
+  CognitionOutputValidated: 'jarvis.cognition.output.validated',
+  CognitionResultDelivered: 'jarvis.cognition.result.delivered',
   ObjectiveCreated: 'jarvis.cognition.objective.created',
   ObjectiveTransitioned: 'jarvis.cognition.objective.transitioned',
 

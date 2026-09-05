@@ -50,6 +50,10 @@ export interface Objective {
   childObjectiveIds: Ulid[];
   dependencies: Ulid[];
   nextActions: string[];
+  desiredState: Record<string, unknown>;
+  nextEvaluationAt?: Timestamp;
+  constraints: string[];
+  authority: { mayReason: boolean; mayPlan: boolean; mayPropose: boolean; mayExecute: false };
 
   priority: number;
   createdAt: Timestamp;

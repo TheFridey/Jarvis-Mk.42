@@ -266,7 +266,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const agency = new AgencyIngress(executor);
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso());
-  const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso() });
+  const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed });
   const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
   const sentinel = new SentinelDetectorService();
 

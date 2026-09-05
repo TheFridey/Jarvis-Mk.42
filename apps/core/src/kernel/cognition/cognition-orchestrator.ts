@@ -6,7 +6,7 @@ import type { ContextCompiler } from '../context/context-compiler.ts';
 import type { EventManager } from '../event-fabric/event-manager.ts';
 import type { AgentRuntime } from './agent-runtime.ts';
 export class CognitionOrchestrator {
-  constructor(private readonly d:{sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string}){}
+  constructor(private readonly d:{sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean}){}
   async submit(req:CognitionRequest):Promise<CognitionResponse>{
     const created=this.d.now(), hash=createHash('sha256').update(req.input).digest('hex');
     const inserted=await this.d.sql<{request_id:string}[]>`insert into cognition.runs(request_id,principal_id,correlation_id,agent_id,status,input_hash,created_at) values(${req.requestId},${req.principalId},${req.correlationId},${req.agentId},'running',${hash},${created}) on conflict(request_id) do nothing returning request_id`;
@@ -14,12 +14,17 @@ export class CognitionOrchestrator {
     await this.emit(EventNames.CognitionStarted,req,{agentId:req.agentId});
     try{
       const context=await this.d.context.compile({correlationId:req.correlationId,intent:req.input,intentClass:req.task,budgetUnits:4000,maxPrivacyClass:'INTERNAL'});
-      const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:2000,...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality:req.locality??'any',determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:'INTERNAL'});
-      for(const p of result.proposals)if(p.kind==='capability_invocation')await this.d.agency.submit(p as CapabilityInvocationProposal,{principalId:req.principalId,authenticated:true});
+      await this.emit(EventNames.CognitionAgentInvoked,req,{agentId:req.agentId,contextId:context.id,contextUnits:context.budget.usedUnits});
+      const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:2000,...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality:req.locality??'any',determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:'INTERNAL',realtime:req.realtime,cloudAllowed:req.cloudAllowed??this.d.cloudAllowed,preferredModels:req.preferredModels,operatorPreferences:{preferredProviders:req.preferredProviders}});
       const answer=result.proposals.find(p=>p.kind==='answer');
+      await this.emit(EventNames.CognitionModelSelected,req,{modelId:response.modelId,latencyMs:response.usage.latencyMs,costEstimate:response.usage.costEstimate});
+      for(const proposal of result.proposals)await this.emit(EventNames.CognitionProposalCreated,req,{proposalId:proposal.proposalId,kind:proposal.kind,confidence:proposal.confidence});
+      await this.emit(EventNames.CognitionEvidenceReturned,req,{count:result.evidence.length,refs:result.evidence});
+      await this.emit(EventNames.CognitionOutputValidated,req,{proposalCount:result.proposals.length});
+      for(const p of result.proposals)if(p.kind==='capability_invocation')await this.d.agency.submit(p as CapabilityInvocationProposal,{principalId:req.principalId,authenticated:true});
       const out:CognitionResponse={requestId:req.requestId,principalId:req.principalId,correlationId:req.correlationId,result,modelId:response.modelId,...(answer?.kind==='answer'?{answer:answer.text}:{}),createdAt:created};
       await this.d.sql`update cognition.runs set model_id=${response.modelId},status='completed',response=${JSON.stringify(out)},context_units=${response.usage.contextUnits},output_units=${response.usage.outputUnits},cost_estimate=${response.usage.costEstimate},latency_ms=${response.usage.latencyMs},finished_at=${this.d.now()} where request_id=${req.requestId}`;
-      await this.emit(EventNames.CognitionCompleted,req,{modelId:response.modelId,proposalCount:result.proposals.length});return out;
+      await this.emit(EventNames.CognitionCompleted,req,{modelId:response.modelId,proposalCount:result.proposals.length});await this.emit(EventNames.CognitionResultDelivered,req,{requestId:req.requestId,hasAnswer:Boolean(out.answer)});return out;
     }catch(e){await this.d.sql`update cognition.runs set status='failed',error_code=${e instanceof Error?e.name:'error'},finished_at=${this.d.now()} where request_id=${req.requestId}`;await this.emit(EventNames.CognitionRejected,req,{error:e instanceof Error?e.message:String(e)});throw e;}
   }
   private async emit(type:string,req:CognitionRequest,payload:unknown){await this.d.events.emit({type:type as never,retentionClass:'AUDIT',privacyClass:'INTERNAL',subject:{kind:'cognition-run',id:req.requestId},actor:{kind:'agent',id:req.agentId,onBehalfOf:req.principalId},correlationId:req.correlationId,causationId:req.requestId,principalId:req.principalId,payload}).catch(()=>undefined)}

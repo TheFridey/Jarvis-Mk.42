@@ -63,6 +63,8 @@ export interface ModelRequest {
   realtime?: boolean;
   toolRequirements?: string[];
   preferredModels?: string[];
+  cloudAllowed?: boolean;
+  operatorPreferences?: { preferredProviders?: string[]; optimizeFor?: 'latency' | 'cost' | 'quality' };
 }
 
 export type FinishReason = 'stop' | 'length' | 'filtered' | 'error';
@@ -97,5 +99,8 @@ export interface ModelRegistration {
   costPerOutputUnit: number;
   locality: Extract<Locality, 'local' | 'cloud-ok'>;
   enabled: boolean;
+  realtimeSuitable?: boolean;
+  reasoningDepth?: 'fast' | 'balanced' | 'deep';
+  toolIds?: string[];
   registeredAt: Timestamp;
 }
