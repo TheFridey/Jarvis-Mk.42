@@ -1,33 +1,44 @@
-# apps/voice — realtime audio perception
+# Realtime voice
 
-Runs on the **workstation**. A hard-realtime loop, isolated from the Kernel's
-event loop.
+`apps/voice` is a separate Windows workstation process. It owns realtime audio
+I/O, activation, recognition and speech playback. Core remains authoritative
+for identity, RTC sessions, cognition, modes and audit.
 
-## Does
+The first adapter uses Windows `System.Speech`: recognition and dormant wake
+phrase processing remain local, and no raw audio is written to disk or sent to
+a cloud service. The TTS voice is selected independently from reasoning models
+requesting a mature male `en-GB` voice and falling back to the closest installed
+Windows voice. It does not clone an actor. This workstation currently exposes
+British Hazel and US Zira, so installing a suitable British male Windows voice
+pack is required to meet the intended voice target here.
 
-Local VAD → local wake-word detection → local/near ASR → optional diarization +
-prosody features. Emits `jarvis.perception.audio.*`, `wake.detected`,
-`asr.partial`, `asr.transcript`, `audio.prosody` as **signal-class**
-`Observation` events. Debounces/aggregates before emitting.
+Activation options:
 
-## Must not (the perception/cognition wall — L7)
+- Say “Jarvis” using local recognition.
+- Enter `/listen` for a manual listening latch.
+- Enter `/ptt` for the development push-to-talk fallback.
+- Enter `/stop`, `/device default`, or `/quit` for lifecycle/device control.
 
-- Import `@jarvis/agents`, `@jarvis/context`, the gateway client, or any
-  cognition package.
-- Call a model for **reasoning** (local perception inference only).
-- Draw conclusions ("user is angry") — emit signals ("prosody.arousal=0.8
-  conf 0.6").
-- Write the World Model or Memory.
-- Transmit **raw audio** off-host (L27) — that requires an explicit HIGH-risk
-  capability.
+Barge-in is always enabled: detected speech aborts the active TTS process and
+the next utterance remains attached to the same durable RTC session. Recognition
+events are held in a 64-entry drop-oldest buffer. Partial transcripts are
+transient events; final transcripts are retained according to event policy.
 
-## Depends on
+## Windows first-boot test
 
-`@jarvis/contracts`, a NATS client, local ML runtimes (whisper.cpp / ONNX
-Runtime / a wake-word engine). **Not** NestJS.
+1. `pnpm stack:up`
+2. `pnpm db:migrate`
+3. `pnpm core:dev`
+4. In another terminal, configure a local model and run `pnpm gateway:dev`.
+   Alternatively explicitly permit configured cloud models with
+   `JARVIS_MODEL_CLOUD_ALLOWED=true` on Core.
+5. Run the desktop with `pnpm --filter @jarvis/desktop tauri`.
+6. Run `pnpm voice:dev`.
+7. Say “Jarvis”, or enter `/ptt`, then ask “What time is it?”
+8. Ask a follow-up without reactivating. While JARVIS is speaking, begin the
+   next utterance and confirm playback stops immediately.
 
-## Failure behaviour
-
-Sensor loss ⇒ `perception.audio.lost`, continue. NATS down ⇒ bounded local
-ring buffer, drop-oldest, gap marker on reconnect. Never crashes the shell or
-the Kernel.
+The selected ASR/TTS runtime depends on Windows language and voice packs. CI
+tests deterministic audio state machines and Kernel integration only; it does
+not certify physical microphones, speakers, acoustic latency, or installed
+Windows voice quality.

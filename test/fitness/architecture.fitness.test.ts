@@ -7,6 +7,7 @@ const source = (dir: string) => files(resolve(dir)).map((path) => ({ path: relat
 const rejectImports = (dir: string, pattern: RegExp) => expect(source(dir).filter((file) => pattern.test(file.text)).map((file) => file.path)).toEqual([]);
 describe('architecture fitness boundaries', () => {
   it('perception does not import cognition or agents', () => rejectImports('packages/scene', /from ['"].*(agents|cognition|model-gateway)/));
+  it('voice remains a perception client and cannot import cognition, providers, or persistence',()=>rejectImports('apps/voice',/from ['"].*(kernel\/cognition|gateway|openai|anthropic|persistence)/));
   it('desktop cannot import adapters, Executor, persistence, or authoritative stores', () => rejectImports('apps/desktop', /from ['"].*(adapter-host|capabilities\/|kernel\/executor|persistence|state-store)/));
   it('agents cannot import adapters, Executor, persistence, or permissions', () => rejectImports('agents', /from ['"].*(adapter-host|capabilities\/|kernel\/executor|persistence|permissions)/));
   it('provider SDK imports stay inside Model Gateway', () => { const hits = [...source('apps'), ...source('packages')].filter((file) => !file.path.startsWith('apps/gateway/') && /from ['"](?:openai|@anthropic-ai|@google\/generative-ai|cohere-ai)/.test(file.text)); expect(hits.map((hit) => hit.path)).toEqual([]); });

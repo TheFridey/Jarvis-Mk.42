@@ -17,12 +17,15 @@ import type { StateManager } from '../state/state-manager.ts';
 import type { HealthManager } from '../health/health-manager.ts';
 import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand } from '@jarvis/scene';
 import type { DesktopGateway } from '../desktop/desktop-gateway.ts';
+import type { VoiceGateway } from '../voice/voice-gateway.ts';
+import type { VoiceEventCommand } from '@jarvis/contracts';
 
 export interface DiagnosticsHttpDeps {
   diagnostics: DiagnosticsService;
   state: StateManager;
   health: HealthManager;
   desktop: DesktopGateway;
+  voice: VoiceGateway;
 }
 
 export class DiagnosticsHttp {
@@ -83,6 +86,7 @@ export class DiagnosticsHttp {
         if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req)));
         return send(405, { error: 'method not allowed' });
       }
+      if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});if(!this.deps.voice.authenticate(req.headers.authorization))return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(!this.deps.voice.authorises(command.principalId))return send(403,{error:'principal not authorised for voice token'});return send(200,await this.deps.voice.handle(command))}
       if (method !== 'GET') return send(405, { error: 'method not allowed' });
       return send(404, { error: 'not found', routes: ['/healthz', '/diagnostics', '/state', '/desktop/snapshot', '/desktop/proposals', '/desktop/approvals'] });
     } catch (err) {

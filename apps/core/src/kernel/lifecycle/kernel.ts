@@ -66,6 +66,7 @@ import { DesktopGateway } from '../desktop/index.ts';
 import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
 import { AgentRuntime, CognitionOrchestrator, HttpModelGatewayClient, type ModelGatewayPort } from '../cognition/index.ts';
 import { ObjectiveEngine } from '../objective/index.ts';
+import { VoiceGateway } from '../voice/index.ts';
 
 import { RedisEphemeralStore, NullEphemeralStore, type EphemeralStore } from './ephemeral.ts';
 import { ROUTINE_DEFS } from './routines.ts';
@@ -115,6 +116,7 @@ export interface KernelHandle {
   readonly agency: AgencyIngress;
   readonly cognition: CognitionOrchestrator;
   readonly objectives: ObjectiveEngine;
+  readonly voice: VoiceGateway;
   readonly sentinel: SentinelDetectorService;
   readonly diagnostics: DiagnosticsService;
   readonly ephemeral: EphemeralStore;
@@ -268,6 +270,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso());
   const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed });
   const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
+  const voice = new VoiceGateway({ sessions, mode, cognition, events, token: config.voiceToken, principalId: config.bootstrapPrincipalId });
   const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
@@ -314,7 +317,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   });
 
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, token: config.desktopToken, nodeId: config.nodeId });
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop });
+  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice });
 
   const scheduler = new Scheduler({
     events,
@@ -397,6 +400,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     agency,
     cognition,
     objectives,
+    voice,
     sentinel,
     diagnostics,
     ephemeral,

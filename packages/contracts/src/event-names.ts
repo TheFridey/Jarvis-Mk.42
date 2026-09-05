@@ -47,6 +47,13 @@ export const EventNames = {
   CognitionEvidenceReturned: 'jarvis.cognition.evidence.returned',
   CognitionOutputValidated: 'jarvis.cognition.output.validated',
   CognitionResultDelivered: 'jarvis.cognition.result.delivered',
+  VoiceActivated: 'jarvis.perception.audio.activated',
+  VoicePartial: 'jarvis.perception.audio.asr.partial',
+  VoiceTranscript: 'jarvis.perception.audio.asr.transcript',
+  VoiceBargeIn: 'jarvis.perception.audio.barge_in',
+  VoiceSilence: 'jarvis.perception.audio.silence',
+  VoiceDeviceChanged: 'jarvis.perception.audio.device_changed',
+  VoiceDeviceLost: 'jarvis.perception.audio.lost',
   ObjectiveCreated: 'jarvis.cognition.objective.created',
   ObjectiveTransitioned: 'jarvis.cognition.objective.transitioned',
 

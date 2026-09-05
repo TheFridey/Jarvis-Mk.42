@@ -121,6 +121,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/contracts
 
+  apps/voice:
+    dependencies:
+      '@jarvis/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+
   packages/capability-sdk:
     dependencies:
       '@jarvis/contracts':

@@ -27,6 +27,7 @@
     "stack:reset": "docker compose -f infrastructure/docker/local-server.compose.yml down -v",
     "core:dev": "pnpm --filter @jarvis/core dev",
     "gateway:dev": "pnpm --filter @jarvis/gateway dev",
+    "voice:dev": "pnpm --filter @jarvis/voice dev",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "devDependencies": {
