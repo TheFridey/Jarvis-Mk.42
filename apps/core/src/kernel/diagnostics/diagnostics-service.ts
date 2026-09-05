@@ -1,7 +1,7 @@
 /**
  * Diagnostics service - the structured answer behind "I am operational".
  * READ-ONLY. Assembles a DiagnosticsReport from real subsystem data. Subsystems
- * not yet implemented (Model Gateway, RTC, Memory) are reported with
+ * not yet implemented (RTC, Memory) are reported with
  * `placeholder: true` - never faked as HEALTHY (engineering rule).
  */
 import type {
@@ -36,6 +36,8 @@ export interface DiagnosticsDeps {
   pingDb: () => Promise<boolean>;
   pingRedis: () => Promise<boolean>;
   busHealthy: () => boolean;
+  modelGatewayHealth?: () => Promise<{ status: HealthStatus; models: number }>;
+  countActiveObjectives?: () => Promise<number>;
 }
 
 export class DiagnosticsService {
@@ -56,6 +58,8 @@ export class DiagnosticsService {
       alertsSlice,
       lastMutationAt,
       checkpointEventId,
+      modelGateway,
+      objectiveCount,
     ] = await Promise.all([
       this.deps.mode.current(),
       this.deps.state.view(),
@@ -72,6 +76,8 @@ export class DiagnosticsService {
       this.deps.state.getSlice('active_alerts'),
       Promise.resolve(this.deps.state.lastMutationTime),
       this.deps.state.checkpointEventId(),
+      this.deps.modelGatewayHealth?.().catch(() => ({ status: 'OFFLINE' as const, models: 0 })) ?? Promise.resolve({ status: 'OFFLINE' as const, models: 0 }),
+      this.deps.countActiveObjectives?.().catch(() => 0) ?? Promise.resolve(0),
     ]);
 
     const nodeIds = (connectedNodesSlice?.value as { nodeIds: string[] } | undefined)?.nodeIds ?? [];
@@ -92,7 +98,7 @@ export class DiagnosticsService {
         status: healthReport.subsystems.find((item) => item.subsystem === 'nats')?.status ?? 'OFFLINE',
         placeholder: false,
       },
-      { name: 'model-gateway', status: 'OFFLINE' as HealthStatus, placeholder: true },
+      { name: 'model-gateway', status: modelGateway.status, placeholder: false, detail: { models: modelGateway.models } },
       { name: 'rtc', status: 'OFFLINE' as HealthStatus, placeholder: true },
       { name: 'memory-subsystem', status: 'OFFLINE' as HealthStatus, placeholder: true },
     ];
@@ -124,7 +130,7 @@ export class DiagnosticsService {
         snapshotCheckpointEventId: checkpointEventId,
       },
       sessions: { active: sessionCounts.total, byType: sessionCounts.byType },
-      objectives: { active: 0, placeholder: true },
+      objectives: { active: objectiveCount, placeholder: false },
       nodes: { connected: nodeIds.length, ids: nodeIds },
       dependencies,
       health: healthReport,

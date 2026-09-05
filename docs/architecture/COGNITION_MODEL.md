@@ -25,6 +25,11 @@ model.
 
 ## 2. The Model Gateway (`apps/gateway`)
 
+**MK.42 implementation status:** operational. The standalone gateway owns the
+OpenAI, Anthropic, and local OpenAI-compatible wire adapters, routing, health,
+timeouts, cancellation, usage/cost accounting, and circuit breakers. Core sees
+only the provider-neutral `ModelGatewayPort` and contracts.
+
 Single egress to all inference. Separate process (holds provider keys, does
 slow network IO, must fail independently of the Kernel — L26, blast radius).
 

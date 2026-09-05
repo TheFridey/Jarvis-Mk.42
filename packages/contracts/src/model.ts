@@ -11,6 +11,8 @@
 
 import type { CorrelationId, PrincipalId, Timestamp } from './common.ts';
 import type { ContextFrame } from './context-frame.ts';
+import type { ContextPackage } from './context.ts';
+import type { PrivacyClass } from './event.ts';
 import type { Provenance } from './provenance.ts';
 
 export type ModelTask =
@@ -36,7 +38,7 @@ export type Locality = 'local' | 'prefer-local' | 'any' | 'cloud-ok';
 
 export interface ModelInput {
   instruction: string;
-  context: ContextFrame;
+  context: ContextFrame | ContextPackage;
   constraints: string[];
   examples?: Array<{ input: string; output: string }>;
 }
@@ -57,6 +59,10 @@ export interface ModelRequest {
   cacheable?: boolean;
   correlationId: CorrelationId;
   principalId: PrincipalId;
+  privacyClass?: PrivacyClass;
+  realtime?: boolean;
+  toolRequirements?: string[];
+  preferredModels?: string[];
 }
 
 export type FinishReason = 'stop' | 'length' | 'filtered' | 'error';
@@ -73,6 +79,11 @@ export interface ModelResponse {
   finishReason: FinishReason;
   provenance: Provenance;
 }
+
+export type ModelErrorCode = 'NO_ROUTE' | 'UNAVAILABLE' | 'TIMEOUT' | 'CANCELLED' | 'RATE_LIMITED' | 'AUTHENTICATION' | 'INVALID_RESPONSE' | 'PROVIDER_ERROR' | 'BUDGET_EXCEEDED';
+export class ModelGatewayError extends Error { constructor(readonly code: ModelErrorCode, message: string, readonly retryable: boolean, readonly provider?: string) { super(message); this.name = 'ModelGatewayError'; } }
+export interface ModelStreamChunk { type: 'delta' | 'usage' | 'done'; delta?: string; usage?: ModelResponse['usage']; response?: ModelResponse; }
+export interface ModelHealth { modelId: string; provider: string; status: 'healthy' | 'degraded' | 'offline' | 'circuit-open'; checkedAt: Timestamp; latencyMs?: number; detail?: string; }
 
 /** A registered model in the Kernel Model Registry (catalogue.models). */
 export interface ModelRegistration {

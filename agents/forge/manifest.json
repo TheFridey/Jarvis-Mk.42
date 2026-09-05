@@ -5,8 +5,8 @@
   "role": "Drafts capability extensions for isolated JARVIS LABS review",
   "leasePolicy": { "maxWallTimeMs": 900000, "maxContextUnits": 400000, "maxCostUnits": 200 },
   "proposalScope": {
-    "kinds": ["capability_draft"],
-    "capabilities": []
+    "kinds": ["capability_draft", "capability_invocation", "plan", "clarification_request"],
+    "capabilities": ["capabilities.filesystem", "capabilities.terminal"]
   },
   "allowedTools": ["web_get"],
   "modelHints": { "tasks": ["code", "reason", "plan"], "locality": "prefer-local" },

@@ -15,7 +15,7 @@ import { createServer, type Server } from 'node:http';
 import type { DiagnosticsService } from './diagnostics-service.ts';
 import type { StateManager } from '../state/state-manager.ts';
 import type { HealthManager } from '../health/health-manager.ts';
-import type { DesktopApprovalCommand, DesktopProposalCommand } from '@jarvis/scene';
+import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand } from '@jarvis/scene';
 import type { DesktopGateway } from '../desktop/desktop-gateway.ts';
 
 export interface DiagnosticsHttpDeps {
@@ -79,6 +79,7 @@ export class DiagnosticsHttp {
         if (!this.deps.desktop.authenticate(req.headers.authorization)) return send(401, { error: 'unauthorised' });
         if (path === '/desktop/snapshot' && method === 'GET') return send(200, await this.deps.desktop.snapshot());
         if (path === '/desktop/proposals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.submit(await this.body<DesktopProposalCommand>(req)));
+        if (path === '/desktop/cognition' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.cognize(await this.body<DesktopCognitionCommand>(req)));
         if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req)));
         return send(405, { error: 'method not allowed' });
       }

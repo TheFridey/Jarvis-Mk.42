@@ -70,6 +70,7 @@ export async function truncateAll(pg: PgHandle): Promise<void> {
                        projections.snapshots, agency.invocation_history, agency.invocations,
                        agency.approvals, agency.resource_leases, agency.grants,
                        agency.capability_versions, agency.capabilities restart identity cascade`;
+  await pg.sql`truncate cognition.runs, projections.objective_history, projections.objectives restart identity cascade`;
   await pg.sql`delete from projections.state_slices`;
   await pg.sql`update projections.state_meta set state_version = 0, checkpoint_event_id = null where id = 1`;
 }

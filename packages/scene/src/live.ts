@@ -5,6 +5,7 @@ import type {
   InvocationOutcome,
   InvocationState,
   RiskClass,
+  CognitionResponse,
   Session,
   SystemStateView,
 } from '@jarvis/contracts';
@@ -47,6 +48,7 @@ export interface DesktopKernelSnapshot {
   sessions: Session[];
   notifications: string[];
   objectives: string[];
+  cognitionResponses: CognitionResponse[];
   capabilityActivity: DesktopCapabilityActivity[];
   policyDenials: DesktopPolicyDenial[];
   approvals: DesktopApproval[];
@@ -66,6 +68,7 @@ export interface DesktopProposalResponse {
   stateVersion: number;
   result: { invocationId: string; outcome: InvocationOutcome; output?: unknown; verifyReport?: unknown; finishedAt: string };
 }
+export interface DesktopCognitionCommand { commandId: string; expectedStateVersion: number; input: string; agentId?: 'agents.oracle'|'agents.scout'|'agents.forge'; task?: 'reason'|'plan'|'summarize'|'extract'|'classify'|'code'; locality?: 'local'|'prefer-local'|'any'|'cloud-ok'; }
 
 export interface DesktopApprovalCommand {
   commandId: string;

@@ -22,6 +22,8 @@ export interface KernelConfig {
   diagnosticsHost: string;
   /** Local desktop ingress bearer. Bind the ingress to loopback in development. */
   desktopToken: string;
+  modelGatewayUrl: string;
+  modelGatewayToken: string;
 
   /** Bootstrap operator credential (dev). Never logged. */
   bootstrapPrincipalId: string;
@@ -67,6 +69,8 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     diagnosticsPort: envInt('JARVIS_DIAGNOSTICS_PORT', 7420),
     diagnosticsHost: env('JARVIS_DIAGNOSTICS_HOST', '127.0.0.1'),
     desktopToken: env('JARVIS_DESKTOP_TOKEN', 'dev-desktop-token'),
+    modelGatewayUrl: env('JARVIS_MODEL_GATEWAY_URL', 'http://127.0.0.1:7430'),
+    modelGatewayToken: env('JARVIS_GATEWAY_TOKEN', 'dev-gateway-token'),
 
     bootstrapPrincipalId: env('JARVIS_BOOTSTRAP_PRINCIPAL', 'principal-operator'),
     bootstrapCredential: env('JARVIS_BOOTSTRAP_CREDENTIAL', 'dev-bootstrap-secret'),

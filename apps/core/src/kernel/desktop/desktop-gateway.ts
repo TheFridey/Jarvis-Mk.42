@@ -1,12 +1,13 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { Sql } from '@jarvis/persistence';
-import type { Capability, CapabilityInvocationProposal } from '@jarvis/contracts';
+import type { Capability, CapabilityInvocationProposal, CognitionResponse } from '@jarvis/contracts';
 import type {
   DesktopApproval,
   DesktopApprovalCommand,
   DesktopKernelSnapshot,
   DesktopProposalCommand,
   DesktopProposalResponse,
+  DesktopCognitionCommand,
   PresentationState,
   SemanticScene,
 } from '@jarvis/scene';
@@ -15,6 +16,8 @@ import type { StateManager } from '../state/state-manager.ts';
 import type { SessionManager } from '../session/session-manager.ts';
 import type { ApprovalManager } from '../permission/approval-manager.ts';
 import type { AgencyIngress } from '../agency-ingress/agency-ingress.ts';
+import type { CognitionOrchestrator } from '../cognition/cognition-orchestrator.ts';
+import type { IdGen } from '../../runtime/ids.ts';
 
 interface InvocationRow {
   invocation_id: string; capability_id: string; action: string; state: DesktopKernelSnapshot['capabilityActivity'][number]['state'];
@@ -26,7 +29,7 @@ interface InvocationRow {
 export type DesktopCommandResult<T> = { ok: true; value: T } | { ok: false; code: 'state_version_conflict' | 'approval_rejected'; currentStateVersion: number };
 
 export class DesktopGateway {
-  constructor(private readonly deps: { sql: Sql; diagnostics: DiagnosticsService; state: StateManager; sessions: SessionManager; approvals: ApprovalManager; agency: AgencyIngress; token: string; nodeId: string }) {}
+  constructor(private readonly deps: { sql: Sql; diagnostics: DiagnosticsService; state: StateManager; sessions: SessionManager; approvals: ApprovalManager; agency: AgencyIngress; cognition: CognitionOrchestrator; ids: IdGen; token: string; nodeId: string }) {}
 
   authenticate(bearer: string | undefined): boolean {
     if (!this.deps.token || !bearer?.startsWith('Bearer ')) return false;
@@ -35,9 +38,11 @@ export class DesktopGateway {
   }
 
   async snapshot(): Promise<DesktopKernelSnapshot> {
-    const [diagnostics, state, sessions, pending, activity] = await Promise.all([
+    const [diagnostics, state, sessions, pending, activity, cognitionRows, objectiveRows] = await Promise.all([
       this.deps.diagnostics.report(), this.deps.state.view(), this.deps.sessions.listActive(), this.deps.approvals.listPending(),
       this.deps.sql<InvocationRow[]>`select i.invocation_id, i.capability_id, i.action, i.state, i.origin_actor, i.risk_class, i.proposal, i.final_outcome, coalesce(i.finished_at, i.started_at, i.created_at) as updated_at, i.finished_at, cv.manifest from agency.invocations i left join agency.capability_versions cv on cv.capability_id=i.capability_id and cv.version=i.capability_version order by i.created_at desc limit 30`,
+      this.deps.sql<Array<{response:CognitionResponse}>>`select response from cognition.runs where status='completed' and response is not null order by created_at desc limit 20`,
+      this.deps.sql<Array<{objective_id:string}>>`select objective_id from projections.objectives where status in ('proposed','active','blocked','paused') order by priority desc,created_at limit 30`,
     ]);
     const principalId = (state.slices.active_principal.value as { principalId: string | null }).principalId;
     const objectiveId = (state.slices.active_objective.value as { objectiveId: string | null }).objectiveId;
@@ -53,8 +58,10 @@ export class DesktopGateway {
     const capabilityActivity = activity.map((row) => ({ invocationId: row.invocation_id, capabilityId: row.capability_id, action: row.action, actor: row.origin_actor?.id ?? 'unknown', risk: row.risk_class, state: row.state, updatedAt: new Date(row.updated_at).toISOString(), ...(row.final_outcome ? { finalOutcome: row.final_outcome } : {}) }));
     const policyDenials = activity.filter((row) => row.state === 'DENIED').map((row) => ({ invocationId: row.invocation_id, capabilityId: row.capability_id, action: row.action, reason: row.final_outcome ?? 'Denied by Kernel policy or permissions', at: new Date(row.updated_at).toISOString() }));
     const scene = this.scene({ stateVersion: state.stateVersion, principalId, objectiveId, workspaceId, contextId, alertIds, diagnostics, activity: capabilityActivity });
-    return { schemaVersion: 1, generatedAt: diagnostics.generatedAt, stateVersion: state.stateVersion, principalId, diagnostics, state, sessions, notifications: alertIds, objectives: objectiveId ? [objectiveId] : [], capabilityActivity, policyDenials, approvals, scene, selectedProjectId: workspaceId, contextId };
+    return { schemaVersion: 1, generatedAt: diagnostics.generatedAt, stateVersion: state.stateVersion, principalId, diagnostics, state, sessions, notifications: alertIds, objectives: objectiveRows.map(r=>r.objective_id), cognitionResponses: cognitionRows.map(r=>r.response), capabilityActivity, policyDenials, approvals, scene, selectedProjectId: workspaceId, contextId };
   }
+
+  async cognize(command:DesktopCognitionCommand):Promise<DesktopCommandResult<CognitionResponse>> { const state=await this.deps.state.view(); if(command.expectedStateVersion!==state.stateVersion)return{ok:false,code:'state_version_conflict',currentStateVersion:state.stateVersion}; const principalId=(state.slices.active_principal.value as {principalId:string|null}).principalId;if(!principalId)return{ok:false,code:'approval_rejected',currentStateVersion:state.stateVersion}; const correlationId=this.deps.ids.ulid(); return {ok:true,value:await this.deps.cognition.submit({requestId:command.commandId,principalId,correlationId,input:command.input,agentId:command.agentId??'agents.oracle',task:command.task??'reason',locality:command.locality??'any'})}; }
 
   async submit(command: DesktopProposalCommand): Promise<DesktopCommandResult<DesktopProposalResponse>> {
     const state = await this.deps.state.view();

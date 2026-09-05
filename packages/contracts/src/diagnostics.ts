@@ -52,7 +52,7 @@ export interface DiagnosticsReport {
   };
 
   objectives: {
-    /** Placeholder in MK.43 - Objective Engine arrives in a later phase. */
+    /** Durable objectives currently in an actionable state. */
     active: number;
     placeholder: boolean;
   };

@@ -64,6 +64,8 @@ import { AgencyIngress } from '../agency-ingress/index.ts';
 import { SentinelDetectorService } from '../sentinel/index.ts';
 import { DesktopGateway } from '../desktop/index.ts';
 import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
+import { AgentRuntime, CognitionOrchestrator, HttpModelGatewayClient, type ModelGatewayPort } from '../cognition/index.ts';
+import { ObjectiveEngine } from '../objective/index.ts';
 
 import { RedisEphemeralStore, NullEphemeralStore, type EphemeralStore } from './ephemeral.ts';
 import { ROUTINE_DEFS } from './routines.ts';
@@ -85,6 +87,7 @@ export interface KernelOverrides {
   bootstrapGrants?: Grant[];
   credentialMaterial?: Record<string, string>;
   adapterHost?: AdapterHost;
+  modelGateway?: ModelGatewayPort;
 }
 
 export interface KernelHandle {
@@ -110,6 +113,8 @@ export interface KernelHandle {
   readonly approvals: ApprovalManager;
   readonly credentialBroker: CredentialBroker;
   readonly agency: AgencyIngress;
+  readonly cognition: CognitionOrchestrator;
+  readonly objectives: ObjectiveEngine;
   readonly sentinel: SentinelDetectorService;
   readonly diagnostics: DiagnosticsService;
   readonly ephemeral: EphemeralStore;
@@ -259,6 +264,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     now: () => clock.nowIso(),
   });
   const agency = new AgencyIngress(executor);
+  const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
+  const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso());
+  const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso() });
+  const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
   const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
@@ -300,9 +309,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     pingDb: () => pg.ping(),
     pingRedis: () => ephemeral.ping(),
     busHealthy: () => bus.isHealthy(),
+    modelGatewayHealth: async () => { const models = await modelGateway.health?.() ?? []; return { status: models.some((m) => m.status === 'healthy') ? 'HEALTHY' : models.some((m) => m.status === 'degraded') ? 'DEGRADED' : 'OFFLINE', models: models.length }; },
+    countActiveObjectives: async () => { const [row] = await pg.sql<{ count: string }[]>`select count(*)::text as count from projections.objectives where status in ('active','blocked','paused')`; return Number(row?.count ?? 0); },
   });
 
-  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, token: config.desktopToken, nodeId: config.nodeId });
+  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, token: config.desktopToken, nodeId: config.nodeId });
   const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop });
 
   const scheduler = new Scheduler({
@@ -344,7 +355,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       await notifications.flushBatch();
     });
     scheduler.register(ROUTINE_DEFS.objectiveReeval!, async () => {
-      /* placeholder: Objective Engine arrives in a later phase */
+      /* No background autonomy: the durable engine is advanced only by explicit commands. */
     });
   }
 
@@ -384,6 +395,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     approvals,
     credentialBroker,
     agency,
+    cognition,
+    objectives,
     sentinel,
     diagnostics,
     ephemeral,

@@ -38,6 +38,11 @@ export const EventNames = {
 
   // --- Kernel: context ---
   ContextCompiled: 'jarvis.kernel.context.compiled',
+  CognitionStarted: 'jarvis.cognition.run.started',
+  CognitionCompleted: 'jarvis.cognition.run.completed',
+  CognitionRejected: 'jarvis.cognition.run.rejected',
+  ObjectiveCreated: 'jarvis.cognition.objective.created',
+  ObjectiveTransitioned: 'jarvis.cognition.objective.transitioned',
 
   // --- Kernel: lifecycle ---
   KernelStarting: 'jarvis.kernel.lifecycle.starting',

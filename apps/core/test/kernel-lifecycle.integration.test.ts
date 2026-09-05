@@ -28,8 +28,8 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     expect(report.mode).toBe('AMBIENT');
     expect(report.health.overall).not.toBe('OFFLINE');
     expect(report.events.deadLettered).toBe(0);
-    expect(report.dependencies.find((d) => d.name === 'model-gateway')?.placeholder).toBe(true);
-    expect(report.objectives.placeholder).toBe(true);
+    expect(report.dependencies.find((d) => d.name === 'model-gateway')?.placeholder).toBe(false);
+    expect(report.objectives.placeholder).toBe(false);
 
     // operational event on the log
     const events = await k.eventStore.readFrom('0', 200);

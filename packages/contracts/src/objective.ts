@@ -10,6 +10,7 @@
  */
 
 import type { CorrelationId, PrincipalId, Timestamp, Ulid } from './common.ts';
+import type { Provenance } from './provenance.ts';
 
 export type ObjectiveStatus =
   | 'proposed'
@@ -47,10 +48,15 @@ export interface Objective {
 
   /** Ordered child objectives produced by decomposition. */
   childObjectiveIds: Ulid[];
+  dependencies: Ulid[];
+  nextActions: string[];
 
   priority: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  deadline?: Timestamp;
+  provenance: Provenance;
+  history: Array<{ status: ObjectiveStatus; at: Timestamp; reason: string }>;
 
   /** The interaction that created it, for provenance/audit. */
   correlationId: CorrelationId;

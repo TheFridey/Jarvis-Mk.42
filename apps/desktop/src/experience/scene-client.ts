@@ -1,5 +1,5 @@
 'use client';
-import type { DesktopApprovalCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
+import type { CognitionResponse } from '@jarvis/contracts'; import type { DesktopApprovalCommand, DesktopCognitionCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
 import { applySceneIntent, createSnapshot } from '@jarvis/scene';
 
 export type KernelConnection = { status: 'connecting' | 'live' | 'reconnecting' | 'offline' | 'demo'; lastConnectedAt?: string; error?: string };
@@ -10,6 +10,7 @@ export interface SceneTransport {
   subscribeConnection(listener: (state: KernelConnection) => void): () => void;
   submit(intent: SceneIntent, expectedVersion: number): Promise<void>;
   submitProposal(command: DesktopProposalCommand): Promise<DesktopProposalResponse>;
+  submitCognition(command: DesktopCognitionCommand): Promise<CognitionResponse>;
   decideApproval(command: DesktopApprovalCommand): Promise<void>;
   reconnect(): Promise<void>;
   close(): void;
@@ -26,6 +27,7 @@ export class LocalSceneTransport implements SceneTransport {
   restoreCached() { const saved = this.cache?.read(this.scene.id); if (!saved) return; this.scene = applySceneIntent(this.scene, { type: 'restore', snapshot: saved, availableResourceRefs: this.scene.objects.flatMap((object) => object.resourceRefs), monitors: this.scene.monitors, input: 'keyboard' }); this.emit(); }
   async submit(intent: SceneIntent, expectedVersion: number) { if (expectedVersion !== this.scene.version) throw new Error('SCENE_VERSION_CONFLICT'); this.scene = applySceneIntent(this.scene, intent); this.cache?.write(this.scene.id, createSnapshot(this.scene, 'latest')); this.emit(); }
   async submitProposal(): Promise<DesktopProposalResponse> { throw new Error('DEMO_MODE_NO_KERNEL'); }
+  async submitCognition(): Promise<CognitionResponse> { throw new Error('DEMO_MODE_NO_KERNEL'); }
   async decideApproval(): Promise<void> { throw new Error('DEMO_MODE_NO_KERNEL'); }
   async reconnect() { this.emit(); }
   close() { this.listeners.clear(); }
@@ -41,6 +43,7 @@ export class KernelSceneTransport implements SceneTransport {
   subscribeConnection(listener: (state: KernelConnection) => void) { this.connectionListeners.add(listener); listener(this.status); this.start(); return () => this.connectionListeners.delete(listener); }
   async submit(intent: SceneIntent, expectedVersion: number) { if (!this.scene || expectedVersion !== this.scene.version) throw new Error('SCENE_VERSION_CONFLICT'); const authoritativeVersion = this.scene.version; this.scene = { ...applySceneIntent(this.scene, intent), version: authoritativeVersion }; this.options.cache?.write(this.scene.id, createSnapshot(this.scene, 'presentation')); this.sceneListeners.forEach((listener) => listener(this.scene!)); }
   async submitProposal(command: DesktopProposalCommand) { return this.command<DesktopProposalResponse>('/desktop/proposals', command); }
+  async submitCognition(command: DesktopCognitionCommand) { return this.command<CognitionResponse>('/desktop/cognition', command); }
   async decideApproval(command: DesktopApprovalCommand) { await this.command('/desktop/approvals', command); await this.poll(); }
   async reconnect() { this.failures = 0; this.setStatus({ status: 'reconnecting' }); await this.poll(); }
   close() { this.stopped = true; if (this.timer) clearTimeout(this.timer); }
