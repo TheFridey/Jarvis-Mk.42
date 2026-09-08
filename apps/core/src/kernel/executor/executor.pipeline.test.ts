@@ -19,12 +19,12 @@ const capability: Capability = {
   actions: [{ name: 'write', inputSchema: {}, outputSchema: {}, riskClass: 'MEDIUM', reversible: false, simulatable: false, verify: 'read', idempotent: true, sideEffects: ['write'], approvalPolicy: 'default', timeoutMs: 1000, verificationStrategy: { kind: 'state-echo', adapterRef: 'read' } }],
 };
 
-function executor(verdict: 'ALLOW' | 'REQUIRE_APPROVAL', approved: boolean, worldValue: unknown) {
+function executor(verdict: 'ALLOW' | 'REQUIRE_APPROVAL', approved: boolean, worldValue: unknown, selected:Capability=capability) {
   const execute = vi.fn(async () => ({ content: 'expected' }));
   const selfVerify = vi.fn(async () => ({ verified: true, checks: [] }));
   const events: string[] = [];
   const instance = new CapabilityExecutor({
-    lookup: async () => capability,
+    lookup: async () => selected,
     validateInput: () => true,
     evaluate: () => ({ verdict, firedRuleIds: [], rationale: verdict }),
     permission: { authorise: async () => ({ ok: true, approved, grantId: 'grant-1', grantVersion: 1, authorityToken: 'authority', verificationAuthorityToken: 'verify-authority', beforeAuthorityToken: 'before-authority' }), freshnessCheck: async () => 'ok' },
@@ -60,4 +60,5 @@ describe('CapabilityExecutor load-bearing controls', () => {
     expect(first.invocationId).toBe(second.invocationId);
     expect(subject.execute).toHaveBeenCalledTimes(1);
   });
+  it('forbids high-risk completion when verification is adapter self-report only',async()=>{const high:Capability={...capability,actions:[{...capability.actions[0]!,riskClass:'HIGH',verificationAssurance:'ADAPTER_SELF_REPORT'}]};const subject=executor('ALLOW',true,{content:'expected'},high);const result=await subject.instance.invoke(proposal('proposal-high-self-report'),actor);expect(result.outcome).toBe('aborted');expect(subject.execute).not.toHaveBeenCalled()});
 });

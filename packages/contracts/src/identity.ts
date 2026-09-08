@@ -68,6 +68,26 @@ export interface AuthContext {
   authenticatedAt: Timestamp;
   /** Null-ish for non-expiring bootstrap contexts; set for tokens. */
   expiresAt?: Timestamp;
+  /** Session and node bindings are mandatory for access credentials. */
+  sessionId?: Ulid;
+  scopes?: string[];
+  authStrength?: 'bootstrap' | 'single_factor' | 'strong';
+  credentialId?: Ulid;
+  issuedAt?: Timestamp;
+}
+
+export interface SessionAccessCredential {
+  id: Ulid;
+  identityId: Ulid;
+  principalId: PrincipalId;
+  sessionId: Ulid;
+  nodeId: string;
+  scopes: string[];
+  authStrength: 'bootstrap' | 'single_factor' | 'strong';
+  issuedAt: Timestamp;
+  expiresAt: Timestamp;
+  generation: number;
+  revokedAt?: Timestamp;
 }
 
 export interface AuthenticateRequest {

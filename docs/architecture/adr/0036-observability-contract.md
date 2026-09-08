@@ -1,6 +1,6 @@
 # ADR-0036: Observability is a contract, not a wish — a real OTel SDK, mandatory spans and metrics on the load-bearing paths, and ledger↔trace correlation; unmet parts of the "complete coverage" claim are retracted until met
 
-Status: Accepted
+Status: PARTIAL — NodeSDK, OTLP trace export, resource identity and core auto-instrumentation are implemented; complete named-path span coverage remains in progress.
 Date: 2026-09-03
 Deciders: External Principal Architect (ASCENSION Stage A audit), Principal (rhyslacy123)
 Relates-to: ADR-0009 Amendment 1 (`traceId` on the envelope), EVENT_ARCHITECTURE §6, MK43_IMPLEMENTATION_NOTES §2; corrects `packages/telemetry`

@@ -153,9 +153,13 @@ export const payloadSchemas: Record<string, Record<number, z.ZodTypeAny>> = {
   [EventNames.NodeConnected]: {
     1: z.object({ nodeId: z.string(), nodeType: z.string(), trustTier: z.string() }),
   },
+  [EventNames.NodeHeartbeat]: { 1: z.object({ nodeId:z.string(), status:z.string(), version:z.number().int() }) },
+  [EventNames.NodeDegraded]: { 1: z.object({ nodeId:z.string(), reason:z.string() }) },
   [EventNames.NodeDisconnected]: {
     1: z.object({ nodeId: z.string(), reason: z.string() }),
   },
+  [EventNames.NodeRevoked]: { 1: z.object({ nodeId:z.string(), reason:z.string() }) },
+  [EventNames.NodeIsolated]: { 1: z.object({ nodeId:z.string(), reason:z.string() }) },
   [EventNames.KernelStarting]: { 1: z.object({ instanceId: z.string(), version: z.string() }) },
   [EventNames.KernelOperational]: {
     1: z.object({ instanceId: z.string(), coldStartMs: z.number(), replayedEvents: z.number() }),

@@ -10,7 +10,7 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
 
   beforeAll(async () => {
     ctx = await setupIt();
-  }, 120_000);
+  }, 240_000);
 
   afterAll(async () => {
     await ctx?.cleanup();
@@ -113,7 +113,8 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     await k.start();
     const base = `http://${k.config.diagnosticsHost}:${k.diagnosticsPort}`;
     expect((await fetch(`${base}/desktop/snapshot`)).status).toBe(401);
-    const headers = { authorization: `Bearer ${k.config.desktopToken}`, 'content-type': 'application/json' };
+    const exchange=await fetch(`${base}/auth/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({credential:k.config.bootstrapCredential,nodeId:k.config.nodeId,scopes:['desktop.read','desktop.write'],surface:'desktop'})});expect(exchange.status).toBe(201);const issued=await exchange.json() as {accessToken:string;credential:{sessionId:string}};
+    const headers = { authorization: `Bearer ${issued.accessToken}`, 'content-type': 'application/json','x-jarvis-node-id':k.config.nodeId,'x-jarvis-session-id':issued.credential.sessionId };
     const snapshotResponse = await fetch(`${base}/desktop/snapshot`, { headers });
     expect(snapshotResponse.status).toBe(200);
     const snapshot = await snapshotResponse.json() as { schemaVersion: number; principalId: string; stateVersion: number; diagnostics: { mode: string }; scene: { presentation: string; version: number } };

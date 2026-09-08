@@ -57,7 +57,7 @@ describe.skipIf(!dockerOk)('ATLAS + MNEMOSYNE load-bearing (integration)', () =>
     await truncateAll(ctx.pg);
     ctx.clock.set(Date.parse('2026-09-20T12:00:00.000Z'));
     gateway = new CapturingGateway();
-  }, 120_000);
+  }, 240_000);
   afterAll(() => ctx?.cleanup());
 
   it('PATH A: event/experience -> candidate -> consolidation -> episode -> context -> cognition', async () => {

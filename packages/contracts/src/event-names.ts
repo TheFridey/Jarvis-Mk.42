@@ -70,7 +70,11 @@ export const EventNames = {
 
   // --- Infra: nodes ---
   NodeConnected: 'jarvis.infra.node.connected',
+  NodeHeartbeat: 'jarvis.infra.node.heartbeat',
+  NodeDegraded: 'jarvis.infra.node.degraded',
   NodeDisconnected: 'jarvis.infra.node.disconnected',
+  NodeRevoked: 'jarvis.infra.node.revoked',
+  NodeIsolated: 'jarvis.infra.node.isolated',
 
   // --- Event fabric self-observations ---
   EventRejected: 'jarvis.kernel.event.rejected',

@@ -39,6 +39,7 @@ export class IdentityManager {
       events: EventManager;
       clock: Clock;
       ids: IdGen;
+      credentials?: { revokeIdentity(identityId: string, at: string): Promise<void> };
     },
   ) {}
 
@@ -182,7 +183,7 @@ export class IdentityManager {
   }
 
   async revokeIdentity(identityId: string): Promise<void> {
-    await this.deps.store.revoke(identityId, this.deps.clock.nowIso());
+    const at=this.deps.clock.nowIso();await this.deps.store.revoke(identityId, at);await this.deps.credentials?.revokeIdentity(identityId,at);
     const identity = await this.deps.store.getIdentity(identityId);
     await this.deps.events.emit({
       type: EventNames.IdentityRevoked,

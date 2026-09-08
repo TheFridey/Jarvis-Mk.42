@@ -55,6 +55,31 @@ export interface NodeAdmission {
 
 export type NodeLivenessState = 'online' | 'degraded' | 'unavailable';
 
+export type NodeLifecycleState = 'pending' | 'connected' | 'degraded' | 'disconnected' | 'revoked' | 'isolated';
+
+export interface RegisteredNode {
+  nodeId: NodeId;
+  identityId: string;
+  principalId: string;
+  nodeType: NodeType;
+  trustTier: NodeTrustTier;
+  capabilities: string[];
+  sensors: string[];
+  outputs: string[];
+  location?: string;
+  softwareVersion: string;
+  protocolVersion: string;
+  publicKeyFingerprint: string;
+  previousKeyFingerprint?: string;
+  previousKeyExpiresAt?: Timestamp;
+  status: NodeLifecycleState;
+  enrolledAt: Timestamp;
+  lastSeenAt?: Timestamp;
+  health: Record<string, unknown>;
+  version: number;
+  revokedAt?: Timestamp;
+}
+
 export interface NodeLiveness {
   nodeId: NodeId;
   state: NodeLivenessState;

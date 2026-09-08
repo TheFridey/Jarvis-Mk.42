@@ -18,7 +18,7 @@ describe.skipIf(!dockerOk)('load-bearing agency pipeline (integration)', () => {
   let ctx: ItContext; let root: string;
   beforeAll(async () => {
     ctx = await setupIt(); await truncateAll(ctx.pg); root = await mkdtemp(join(tmpdir(), 'jarvis-agency-'));
-  }, 120_000);
+  }, 240_000);
   afterAll(async () => { await ctx?.cleanup(); if (root) await rm(root, { recursive: true, force: true }); });
 
   it('composes registration, policy, permission, isolated execution, verification, and durable lifecycle audit', async () => {

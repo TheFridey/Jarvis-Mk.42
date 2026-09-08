@@ -1,6 +1,6 @@
 # ADR-0038: Architecture-fitness and contract-compatibility are enforced by real automated gates, not a single grep
 
-Status: Accepted
+Status: IMPLEMENTED — import boundaries use the TypeScript AST; semantic source checks remain only where dependency graphs cannot express the invariant.
 Date: 2026-09-03
 Deciders: External Principal Architect (ASCENSION Stage A audit), Principal (rhyslacy123)
 Relates-to: ROADMAP invariant (versioned contracts), EVENT_ARCHITECTURE §9, KERNEL_CONSTITUTION §2; L40

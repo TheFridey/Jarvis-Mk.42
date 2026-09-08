@@ -42,6 +42,7 @@ export class SessionManager {
       tx: TxRunner;
       clock: Clock;
       ids: IdGen;
+      credentials?: { revokeSession(sessionId: string, at: string): Promise<void> };
     },
   ) {}
 
@@ -149,6 +150,7 @@ export class SessionManager {
           ...(ended ? { endedAt: now } : {}),
           handoff: handoff ?? null,
         });
+        if (ended) await this.deps.credentials?.revokeSession(req.sessionId, now);
         await this.deps.events.emitInTx(tx, {
           type: ended ? EventNames.SessionEnded : EventNames.SessionTransitioned,
           retentionClass: 'OPERATIONAL',

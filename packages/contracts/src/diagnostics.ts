@@ -72,4 +72,5 @@ export interface DiagnosticsReport {
     items: Array<{ id: string; severity: string; title: string; since: Timestamp }>;
   };
   vision?: VisionDiagnostics;
+  telemetry?: { enabled:boolean; started:boolean; endpoint?:string; lastExportAt?:Timestamp; lastError?:string };
 }

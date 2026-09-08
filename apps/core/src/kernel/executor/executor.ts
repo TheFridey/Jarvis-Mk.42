@@ -5,6 +5,7 @@ import { InvocationStore, type InvocationStorePort } from './invocation-store.ts
 import { ResourceLeaseManager, type ResourceLeasePort } from './lease.ts';
 import { VerificationRunner, type AdapterRunner } from './verify-runner.ts';
 import { canonicalJson, valueAtPath } from '../../runtime/canonical-json.ts';
+import { withSpan } from '@jarvis/telemetry';
 
 export interface ExecutorEventSink { emit(type: string, payload: Record<string, unknown>, retention: 'AUDIT' | 'SECURITY', context: { correlationId: string; principalId: string; actor: EventActor }): Promise<string>; }
 export interface ExecutorPermission { authorise(input: { invocationId: string; principalId: string; capabilityId: string; capabilityVersion: string; action: string; inputHash: string; scopes: string[]; riskClass: string; approvalRequired: boolean; summary: string; confirmationPhrase?: string }): Promise<{ ok: boolean; approved?: boolean; approvalRequestId?: string; grantId?: string; grantVersion?: number; authorityToken?: string; verificationAuthorityToken?: string; beforeAuthorityToken?: string; resourceConstraints?: Parameters<typeof checkResourceConstraints>[0] }>; freshnessCheck(id: string, version: number): Promise<'ok' | 'stale' | 'revoked' | 'expired'>; }
@@ -19,7 +20,8 @@ export interface ExecutorDeps {
 export class CapabilityExecutor {
   private readonly store: InvocationStorePort; private readonly leases: ResourceLeasePort; private readonly now: () => string;
   constructor(private readonly deps: ExecutorDeps) { this.store = deps.store ?? new InvocationStore(); this.leases = deps.leases ?? new ResourceLeaseManager(); this.now = deps.now ?? (() => new Date().toISOString()); }
-  async invoke(proposal: CapabilityInvocationProposal, origin: EventActor): Promise<InvocationResult> {
+  async invoke(proposal: CapabilityInvocationProposal, origin: EventActor): Promise<InvocationResult> { return withSpan('agency.executor.invoke', { 'jarvis.correlation_id': proposal.correlationId, 'jarvis.capability.id': proposal.invocation.capabilityId, 'jarvis.capability.action': proposal.invocation.action }, () => this.invokeInner(proposal, origin)); }
+  private async invokeInner(proposal: CapabilityInvocationProposal, origin: EventActor): Promise<InvocationResult> {
     const prior = await this.store.byProposal(proposal.proposalId);
     if (prior) {
       if (prior.state === 'AWAITING_APPROVAL' && prior.principalId === (origin.onBehalfOf ?? origin.id)) return this.resumeAwaitingApproval(prior, proposal, origin);
@@ -66,6 +68,8 @@ export class CapabilityExecutor {
     return this.executeApproved(id, initial, proposal, capability, action, auth);
   }
   private async executeApproved(id: string, initial: InvocationLifecycle, proposal: CapabilityInvocationProposal, capability: Capability, action: Capability['actions'][number], auth: Awaited<ReturnType<ExecutorPermission['authorise']>>): Promise<InvocationResult> {
+    const assurance=action.verificationAssurance??(action.verificationStrategy.kind==='hash-match'||action.verificationStrategy.kind==='event-await'?'INDEPENDENT':action.verificationStrategy.kind==='state-echo'?'ADAPTER_SELF_REPORT':'SAME_PROVIDER_READBACK');
+    if (['HIGH','CRITICAL'].includes(action.riskClass) && assurance === 'ADAPTER_SELF_REPORT') return this.terminal(id, 'ABORTED', 'aborted', 'high-risk action requires non-self-report verification', 'SECURITY');
     if (!auth.grantId || auth.grantVersion === undefined) return this.terminal(id, 'ABORTED', 'aborted', 'grant authority unavailable', 'SECURITY');
     if (await this.deps.permission.freshnessCheck(auth.grantId, auth.grantVersion) !== 'ok') return this.terminal(id, 'ABORTED', 'aborted', 'grant freshness barrier failed', 'SECURITY');
     if (!auth.authorityToken || !auth.verificationAuthorityToken) return this.terminal(id, 'ABORTED', 'aborted', 'authority token unavailable', 'SECURITY');

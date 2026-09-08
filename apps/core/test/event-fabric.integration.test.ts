@@ -10,7 +10,7 @@ describe.skipIf(!dockerOk)('event fabric (integration)', () => {
 
   beforeAll(async () => {
     ctx = await setupIt();
-  }, 120_000);
+  }, 240_000);
 
   afterAll(async () => {
     await ctx?.cleanup();

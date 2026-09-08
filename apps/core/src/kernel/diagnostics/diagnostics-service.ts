@@ -18,6 +18,7 @@ import type { HealthManager } from '../health/health-manager.ts';
 import type { ModeManager } from '../mode/mode-manager.ts';
 import type { SessionManager } from '../session/session-manager.ts';
 import type { StateManager } from '../state/state-manager.ts';
+import { telemetryDiagnostics } from '@jarvis/telemetry';
 
 export interface DiagnosticsDeps {
   clock: Clock;
@@ -157,6 +158,7 @@ export class DiagnosticsService {
         })),
       },
       ...(this.deps.visionDiagnostics?.() ? { vision: this.deps.visionDiagnostics() } : {}),
+      telemetry:telemetryDiagnostics(),
     };
   }
 }

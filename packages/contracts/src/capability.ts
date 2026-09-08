@@ -31,6 +31,8 @@ export type VerificationStrategy =
   | { kind: 'health-probe'; adapterRef: ActionRef }
   | { kind: 'state-echo'; adapterRef: ActionRef };
 
+export type VerificationAssurance = 'INDEPENDENT' | 'SAME_PROVIDER_READBACK' | 'ADAPTER_SELF_REPORT';
+
 export type RollbackStrategy =
   | { kind: 'inverse-action'; adapterRef: ActionRef }
   | { kind: 'restore-snapshot'; capturedBy: ActionRef; restoreRef: ActionRef }
@@ -75,6 +77,8 @@ export interface CapabilityAction {
   approvalPolicy: 'default' | 'always' | 'hard_confirmation' | `preauthorized:${string}`;
   timeoutMs: number;
   verificationStrategy: VerificationStrategy;
+  /** Declared trust boundary for the verification reader. */
+  verificationAssurance?: VerificationAssurance;
   rollbackStrategy?: RollbackStrategy;
   idempotencyKeySelector?: string;
   confirmationPhrase?: string;

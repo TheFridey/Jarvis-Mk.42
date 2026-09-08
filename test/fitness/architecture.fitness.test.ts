@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import ts from 'typescript';
 const root = resolve('.');
 const files = (dir: string): string[] => readdirSync(dir).filter((name)=>name!=='node_modules'&&name!=='.next'&&name!=='dist').flatMap((name) => { const path = join(dir, name); return statSync(path).isDirectory() ? files(path) : /\.(ts|tsx)$/.test(path) ? [path] : []; });
 const source = (dir: string) => files(resolve(dir)).map((path) => ({ path: relative(root, path).replaceAll('\\', '/'), text: readFileSync(path, 'utf8') }));
-const rejectImports = (dir: string, pattern: RegExp) => expect(source(dir).filter((file) => pattern.test(file.text)).map((file) => file.path)).toEqual([]);
+function imports(file:{path:string;text:string}){const sf=ts.createSourceFile(file.path,file.text,ts.ScriptTarget.Latest,true,file.path.endsWith('x')?ts.ScriptKind.TSX:ts.ScriptKind.TS);const out:string[]=[];const visit=(n:ts.Node)=>{if((ts.isImportDeclaration(n)||ts.isExportDeclaration(n))&&n.moduleSpecifier&&ts.isStringLiteral(n.moduleSpecifier))out.push(n.moduleSpecifier.text);if(ts.isCallExpression(n)&&n.expression.kind===ts.SyntaxKind.ImportKeyword&&n.arguments[0]&&ts.isStringLiteral(n.arguments[0]))out.push(n.arguments[0].text);ts.forEachChild(n,visit)};visit(sf);return out}
+const rejectImports = (dir: string, pattern: RegExp) => expect(source(dir).filter((file) => imports(file).some(spec=>pattern.test(spec))).map((file) => file.path)).toEqual([]);
 describe('architecture fitness boundaries', () => {
   it('perception does not import cognition or agents', () => rejectImports('packages/scene', /from ['"].*(agents|cognition|model-gateway)/));
   it('voice remains a perception client and cannot import cognition, providers, or persistence',()=>rejectImports('apps/voice',/from ['"].*(kernel\/cognition|gateway|openai|anthropic|persistence)/));
   it('vision emits observations and cannot import cognition, model providers, authority, or capability adapters',()=>rejectImports('apps/vision',/from ['"].*(kernel\/cognition|apps\/gateway|openai|anthropic|persistence|world-model|memory|adapter-host|kernel\/executor)/));
   it('desktop cannot import adapters, Executor, persistence, or authoritative stores', () => rejectImports('apps/desktop', /from ['"].*(adapter-host|capabilities\/|kernel\/executor|persistence|state-store)/));
   it('agents cannot import adapters, Executor, persistence, or permissions', () => rejectImports('agents', /from ['"].*(adapter-host|capabilities\/|kernel\/executor|persistence|permissions)/));
-  it('provider SDK imports stay inside Model Gateway', () => { const hits = [...source('apps'), ...source('packages')].filter((file) => !file.path.startsWith('apps/gateway/') && /from ['"](?:openai|@anthropic-ai|@google\/generative-ai|cohere-ai)/.test(file.text)); expect(hits.map((hit) => hit.path)).toEqual([]); });
+  it('provider SDK imports stay inside Model Gateway', () => { const hits = [...source('apps'), ...source('packages')].filter((file) => !file.path.startsWith('apps/gateway/') && imports(file).some(spec=>/^(openai|@anthropic-ai|@google\/generative-ai|cohere-ai)/.test(spec))); expect(hits.map((hit) => hit.path)).toEqual([]); });
   it('provider wire shapes and API endpoints stay inside Model Gateway',()=>{const hits=[...source('apps'),...source('packages')].filter(file=>!file.path.startsWith('apps/gateway/')&&/(api\.openai\.com|api\.anthropic\.com|anthropic-version|chat\/completions)/.test(file.text));expect(hits.map(hit=>hit.path)).toEqual([])});
   it('memory cannot import World Model authority and World Model cannot import Kernel state', () => { rejectImports('packages/memory', /world-model|kernel\/state/); rejectImports('packages/world-model', /kernel\/state|state-store/); });
   it('capability adapters cannot import policy or permission evaluators', () => rejectImports('capabilities', /from ['"].*(permissions|policy|permission-manager)/));

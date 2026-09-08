@@ -1,3 +1,4 @@
 import type { CredentialHandle, RiskClass } from '@jarvis/contracts';
-export interface AdapterJob { invocationId: string; capabilityId: string; version: string; action: string; operation?: 'execute' | 'simulate' | 'rollback' | 'verify' | 'hash-file'; input: unknown; output?: unknown; before?: unknown; handle: CredentialHandle; mode: 'dry-run' | 'full'; timeoutMs: number; riskClass: RiskClass; executionEnvironment: string; moduleUrl: string; }
-export type WorkerReply = { ok: true; output: unknown; logs: Array<{ level: string; msg: string; fields?: Record<string, unknown> }> } | { ok: false; error: string };
+export interface AdapterJob { invocationId: string; capabilityId: string; version: string; action: string; operation?: 'execute' | 'simulate' | 'rollback' | 'verify' | 'hash-file'; input: unknown; output?: unknown; before?: unknown; handle: CredentialHandle; mode: 'dry-run' | 'full'; timeoutMs: number; riskClass: RiskClass; executionEnvironment: string; moduleUrl: string; nonce?: string; issuedAt?: number; }
+export interface WorkerBinding { invocationId:string; capabilityId:string; action:string; nonce:string; issuedAt:number; mac:string }
+export type WorkerReply = ({ ok: true; output: unknown; logs: Array<{ level: string; msg: string; fields?: Record<string, unknown> }> } | { ok: false; error: string }) & { binding: WorkerBinding };

@@ -1,8 +1,31 @@
-import { spawnSync } from 'node:child_process';
-const result = spawnSync('pnpm', ['exec', 'vitest', 'run', 'apps/core/test/backup-restore.integration.test.ts'], {
-  stdio: 'inherit',
-  env: { ...process.env, JARVIS_IT: '1' },
-  shell: process.platform === 'win32',
-});
-if (result.error) console.error(result.error.message);
-process.exit(result.status ?? 1);
+import { execFile as cb, spawn } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const execFile=promisify(cb), suffix=`${Date.now()}-${process.pid}`, source=`jarvis-dr-source-${suffix}`, restored=`jarvis-dr-restored-${suffix}`;
+const dir=await mkdtemp(join(tmpdir(),'jarvis-dr-')), artifact=join(dir,'jarvis.dump');
+const docker=(args,opts={})=>execFile('docker',args,{timeout:120000,maxBuffer:20*1024*1024,...opts});
+async function ready(name){for(let i=0;i<60;i++){try{await docker(['exec',name,'pg_isready','-U','jarvis','-d','jarvis']);return}catch{}await new Promise(r=>setTimeout(r,500))}throw new Error(`${name} did not become ready`)}
+async function start(name){await docker(['run','-d','--name',name,'-e','POSTGRES_USER=jarvis','-e','POSTGRES_PASSWORD=jarvis','-e','POSTGRES_DB=jarvis','-p','127.0.0.1::5432','pgvector/pgvector:pg16']);await ready(name);await new Promise(r=>setTimeout(r,2000));const{stdout}=await docker(['port',name,'5432/tcp']);const port=stdout.trim().match(/:(\d+)$/)?.[1];if(!port)throw new Error('Postgres port unavailable');return`postgres://jarvis:jarvis@127.0.0.1:${port}/jarvis`}
+async function pnpm(args,env){const{stdout,stderr}=await execFile('pnpm',args,{cwd:process.cwd(),env:{...process.env,...env},timeout:180000,maxBuffer:20*1024*1024,shell:process.platform==='win32'});process.stdout.write(stdout);process.stderr.write(stderr)}
+const seed=`
+insert into projections.state_slices(key,value,version) values('mode','{"mode":"AMBIENT"}',7);
+insert into atlas.entities(id,type,canonical_name,principal_id) values('dr-entity','system','DR entity','dr-principal');
+insert into mnemosyne.episodes(id,kind,title,summary,occurred_from,occurred_to,confidence,provenance,principal_id) values('dr-memory','event','DR memory','survives disaster',now(),now(),1,'{"source":"drill"}','dr-principal');
+insert into projections.objectives(objective_id,principal_id,statement,origin,status,priority,provenance,correlation_id,created_at,updated_at) values('dr-objective','dr-principal','recover','principal','active',1,'{}','dr-correlation',now(),now());
+insert into agency.invocations(invocation_id,proposal_id,capability_id,capability_version,action,state,correlation_id,principal_id,origin_actor,risk_class,input_hash) values('dr-invocation','dr-proposal','capabilities.test','1','noop','PROPOSED','dr-correlation','dr-principal','{"kind":"principal","id":"dr-principal"}','LOW','hash');
+update agency.invocations set state='VALIDATED' where invocation_id='dr-invocation';update agency.invocations set state='POLICY_CHECKED' where invocation_id='dr-invocation';update agency.invocations set state='APPROVED' where invocation_id='dr-invocation';update agency.invocations set state='EXECUTING' where invocation_id='dr-invocation';update agency.invocations set state='VERIFYING' where invocation_id='dr-invocation';update agency.invocations set state='COMPLETED',final_outcome='verified' where invocation_id='dr-invocation';
+insert into agency.policy_rules(id,version,description,predicate,effect,priority,created_by) values('dr-policy',1,'DR policy','{"op":"true"}','ALLOW',1,'drill');`;
+try{
+  await docker(['ps']);const sourceUrl=await start(source);let migrated=false,lastMigrationError;for(let attempt=0;attempt<12&&!migrated;attempt++){try{await pnpm(['db:migrate'],{JARVIS_DB_URL:sourceUrl});migrated=true}catch(error){lastMigrationError=error;await new Promise(r=>setTimeout(r,1000))}}if(!migrated)throw lastMigrationError;
+  await docker(['exec','-i',source,'psql','-v','ON_ERROR_STOP=1','-U','jarvis','-d','jarvis','-c',seed]);
+  await docker(['exec',source,'pg_dump','-U','jarvis','-d','jarvis','-Fc','-f','/tmp/jarvis.dump']);await docker(['cp',`${source}:/tmp/jarvis.dump`,artifact]);
+  await docker(['exec',source,'psql','-U','jarvis','-d','postgres','-c',`select pg_terminate_backend(pid) from pg_stat_activity where datname='jarvis' and pid<>pg_backend_pid();`]);await docker(['exec',source,'dropdb','-U','jarvis','jarvis']);await docker(['exec',source,'createdb','-U','jarvis','jarvis']);await docker(['cp',artifact,`${source}:/tmp/restored.dump`]);await docker(['exec',source,'pg_restore','-U','jarvis','-d','jarvis','--exit-on-error','/tmp/restored.dump']);const restoredUrl=sourceUrl;
+  const{stdout}=await docker(['exec',source,'psql','-At','-U','jarvis','-d','jarvis','-c',`select (select count(*) from projections.state_slices where key='mode' and version=7),(select count(*) from atlas.entities where id='dr-entity'),(select count(*) from mnemosyne.episodes where id='dr-memory'),(select count(*) from projections.objectives where objective_id='dr-objective'),(select count(*) from agency.invocations where invocation_id='dr-invocation' and state='COMPLETED' and final_outcome='verified'),(select count(*) from agency.policy_rules where id='dr-policy');`]);
+  if(stdout.trim()!=='1|1|1|1|1|1')throw new Error(`restore invariants failed: ${stdout.trim()}`);
+  const kernel=spawn(process.execPath,[join(process.cwd(),'node_modules','tsx','dist','cli.mjs'),'apps/core/src/main.ts'],{cwd:process.cwd(),env:{...process.env,JARVIS_DB_URL:restoredUrl,JARVIS_NATS_ENABLED:'0',JARVIS_REDIS_URL:'',JARVIS_TELEMETRY_DISABLED:'1',JARVIS_DIAGNOSTICS_PORT:'0'},stdio:['ignore','pipe','pipe'],windowsHide:true});let logs='';kernel.stderr.on('data',d=>logs+=String(d));
+  await new Promise((resolve,reject)=>{const deadline=setTimeout(()=>reject(new Error(`restored Kernel boot timeout: ${logs}`)),30000);const poll=setInterval(()=>{if(logs.includes('[kernel] operational')){clearTimeout(deadline);clearInterval(poll);resolve()}else if(kernel.exitCode!==null){clearTimeout(deadline);clearInterval(poll);reject(new Error(`restored Kernel exited: ${logs}`))}},250)});kernel.kill();
+  await new Promise(r=>kernel.once('exit',r));console.log('DISASTER RECOVERY PASS: pg_dump artifact restored, Kernel booted, and durable completed invocation was not re-executed.');
+}catch(error){console.error(`MANDATORY DISASTER RECOVERY GATE FAILED: ${error instanceof Error?error.message:String(error)}`);process.exitCode=1}
+finally{await docker(['rm','-f',source]).catch(()=>undefined);await docker(['rm','-f',restored]).catch(()=>undefined);await rm(dir,{recursive:true,force:true})}

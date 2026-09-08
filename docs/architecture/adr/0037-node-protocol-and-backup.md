@@ -1,6 +1,6 @@
 # ADR-0037: Node Protocol v1 design (identity, enrollment, rotation, revocation, attestation, trust-tier store); backup and restore drill design
 
-Status: Accepted (design) — **not implemented as of the ASCENSION II audit (2026-09-08)**
+Status: PARTIAL — persisted enrollment/admission/liveness/revocation/key rotation and a real dump/restore/boot drill are implemented; remote mTLS transport and production WAL operations remain planned.
 Date: 2026-09-03
 Deciders: External Principal Architect (ASCENSION Stage A audit), Principal (rhyslacy123)
 Relates-to: docs/protocols/node-protocol.md, SECURITY_MODEL §6, STATE_MODEL §8, ROADMAP MK.51+; L35, L37, L38, L39

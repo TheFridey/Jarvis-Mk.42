@@ -48,7 +48,8 @@ import {
 } from '../event-fabric/index.ts';
 import { StateManager, StateStore, StateProjector } from '../state/index.ts';
 import { ModeManager } from '../mode/index.ts';
-import { IdentityManager, IdentityStore } from '../identity/index.ts';
+import { IdentityManager, IdentityStore, PgAccessCredentialStore, SessionCredentialManager } from '../identity/index.ts';
+import { NodeManager, PgNodeStore } from '../nodes/index.ts';
 import { SessionManager, SessionStore } from '../session/index.ts';
 import { PresenceManager } from '../presence/index.ts';
 import { HealthManager } from '../health/index.ts';
@@ -108,6 +109,8 @@ export interface KernelHandle {
   readonly state: StateManager;
   readonly mode: ModeManager;
   readonly identity: IdentityManager;
+  readonly credentials: SessionCredentialManager;
+  readonly nodes: NodeManager;
   readonly sessions: SessionManager;
   readonly presence: PresenceManager;
   readonly health: HealthManager;
@@ -205,19 +208,21 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     }),
   });
 
+  const accessStore=new PgAccessCredentialStore(pg.sql);const credentials=new SessionCredentialManager({store:accessStore,clock,ids});
   const identity = new IdentityManager({
     store: new IdentityStore(pg.sql),
     events,
     clock,
-    ids,
+    ids,credentials:accessStore,
   });
+  const nodeStore=new PgNodeStore(pg.sql);const nodes=new NodeManager({store:nodeStore,identity,clock,ids,credentials:accessStore});
 
   const sessions = new SessionManager({
     store: new SessionStore(pg.sql),
     events,
     tx,
     clock,
-    ids,
+    ids,credentials:accessStore,
   });
 
   const presence = new PresenceManager({
@@ -385,7 +390,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   });
 
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, token: config.desktopToken, nodeId: config.nodeId });
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision });
+  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId });
 
   const scheduler = new Scheduler({
     events,
@@ -497,6 +502,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     state,
     mode,
     identity,
+    credentials,
+    nodes,
     sessions,
     presence,
     health,
@@ -537,6 +544,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         serviceName: 'jarvis-core',
         serviceVersion: config.version,
         otlpEndpoint: config.otlpEndpoint,
+        nodeId: config.nodeId,
+        environment: process.env.NODE_ENV ?? 'development',
         disabled: config.telemetryDisabled,
       });
 
@@ -602,6 +611,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         nodeId: config.nodeId,
       });
       currentPrincipalId = principal.id;
+      if(!(await nodeStore.get(config.nodeId))){const nodeIdentity=await identity.registerIdentity({kind:'node',principalId:principal.id,externalRef:config.nodeId,displayName:config.nodeId,trust:'verified'});await nodeStore.put({nodeId:config.nodeId,identityId:nodeIdentity.id,principalId:principal.id,nodeType:'server',trustTier:'kernel-local',capabilities:registeredCapabilities,sensors:[],outputs:['diagnostics'],softwareVersion:config.version,protocolVersion:'1',publicKeyFingerprint:`composition-root:${config.nodeId}`,status:'connected',enrolledAt:clock.nowIso(),lastSeenAt:clock.nowIso(),health:{kernel:true},version:1})}
       await state.mutate({
         key: 'active_principal',
         value: { principalId: principal.id },

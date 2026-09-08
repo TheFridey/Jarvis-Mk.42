@@ -10,7 +10,7 @@ import { eventSchema } from '@jarvis/validation';
 import { advance } from '../../apps/core/src/kernel/executor/lifecycle.ts';
 const handle = { handleId: 'h', invocationId: 'i', scope: { capabilityId: chaos.manifest.id, action: 'x', resourceRef: 'r' }, mode: 'full' as const, expiresAt: '2099-01-01T00:00:00Z', kind: 'none' as const };
 const job = (action: string, timeoutMs: number) => ({ invocationId: 'i', capabilityId: chaos.manifest.id, version: chaos.manifest.version, action, input: {}, handle, mode: 'full' as const, timeoutMs, riskClass: 'LOW' as const, executionEnvironment: 'worker', moduleUrl: pathToFileURL(resolve('test/fixtures/chaos-capability.ts')).href });
-describe('safe deterministic chaos simulations', () => {
+describe('deterministic failure-logic tests (not infrastructure chaos)', () => {
   it('reports NATS unavailable without inventing health', () => { const result = computeOverall([{ subsystem: 'nats', status: 'OFFLINE', critical: false, dependsOn: [], message: 'simulated', updatedAt: new Date().toISOString() }]); expect(result.overall).toBe('DEGRADED'); });
   it('keeps Redis unavailable non-authoritative', async () => { const redis = new NullEphemeralStore(); expect(await redis.ping()).toBe(false); });
   it('contains an Adapter Host worker failure', async () => { await expect(new AdapterHost().run(job('crash', 5000))).rejects.toThrow(/simulated worker crash/); });

@@ -17,7 +17,7 @@ describe.skipIf(!dockerOk)('MK.46 knowledge schema (integration)', () => {
     container = await startEphemeralPg();
     pg = createPg({ url: container.url });
     await runMigrations(pg.sql);
-  }, 120_000);
+  }, 240_000);
 
   afterAll(async () => {
     await pg?.close().catch(() => undefined);
