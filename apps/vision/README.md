@@ -6,6 +6,10 @@ runs MediaPipe Hand Landmarker locally, and sends only typed derived signals
 to the authenticated Kernel endpoint. Camera pixels are not sent to the Kernel
 or persisted.
 
+Hand detection contributes positive `near` evidence only. Missing hand
+landmarks never imply that a person is absent; a dedicated local person
+detector is required before emitting positive absence observations.
+
 ## Run on Windows
 
 ```powershell
