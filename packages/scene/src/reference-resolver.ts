@@ -5,6 +5,9 @@ export function resolveReference(scene: SemanticScene, context: ReferenceContext
   if (/\b(this|that)\b/.test(words)) {
     if (context.pointing?.point) { const p = context.pointing.point; const hits = scene.objects.filter((o) => o.monitorId === context.pointing?.monitorId && p.x >= o.position.x && p.x <= o.position.x + o.size.width && p.y >= o.position.y && p.y <= o.position.y + o.size.height).sort((a, b) => b.zIndex - a.zIndex); if (hits[0]) return result([hits[0].id], context.pointing.confidence, 'pointing hit'); }
     const target = context.hoveredId ?? context.focusedId; if (target) return result([target], .82, 'interaction focus');
+    if (context.screenRegion?.resourceRef && context.screenRegion.confidence >= .7) return result([context.screenRegion.resourceRef], context.screenRegion.confidence, `screen region in ${context.screenRegion.application ?? 'active application'}`);
+    if (context.physicalObjectRef && context.pointing && context.pointing.confidence >= .75) return result([context.physicalObjectRef], context.pointing.confidence, 'selected physical observation');
+    if (context.conversationRefs?.length === 1) return result(context.conversationRefs, .72, 'conversation context');
   }
   const byMeaning = scene.objects.filter((o) => words.includes(o.title.toLowerCase()) || words.includes(o.kind.replace('-', ' ')));
   if (byMeaning.length === 1) return result([byMeaning[0]!.id], .9, 'semantic label');

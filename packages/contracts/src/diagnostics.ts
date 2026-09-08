@@ -11,6 +11,7 @@
 import type { Timestamp } from './common.ts';
 import type { JarvisMode } from './mode.ts';
 import type { HealthReport, HealthStatus } from './health.ts';
+import type { VisionDiagnostics } from './vision.ts';
 
 export interface DependencyState {
   name: string;
@@ -70,4 +71,5 @@ export interface DiagnosticsReport {
     active: number;
     items: Array<{ id: string; severity: string; title: string; since: Timestamp }>;
   };
+  vision?: VisionDiagnostics;
 }

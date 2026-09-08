@@ -38,6 +38,7 @@ export interface DiagnosticsDeps {
   busHealthy: () => boolean;
   modelGatewayHealth?: () => Promise<{ status: HealthStatus; models: number }>;
   countActiveObjectives?: () => Promise<number>;
+  visionDiagnostics?: () => DiagnosticsReport['vision'];
 }
 
 export class DiagnosticsService {
@@ -143,6 +144,7 @@ export class DiagnosticsService {
           since: this.deps.clock.nowIso(),
         })),
       },
+      ...(this.deps.visionDiagnostics?.() ? { vision: this.deps.visionDiagnostics() } : {}),
     };
   }
 }

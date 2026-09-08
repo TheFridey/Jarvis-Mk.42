@@ -106,3 +106,18 @@ cognition can ask to disambiguate.
 - Persist raw streams (only bounded local buffers; durable capture is a
   capability with its own policy).
 - Block on the Kernel.
+
+## 8. Operational MK.42 vision implementation
+
+`apps/vision` implements local camera to MediaPipe landmarks to gesture
+primitives to calibrated and smoothed `AirTouchFrame`. Derived frames enter the
+Kernel through authenticated `/vision/events`; the desktop consumes an
+authenticated NDJSON stream and retains semantic authority in the existing
+Scene resolver and reducer. High-frequency observations remain `TRANSIENT`;
+camera loss and restoration are operationally retained.
+
+Native Windows screen metadata has a separate collector. Pixel capture is the
+approval-required `capabilities.windows.capture_region` Executor action, never
+a perception shortcut. Selected-frame cloud vision is fail-closed and requires
+a local object reference plus an approval. Continuous cloud vision remains
+structurally absent.

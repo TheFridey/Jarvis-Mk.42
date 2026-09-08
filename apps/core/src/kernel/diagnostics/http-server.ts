@@ -18,7 +18,8 @@ import type { HealthManager } from '../health/health-manager.ts';
 import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand } from '@jarvis/scene';
 import type { DesktopGateway } from '../desktop/desktop-gateway.ts';
 import type { VoiceGateway } from '../voice/voice-gateway.ts';
-import type { VoiceEventCommand } from '@jarvis/contracts';
+import type { VisionEventCommand, VoiceEventCommand } from '@jarvis/contracts';
+import type { VisionGateway } from '../vision/vision-gateway.ts';
 
 export interface DiagnosticsHttpDeps {
   diagnostics: DiagnosticsService;
@@ -26,6 +27,7 @@ export interface DiagnosticsHttpDeps {
   health: HealthManager;
   desktop: DesktopGateway;
   voice: VoiceGateway;
+  vision: VisionGateway;
 }
 
 export class DiagnosticsHttp {
@@ -87,6 +89,8 @@ export class DiagnosticsHttp {
         return send(405, { error: 'method not allowed' });
       }
       if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});if(!this.deps.voice.authenticate(req.headers.authorization))return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(!this.deps.voice.authorises(command.principalId))return send(403,{error:'principal not authorised for voice token'});return send(200,await this.deps.voice.handle(command))}
+      if(path==='/vision/events'){if(method!=='POST')return send(405,{error:'method not allowed'});if(!this.deps.vision.authenticate(req.headers.authorization))return send(401,{error:'unauthorised'});const command=await this.body<VisionEventCommand>(req);if(!this.deps.vision.authorises(command.principalId))return send(403,{error:'principal not authorised for vision token'});return send(200,await this.deps.vision.handle(command))}
+      if(path==='/vision/stream'){if(method!=='GET')return send(405,{error:'method not allowed'});if(!this.deps.vision.authenticate(req.headers.authorization))return send(401,{error:'unauthorised'});res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-cache','connection':'keep-alive'});const unsubscribe=this.deps.vision.subscribe(frame=>res.write(`${JSON.stringify(frame)}\n`));const heartbeat=setInterval(()=>res.write('\n'),15000);req.once('close',()=>{clearInterval(heartbeat);unsubscribe()});return}
       if (method !== 'GET') return send(405, { error: 'method not allowed' });
       return send(404, { error: 'not found', routes: ['/healthz', '/diagnostics', '/state', '/desktop/snapshot', '/desktop/proposals', '/desktop/approvals'] });
     } catch (err) {

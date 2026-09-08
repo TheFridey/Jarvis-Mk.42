@@ -1,31 +1,38 @@
-# apps/vision — realtime vision perception
+# JARVIS local vision runtime
 
-Runs on the **workstation**. Hard-realtime loop; GPU/native dependencies;
-isolated from the Kernel.
+`apps/vision` is the replaceable, non-authoritative perception process. The
+development runtime opens a loopback-only page, requests the local webcam,
+runs MediaPipe Hand Landmarker locally, and sends only typed derived signals
+to the authenticated Kernel endpoint. Camera pixels are not sent to the Kernel
+or persisted.
 
-## Does
+## Run on Windows
 
-Local CV: face/person **presence**, hands (MediaPipe), pose, gaze estimate
-(future), object/scene tags. Emits `jarvis.perception.vision.*`,
-`hands.gesture`, `pose.state`, `gaze.target` (future) as **signal-class**
-`Observation` events.
+```powershell
+pnpm stack:up
+pnpm db:migrate
+pnpm core:dev
+pnpm --filter @jarvis/desktop tauri
+pnpm vision:dev
+```
 
-## Must not (L7, L27)
+Grant camera permission to `http://127.0.0.1:7440` and keep that local page
+open. It reports genuine camera/model state. Pointing produces hover frames,
+pinch focuses, held pinch moves, open palm requests a permitted dismissal,
+swipe collapses, and camera/tracking loss releases interaction.
 
-- **Never transmit raw frames off-host.** It emits derived observations only.
-  Sending a specific frame to a cloud vision model is an explicit HIGH-risk
-  capability invocation, per-instance, policy-gated, audited.
-- Import cognition packages or the gateway client.
-- Conclude or interpret beyond thresholded signals.
-- Write the World Model or Memory.
+The first model/WASM load downloads public MediaPipe runtime assets. Inference
+and frames remain local. Pin these assets under `public/` before claiming fully
+offline startup.
 
-## Depends on
+`pnpm --filter @jarvis/vision screen:probe` exercises the Windows monitor,
+foreground-window, and cursor collector. Pixel capture is not performed by
+perception: `capabilities.windows.capture_region` is a HIGH-risk,
+approval-required Executor action with local-file verification.
 
-`@jarvis/contracts`, a NATS client, local CV runtimes (MediaPipe / ONNX
-Runtime). **Not** NestJS.
+Selected-frame semantic vision is fail-closed. It requires a local object
+reference and an approval for cloud transmission, and forbids RESTRICTED
+frames. Continuous camera or screen upload has no contract.
 
-## Failure behaviour
-
-Camera loss ⇒ `perception.vision.lost`, continue. GPU unavailable ⇒ fall back
-to lighter model / CPU, else `perception.vision.unavailable`; other streams
-continue. Never crashes the shell or the Kernel.
+CI uses synthetic landmarks and does not claim webcam, GPU, monitor, or
+physical end-to-end validation.

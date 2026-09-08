@@ -67,6 +67,7 @@ import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
 import { AgentRuntime, CognitionOrchestrator, HttpModelGatewayClient, type ModelGatewayPort } from '../cognition/index.ts';
 import { ObjectiveEngine } from '../objective/index.ts';
 import { VoiceGateway } from '../voice/index.ts';
+import { VisionGateway } from '../vision/index.ts';
 
 import { RedisEphemeralStore, NullEphemeralStore, type EphemeralStore } from './ephemeral.ts';
 import { ROUTINE_DEFS } from './routines.ts';
@@ -117,6 +118,7 @@ export interface KernelHandle {
   readonly cognition: CognitionOrchestrator;
   readonly objectives: ObjectiveEngine;
   readonly voice: VoiceGateway;
+  readonly vision: VisionGateway;
   readonly sentinel: SentinelDetectorService;
   readonly diagnostics: DiagnosticsService;
   readonly ephemeral: EphemeralStore;
@@ -271,6 +273,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed });
   const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
   const voice = new VoiceGateway({ sessions, mode, cognition, events, token: config.voiceToken, principalId: config.bootstrapPrincipalId });
+  const vision = new VisionGateway({ events, presence, token: config.visionToken, principalId: config.bootstrapPrincipalId });
   const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
@@ -314,10 +317,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     busHealthy: () => bus.isHealthy(),
     modelGatewayHealth: async () => { const models = await modelGateway.health?.() ?? []; return { status: models.some((m) => m.status === 'healthy') ? 'HEALTHY' : models.some((m) => m.status === 'degraded') ? 'DEGRADED' : 'OFFLINE', models: models.length }; },
     countActiveObjectives: async () => { const [row] = await pg.sql<{ count: string }[]>`select count(*)::text as count from projections.objectives where status in ('active','blocked','paused')`; return Number(row?.count ?? 0); },
+    visionDiagnostics: () => vision.diagnostics(),
   });
 
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, token: config.desktopToken, nodeId: config.nodeId });
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice });
+  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision });
 
   const scheduler = new Scheduler({
     events,
@@ -401,6 +405,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     cognition,
     objectives,
     voice,
+    vision,
     sentinel,
     diagnostics,
     ephemeral,

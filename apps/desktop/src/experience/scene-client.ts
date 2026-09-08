@@ -1,5 +1,5 @@
 'use client';
-import type { CognitionResponse } from '@jarvis/contracts'; import type { DesktopApprovalCommand, DesktopCognitionCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
+import type { CognitionResponse } from '@jarvis/contracts'; import type { AirTouchFrame, DesktopApprovalCommand, DesktopCognitionCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
 import { applySceneIntent, createSnapshot } from '@jarvis/scene';
 
 export type KernelConnection = { status: 'connecting' | 'live' | 'reconnecting' | 'offline' | 'demo'; lastConnectedAt?: string; error?: string };
@@ -8,6 +8,7 @@ export interface SceneTransport {
   subscribe(listener: (scene: SemanticScene) => void): () => void;
   subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void): () => void;
   subscribeConnection(listener: (state: KernelConnection) => void): () => void;
+  subscribeAirTouch(listener: (frame: AirTouchFrame) => void): () => void;
   submit(intent: SceneIntent, expectedVersion: number): Promise<void>;
   submitProposal(command: DesktopProposalCommand): Promise<DesktopProposalResponse>;
   submitCognition(command: DesktopCognitionCommand): Promise<CognitionResponse>;
@@ -24,6 +25,7 @@ export class LocalSceneTransport implements SceneTransport {
   subscribe(listener: (scene: SemanticScene) => void) { if (!this.restored) { this.restored = true; this.restoreCached(); } this.listeners.add(listener); listener(this.scene); return () => this.listeners.delete(listener); }
   subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void) { listener(undefined); return () => undefined; }
   subscribeConnection(listener: (state: KernelConnection) => void) { listener({ status: 'demo' }); return () => undefined; }
+  subscribeAirTouch() { return () => undefined; }
   restoreCached() { const saved = this.cache?.read(this.scene.id); if (!saved) return; this.scene = applySceneIntent(this.scene, { type: 'restore', snapshot: saved, availableResourceRefs: this.scene.objects.flatMap((object) => object.resourceRefs), monitors: this.scene.monitors, input: 'keyboard' }); this.emit(); }
   async submit(intent: SceneIntent, expectedVersion: number) { if (expectedVersion !== this.scene.version) throw new Error('SCENE_VERSION_CONFLICT'); this.scene = applySceneIntent(this.scene, intent); this.cache?.write(this.scene.id, createSnapshot(this.scene, 'latest')); this.emit(); }
   async submitProposal(): Promise<DesktopProposalResponse> { throw new Error('DEMO_MODE_NO_KERNEL'); }
@@ -37,10 +39,11 @@ export class LocalSceneTransport implements SceneTransport {
 export class KernelSceneTransport implements SceneTransport {
   readonly kind = 'live' as const; private scene?: SemanticScene; private snapshot?: DesktopKernelSnapshot; private status: KernelConnection = { status: 'connecting' }; private stopped = false; private polling = false; private timer?: ReturnType<typeof setTimeout>; private failures = 0;
   private readonly sceneListeners = new Set<(scene: SemanticScene) => void>(); private readonly kernelListeners = new Set<(snapshot: DesktopKernelSnapshot | undefined) => void>(); private readonly connectionListeners = new Set<(state: KernelConnection) => void>();
-  constructor(private readonly options: { endpoint: string; token: string; cache?: LayoutCache; fetch?: typeof globalThis.fetch; pollMs?: number; retryMaxMs?: number }) {}
+  constructor(private readonly options: { endpoint: string; token: string; visionToken?: string; cache?: LayoutCache; fetch?: typeof globalThis.fetch; pollMs?: number; retryMaxMs?: number }) {}
   subscribe(listener: (scene: SemanticScene) => void) { this.sceneListeners.add(listener); if (this.scene) listener(this.scene); this.start(); return () => this.sceneListeners.delete(listener); }
   subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void) { this.kernelListeners.add(listener); listener(this.snapshot); this.start(); return () => this.kernelListeners.delete(listener); }
   subscribeConnection(listener: (state: KernelConnection) => void) { this.connectionListeners.add(listener); listener(this.status); this.start(); return () => this.connectionListeners.delete(listener); }
+  subscribeAirTouch(listener: (frame: AirTouchFrame) => void) { const abort = new AbortController(); void this.consumeVision(listener, abort.signal); return () => abort.abort(); }
   async submit(intent: SceneIntent, expectedVersion: number) { if (!this.scene || expectedVersion !== this.scene.version) throw new Error('SCENE_VERSION_CONFLICT'); const authoritativeVersion = this.scene.version; this.scene = { ...applySceneIntent(this.scene, intent), version: authoritativeVersion }; this.options.cache?.write(this.scene.id, createSnapshot(this.scene, 'presentation')); this.sceneListeners.forEach((listener) => listener(this.scene!)); }
   async submitProposal(command: DesktopProposalCommand) { return this.command<DesktopProposalResponse>('/desktop/proposals', command); }
   async submitCognition(command: DesktopCognitionCommand) { return this.command<CognitionResponse>('/desktop/cognition', command); }
@@ -67,9 +70,10 @@ export class KernelSceneTransport implements SceneTransport {
     return response.json() as Promise<T>;
   }
   private request(path: string, init: RequestInit = {}) { return (this.options.fetch ?? globalThis.fetch)(`${this.options.endpoint.replace(/\/$/, '')}${path}`, { ...init, headers: { authorization: `Bearer ${this.options.token}`, 'content-type': 'application/json', ...init.headers } }); }
+  private async consumeVision(listener: (frame: AirTouchFrame) => void, signal: AbortSignal) { while (!signal.aborted) { try { const response = await this.request('/vision/stream', { signal, headers: { authorization: `Bearer ${this.options.visionToken ?? this.options.token}` } }); if (!response.ok || !response.body) throw new Error(`vision stream HTTP ${response.status}`); const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); let buffered = ''; while (!signal.aborted) { const part = await reader.read(); if (part.done) break; buffered += part.value; const lines = buffered.split('\n'); buffered = lines.pop() ?? ''; for (const line of lines) if (line.trim()) listener(JSON.parse(line) as AirTouchFrame); } } catch { if (!signal.aborted) await new Promise((resolve) => setTimeout(resolve, 1000)); } } }
   private schedule(ms: number) { if (!this.stopped) this.timer = setTimeout(() => { this.timer = undefined; void this.poll(); }, ms); }
   private setStatus(status: KernelConnection) { this.status = status; this.connectionListeners.forEach((listener) => listener(status)); }
   private restorePresentation(scene: SemanticScene) { const saved = this.options.cache?.read(scene.id); if (!saved) return scene; const savedById = new Map(saved.objects.map((object) => [object.id, object])); return { ...scene, objects: scene.objects.map((object) => { const prior = savedById.get(object.id); return prior ? { ...object, monitorId: prior.monitorId, position: prior.position, size: prior.size, state: prior.state, pinned: prior.pinned, zIndex: prior.zIndex } : object; }) }; }
 }
 
-export function createDesktopTransport(): SceneTransport { return new KernelSceneTransport({ endpoint: process.env.NEXT_PUBLIC_JARVIS_CORE_URL ?? 'http://127.0.0.1:7420', token: process.env.NEXT_PUBLIC_JARVIS_DESKTOP_TOKEN ?? 'dev-desktop-token', cache: new BrowserLayoutCache() }); }
+export function createDesktopTransport(): SceneTransport { return new KernelSceneTransport({ endpoint: process.env.NEXT_PUBLIC_JARVIS_CORE_URL ?? 'http://127.0.0.1:7420', token: process.env.NEXT_PUBLIC_JARVIS_DESKTOP_TOKEN ?? 'dev-desktop-token', visionToken: process.env.NEXT_PUBLIC_JARVIS_VISION_TOKEN ?? 'dev-vision-token', cache: new BrowserLayoutCache() }); }

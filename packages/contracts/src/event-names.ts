@@ -54,6 +54,11 @@ export const EventNames = {
   VoiceSilence: 'jarvis.perception.audio.silence',
   VoiceDeviceChanged: 'jarvis.perception.audio.device_changed',
   VoiceDeviceLost: 'jarvis.perception.audio.lost',
+  VisionAirTouch: 'jarvis.perception.hands.air_touch',
+  VisionPresence: 'jarvis.perception.vision.person_present',
+  VisionScreenContext: 'jarvis.perception.screen.context',
+  VisionCameraLost: 'jarvis.perception.vision.camera_lost',
+  VisionCameraRestored: 'jarvis.perception.vision.camera_restored',
   ObjectiveCreated: 'jarvis.cognition.objective.created',
   ObjectiveTransitioned: 'jarvis.cognition.objective.transitioned',
 
