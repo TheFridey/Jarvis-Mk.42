@@ -23,14 +23,20 @@ class ProbeUnreachable extends Error {}
 export async function isDockerAvailable(): Promise<boolean> {
   if (process.env.JARVIS_TEST_DB_URL) return true;
   if (process.env.JARVIS_NO_DOCKER === '1') return false;
-  try {
-    // `docker ps` needs a live daemon but avoids the version-negotiation route
-    // that some Docker Desktop builds return 500 for.
-    await execFile('docker', ['ps', '--quiet'], { timeout: 15_000 });
-    return true;
-  } catch {
-    return false;
+  // `docker ps` needs a live daemon but avoids the version-negotiation route
+  // that some Docker Desktop builds return 500 for. Retry before concluding
+  // "unavailable": under the load of many sequential ephemeral containers,
+  // a single transient CLI stall must not be misread as no Docker, which
+  // would silently skip real integration coverage while still reporting green.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await execFile('docker', ['ps', '--quiet'], { timeout: 15_000 });
+      return true;
+    } catch {
+      if (attempt < 3) await delay(1_000);
+    }
   }
+  return false;
 }
 
 export interface EphemeralPg {

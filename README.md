@@ -13,18 +13,26 @@ as cognitive resources.
 
 ## Current status
 
-MK.42 currently ships:
+As verified by an independent hostile audit (`docs/architecture/AUDIT_MK42_ASCENSION_II.md`, 2026-09-08), MK.42 currently ships:
 
 1. The **architectural constitution** — `docs/architecture/`
 2. **Architecture Decision Records** — `docs/architecture/adr/`
 3. **Diagrams** — `docs/architecture/diagrams/`
-4. A running modular Kernel with durable events, state, identity, sessions, health, context and Agency Plane composition
-5. Typed, runtime-validated contracts plus unit, integration, contract, security, fitness, chaos and restore gates
-6. A Tauri/Next.js desktop experience prototype and isolated capability-worker host
+4. A running modular Kernel (`apps/core`) with durable events (NATS JetStream + transactional outbox), single-writer state, identity, sessions, health, and a real Agency Plane: policy, permission, approval, credential broker, durable invocation lifecycle, verified execution, and rollback all backed by Postgres and enforced end-to-end — no bypass of the single Executor pipeline was found under adversarial review.
+5. A working cognition path: provider-neutral Model Gateway (Anthropic/OpenAI/OpenAI-compatible behind one interface, secrets kept in the gateway process), an Objective Engine that can reason/plan/propose but never execute directly, and malformed/off-scope model output that is schema-rejected before it can become an action.
+6. Working voice (local Windows speech recognition, Kernel-owned session state, real barge-in, device-loss recovery) and vision (frames stay local by default, cloud vision requires an explicit approved selected-frame path, Air Touch gestures are signal-only and route through the same approval pipeline as everything else, ambiguous gestures never silently become actions).
+7. Typed, runtime-validated contracts plus unit, integration (real ephemeral-Postgres), contract, security, fitness, and chaos gates, and a backup/restore drill against real Postgres — the latter proves transactional round-tripping, not disaster recovery (no `pg_dump`/`pg_restore`, no separate storage target).
+8. A Tauri/Next.js desktop experience prototype and isolated capability-worker host.
 
-This is a hardened foundation, not a finished assistant. Model Gateway provider
-execution, production Node Protocol trust, complete perception/voice services,
-and autonomous operation remain incomplete and must not be inferred from the UI.
+**Known gaps, stated plainly:**
+
+- **Observability (ADR-0036)** is API surface only — no `TracerProvider` is ever registered, so no real spans or trace correlation exist in production despite the package existing.
+- **Node Protocol v1 (ADR-0037)** is a design document only — `packages/protocol` has no implementation; every event still carries a single static `nodeId`. Its ADR title previously claimed otherwise; that has been corrected.
+- **ATLAS (world model) and MNEMOSYNE (memory/retrieval)** are named throughout the docs and ADR-0022/0023 but have no implementation — `packages/world-model` and `packages/memory` are README stubs. Context is currently compiled from flat state slices and recent events only.
+- Session/bearer tokens are not invalidated on logout at the gateway layer — a residual finding from this audit, tracked for follow-up.
+
+This is a hardened agency-plane foundation with working cognition, voice, and
+vision — not a finished assistant, and not yet distributed (single-node only).
 
 ## Read in this order
 

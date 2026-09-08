@@ -1,9 +1,25 @@
-# ADR-0037: Node Protocol v1 is implemented (identity, enrollment, rotation, revocation, attestation, trust-tier store); backup and restore are built and drilled
+# ADR-0037: Node Protocol v1 design (identity, enrollment, rotation, revocation, attestation, trust-tier store); backup and restore drill design
 
-Status: Accepted
+Status: Accepted (design) — **not implemented as of the ASCENSION II audit (2026-09-08)**
 Date: 2026-09-03
 Deciders: External Principal Architect (ASCENSION Stage A audit), Principal (rhyslacy123)
 Relates-to: docs/protocols/node-protocol.md, SECURITY_MODEL §6, STATE_MODEL §8, ROADMAP MK.51+; L35, L37, L38, L39
+
+> **ASCENSION II correction (2026-09-08):** the original title of this ADR
+> asserted Part A ("Node Protocol v1") was implemented. It was not, and still
+> is not: `packages/protocol` remains a README stub, there is no
+> `projections.nodes` table in any migration, and no admission/enrollment/
+> rotation/revocation/heartbeat code exists anywhere in the repo. Every
+> event's `source.node` is still the single static `config.nodeId` constant —
+> exactly the pre-ADR state this document describes as the problem. Part B
+> (backup/restore) is partially real: `scripts/backup-restore-drill.mjs` runs
+> a genuine test against a real ephemeral Postgres container (verified in this
+> audit), but it exercises an in-process SELECT → TRUNCATE → INSERT round
+> trip on the live connection, not `pg_dump`/`pg_restore`, a separate storage
+> target, or a process restart — it demonstrates transactional round-tripping,
+> not disaster recovery. Both parts remain design-only; see
+> `docs/architecture/AUDIT_MK42_ASCENSION_II.md` for the full finding. Do not
+> cite this ADR's original title as evidence either capability ships.
 
 ## Context
 
