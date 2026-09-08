@@ -12,7 +12,8 @@ const PRIVACY_RANK: Record<PrivacyClass, number> = {
   RESTRICTED: 3,
 };
 
-/** Base priority per kind: the task-defining items rank highest. */
+/** Base priority per kind: the task-defining items rank highest. ATLAS facts
+ *  outrank episodes; both outrank supporting material (COGNITION_MODEL.md §4.2). */
 const KIND_WEIGHT: Record<ContextItemKind, number> = {
   active_objective: 1.0,
   active_workspace: 0.9,
@@ -20,21 +21,34 @@ const KIND_WEIGHT: Record<ContextItemKind, number> = {
   cursor_target: 0.82,
   gesture_target: 0.82,
   active_application: 0.8,
+  world_fact: 0.78,
   conversation_turn: 0.75,
+  world_relationship: 0.72,
   working_memory: 0.7,
+  world_conflict: 0.68,
+  episodic_memory: 0.66,
+  semantic_memory: 0.64,
+  procedural_memory: 0.62,
   presence: 0.6,
+  world_entity: 0.58,
   location: 0.55,
-  recent_event: 0.5,
-  available_capability: 0.45,
+  causal_hypothesis: 0.52,
   policy: 0.5,
+  recent_event: 0.5,
+  world_observation: 0.48,
+  memory_preference: 0.46,
+  available_capability: 0.45,
   evidence: 0.4,
   long_term_memory: 0.4,
-  world_entity: 0.4,
 };
 
 export interface RankInput extends Omit<ContextItem, 'relevance'> {
   /** ms since the item's underlying fact/observation, for recency decay. */
   ageMs?: number;
+  /** Pre-computed relevance from a subsystem's own ranker (e.g. MemoryRecall's
+   *  7-factor composite, AtlasQuery confidence ordering). When present it is
+   *  blended in rather than discarded. */
+  sourceRelevance?: number;
 }
 
 /** Compute a deterministic relevance score in [0,1]. */
@@ -42,8 +56,12 @@ export function scoreItem(item: RankInput, req: ContextRequest): number {
   const base = KIND_WEIGHT[item.kind] ?? 0.3;
   const focusBoost = focusOverlap(item, req.focusRefs ?? []) ? 0.15 : 0;
   const recency = item.ageMs === undefined ? 0 : Math.max(0, 0.1 * Math.pow(0.5, item.ageMs / 120_000));
-  const confidence = 0.1 * (item.provenance.derivedFromUntrusted ? 0.3 : 1);
-  return clamp01(base + focusBoost + recency + confidence);
+  const trust = 0.1 * (item.provenance.derivedFromUntrusted ? 0.3 : 1);
+  // Subsystem confidence/relevance nudges within a bounded band so it refines
+  // ordering without letting one signal dominate the kind priority.
+  const conf = item.confidence === undefined ? 0 : 0.08 * clamp01(item.confidence);
+  const src = item.sourceRelevance === undefined ? 0 : 0.12 * clamp01(item.sourceRelevance);
+  return clamp01(base + focusBoost + recency + trust + conf + src);
 }
 
 function focusOverlap(item: RankInput, focusRefs: string[]): boolean {

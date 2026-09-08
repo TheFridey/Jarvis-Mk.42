@@ -14,11 +14,18 @@ Kernel Knowledge Ingestion mediator.
 
 ## 1 What it holds
 
-ATLAS is the temporal world model subsystem — package `packages/world-model`,
-schema `atlas`. It holds JARVIS's current beliefs about the world and the
-evidence for each: entities, their relationships, and their attributes, across
-every domain, each carrying provenance, confidence, epistemic status, and
-temporal validity.
+> **Implemented (MK.46, ADR-0039).** Runtime lives in the Kernel modular
+> monolith, not in `packages/world-model` (which is a README pointer): schema
+> `atlas`, code under `apps/core/src/kernel/atlas/` (`AtlasStore`,
+> `AtlasQueryService`, `EntityResolver`, `reviseBelief`, `ObservationPromoter`).
+> The sole writer is `apps/core/src/kernel/knowledge/knowledge-ingestion.ts`.
+> Embeddings are the deterministic `deterministic-hash-v1` client behind
+> `EmbeddingClient` (ADR-0011/0023 similarity stays one bounded factor).
+
+ATLAS is the temporal world model subsystem — schema `atlas`. It holds JARVIS's
+current beliefs about the world and the evidence for each: entities, their
+relationships, and their attributes, across every domain, each carrying
+provenance, confidence, epistemic status, and temporal validity.
 
 Domains modelled:
 

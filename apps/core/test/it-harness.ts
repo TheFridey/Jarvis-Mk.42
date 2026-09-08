@@ -87,6 +87,11 @@ export async function truncateAll(pg: PgHandle): Promise<void> {
                        agency.approvals, agency.resource_leases, agency.grants,
                        agency.capability_versions, agency.capabilities restart identity cascade`;
   await pg.sql`truncate cognition.runs, projections.objective_history, projections.objectives restart identity cascade`;
+  await pg.sql`truncate atlas.entities, atlas.entity_aliases, atlas.entity_relationships, atlas.facts,
+                       atlas.facts_archive, atlas.evidence, atlas.conflicts, atlas.observations,
+                       atlas.causal_hypotheses restart identity cascade`;
+  await pg.sql`truncate mnemosyne.episodes, mnemosyne.semantic, mnemosyne.procedures, mnemosyne.preferences,
+                       mnemosyne.candidates, mnemosyne.consolidation_runs, mnemosyne.insights restart identity cascade`;
   await pg.sql`delete from projections.state_slices`;
   await pg.sql`update projections.state_meta set state_version = 0, checkpoint_event_id = null where id = 1`;
 }

@@ -77,15 +77,24 @@ export const EventNames = {
   EventDeadLettered: 'jarvis.kernel.event.dead_lettered',
 
   // --- World (ATLAS beliefs) — MK.46 ---
+  WorldEntityUpserted: 'jarvis.world.entity.upserted',
+  WorldRelationshipAsserted: 'jarvis.world.relationship.asserted',
   WorldFactAsserted: 'jarvis.world.fact.asserted',
   WorldFactSuperseded: 'jarvis.world.fact.superseded',
+  WorldFactExpired: 'jarvis.world.fact.expired',
   WorldConflictRecorded: 'jarvis.world.conflict.recorded',
+  WorldConflictResolved: 'jarvis.world.conflict.resolved',
   WorldEntityMerged: 'jarvis.world.entity.merged',
+  WorldObservationRecorded: 'jarvis.world.observation.recorded',
+  WorldObservationPromoted: 'jarvis.world.observation.promoted',
   WorldForgotten: 'jarvis.world.record.forgotten',
   WorldCausalHypothesised: 'jarvis.world.causal.hypothesised',
 
   // --- Memory (MNEMOSYNE experience) — MK.46 ---
   MemoryEpisodeRecorded: 'jarvis.memory.episode.recorded',
+  MemorySemanticLearned: 'jarvis.memory.semantic.learned',
+  MemoryProcedureUpdated: 'jarvis.memory.procedure.updated',
+  MemoryPreferenceRecorded: 'jarvis.memory.preference.recorded',
   MemoryCandidateScored: 'jarvis.memory.candidate.scored',
   MemoryCandidateDisposed: 'jarvis.memory.candidate.disposed',
   MemoryConsolidationCompleted: 'jarvis.memory.consolidation.completed',

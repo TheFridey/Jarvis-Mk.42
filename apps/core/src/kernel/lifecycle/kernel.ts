@@ -66,6 +66,10 @@ import { DesktopGateway } from '../desktop/index.ts';
 import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
 import { AgentRuntime, CognitionOrchestrator, HttpModelGatewayClient, type ModelGatewayPort } from '../cognition/index.ts';
 import { ObjectiveEngine } from '../objective/index.ts';
+import { DeterministicEmbeddingClient } from '../embedding/index.ts';
+import { AtlasStore, AtlasQueryService, EntityResolver, ObservationPromoter } from '../atlas/index.ts';
+import { MnemosyneStore, MemoryRecallService, Consolidator } from '../mnemosyne/index.ts';
+import { KnowledgeIngestion, KnowledgeAgentFacade, CandidateSource } from '../knowledge/index.ts';
 import { VoiceGateway } from '../voice/index.ts';
 import { VisionGateway } from '../vision/index.ts';
 
@@ -117,6 +121,18 @@ export interface KernelHandle {
   readonly agency: AgencyIngress;
   readonly cognition: CognitionOrchestrator;
   readonly objectives: ObjectiveEngine;
+  /** ATLAS temporal world model — read API (MK.46). */
+  readonly atlas: AtlasQueryService;
+  /** MNEMOSYNE memory — recall API (MK.46). */
+  readonly memory: MemoryRecallService;
+  /** Knowledge Ingestion mediator — the ONLY writer to atlas.* / mnemosyne.* (MK.46). */
+  readonly knowledge: KnowledgeIngestion;
+  /** Bounded knowledge interface for ORACLE / SCOUT / FORGE (MK.46). */
+  readonly knowledgeFacade: KnowledgeAgentFacade;
+  /** Trigger a knowledge-harvest pass now (candidates + observation promotion). */
+  harvestKnowledge(): Promise<{ candidates: number; promotedFacts: number; observationsExpired: number }>;
+  /** Trigger a DREAMING consolidation pass now (ADR-0022). */
+  consolidateMemory(): Promise<{ runId: string; proposalsEmitted: number; insightsSurfaced: number }>;
   readonly voice: VoiceGateway;
   readonly vision: VisionGateway;
   readonly sentinel: SentinelDetectorService;
@@ -225,6 +241,38 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   });
 
   const registeredCapabilities: string[] = [];
+
+  // --- MK.46 knowledge plane: ATLAS (world model) + MNEMOSYNE (memory) --------
+  // Single writer = Knowledge Ingestion mediator (ADR-0020). The Context Compiler
+  // is the only fuser of the two.
+  const embeddings = new DeterministicEmbeddingClient();
+  const atlasStore = new AtlasStore(pg.sql);
+  const mnemosyneStore = new MnemosyneStore(pg.sql);
+  const entityResolver = new EntityResolver({ store: atlasStore, embeddings, clock, ids });
+  const atlasQuery = new AtlasQueryService({ store: atlasStore, clock, principalId: () => currentPrincipalId });
+  const memoryRecall = new MemoryRecallService({
+    sql: pg.sql, store: mnemosyneStore, embeddings, clock, weights: config.knowledge.recallWeights,
+  });
+  const knowledgeIngestion = new KnowledgeIngestion({
+    atlas: atlasStore, mnemosyne: mnemosyneStore, resolver: entityResolver, embeddings, events, clock, ids,
+    principalId: () => currentPrincipalId,
+  });
+  const activeObjectiveIds = async (): Promise<string[]> => {
+    const rows = await pg.sql<{ objective_id: string }[]>`
+      select objective_id from projections.objectives where status in ('active','blocked','paused')`;
+    return rows.map((r) => r.objective_id);
+  };
+  const knowledgeFacade = new KnowledgeAgentFacade({
+    atlasQuery, atlasStore, recall: memoryRecall, ingestion: knowledgeIngestion, resolver: entityResolver, clock,
+  });
+  const observationPromoter = new ObservationPromoter({ store: atlasStore, clock }, config.knowledge.promotion);
+  const candidateSource = new CandidateSource({ eventStore, ingestion: knowledgeIngestion, sql: pg.sql });
+  const consolidator = new Consolidator(
+    { store: mnemosyneStore, sink: knowledgeIngestion, embeddings, clock, ids, activeObjectiveIds },
+    config.knowledge.consolidation,
+  );
+  let knowledgeHarvestCursor = '0';
+
   const context = new ContextCompiler({
     state,
     eventStore,
@@ -232,6 +280,13 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     clock,
     ids,
     availableCapabilities: () => [...registeredCapabilities],
+    knowledge: {
+      atlasQuery,
+      atlasStore,
+      recall: memoryRecall,
+      principalId: () => currentPrincipalId,
+      activeObjectiveIds,
+    },
   });
 
   const ephemeral: EphemeralStore =
@@ -270,7 +325,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const agency = new AgencyIngress(executor);
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso());
-  const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed });
+  const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, localModelAvailable: () => config.modelLocalRouteAvailable });
   const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
   const voice = new VoiceGateway({ sessions, mode, cognition, events, token: config.voiceToken, principalId: config.bootstrapPrincipalId });
   const vision = new VisionGateway({ events, presence, token: config.visionToken, principalId: config.bootstrapPrincipalId });
@@ -318,6 +373,15 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     modelGatewayHealth: async () => { const models = await modelGateway.health?.() ?? []; return { status: models.some((m) => m.status === 'healthy') ? 'HEALTHY' : models.some((m) => m.status === 'degraded') ? 'DEGRADED' : 'OFFLINE', models: models.length }; },
     countActiveObjectives: async () => { const [row] = await pg.sql<{ count: string }[]>`select count(*)::text as count from projections.objectives where status in ('active','blocked','paused')`; return Number(row?.count ?? 0); },
     visionDiagnostics: () => vision.diagnostics(),
+    knowledgeStats: async () => {
+      const [a, m, openConflicts, lastRun] = await Promise.all([
+        atlasStore.counts(), mnemosyneStore.counts(), atlasStore.countOpenConflicts(), mnemosyneStore.lastRun(currentPrincipalId),
+      ]);
+      return {
+        atlas: { ...a, openConflicts },
+        mnemosyne: { ...m, lastConsolidationAt: lastRun?.finishedAt ?? lastRun?.startedAt ?? null },
+      };
+    },
   });
 
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, token: config.desktopToken, nodeId: config.nodeId });
@@ -332,6 +396,46 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   let diagnosticsPort: number | null = null;
   let started = false;
+
+  // --- MK.46 knowledge routine bodies (also exposed on the handle so an
+  //     operator / test can trigger a pass explicitly) ----------------------
+  async function runKnowledgeHarvest(): Promise<{ candidates: number; promotedFacts: number; observationsExpired: number }> {
+    const harvest = await candidateSource.harvest(knowledgeHarvestCursor);
+    knowledgeHarvestCursor = harvest.cursor;
+    let promotedFacts = 0;
+    for (const p of await observationPromoter.evaluate([currentPrincipalId])) {
+      const corr = `promotion-${p.observationIds[0] ?? 'x'}`;
+      const result = await knowledgeIngestion.ingest({
+        kind: 'extracted_fact', correlationId: corr, principalId: p.principalId,
+        provenance: { method: 'sensor', producedBy: 'observation-promoter', producedOn: config.nodeId, producedAt: clock.nowIso(), correlationId: corr, derivedFromUntrusted: false },
+        fact: { subjectRef: p.subjectRef, attribute: p.attribute, value: p.value, epistemicStatus: 'observed', confidence: p.confidence, validFrom: p.observedAt, evidenceRefs: p.observationIds },
+      });
+      if (result.atlasFactId) {
+        await atlasStore.markObservationsPromoted(p.observationIds, result.atlasFactId);
+        promotedFacts++;
+        await events.emit({
+          type: EventNames.WorldObservationPromoted, retentionClass: 'AUDIT', privacyClass: 'INTERNAL',
+          subject: { kind: 'fact', id: result.atlasFactId }, actor: { kind: 'system', id: 'observation-promoter' },
+          correlationId: corr, causationId: 'knowledge.harvest', principalId: p.principalId,
+          payload: { factId: result.atlasFactId, observationIds: p.observationIds, attribute: p.attribute },
+        }).catch(() => undefined);
+      }
+    }
+    const observationsExpired = await atlasStore.expireObservations(clock.nowIso());
+    return { candidates: harvest.created, promotedFacts, observationsExpired };
+  }
+
+  async function runMemoryConsolidate(): Promise<{ runId: string; proposalsEmitted: number; insightsSurfaced: number }> {
+    const result = await consolidator.run(currentPrincipalId);
+    const insightsSurfaced = await knowledgeIngestion.surfaceInsights(currentPrincipalId, [], config.knowledge.consolidation.insightSignificanceFloor);
+    await events.emit({
+      type: EventNames.MemoryConsolidationCompleted, retentionClass: 'OPERATIONAL', privacyClass: 'INTERNAL',
+      subject: { kind: 'consolidation-run', id: result.runId }, actor: { kind: 'system', id: 'mnemosyne.consolidate' },
+      correlationId: result.runId, causationId: 'memory.consolidate', principalId: currentPrincipalId,
+      payload: { runId: result.runId, proposalsEmitted: result.proposalsEmitted, ...result.outcomes },
+    }).catch(() => undefined);
+    return { runId: result.runId, proposalsEmitted: result.proposalsEmitted, insightsSurfaced };
+  }
 
   function registerRoutines(): void {
     scheduler.register(ROUTINE_DEFS.healthSelfCheck!, async () => {
@@ -364,6 +468,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     scheduler.register(ROUTINE_DEFS.objectiveReeval!, async () => {
       /* No background autonomy: the durable engine is advanced only by explicit commands. */
     });
+    scheduler.register(ROUTINE_DEFS.knowledgeHarvest!, async () => { await runKnowledgeHarvest(); });
+    scheduler.register(ROUTINE_DEFS.memoryConsolidate!, async () => { await runMemoryConsolidate(); });
   }
 
   async function reconcileModeWithHealth(overall: string): Promise<void> {
@@ -404,6 +510,12 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     agency,
     cognition,
     objectives,
+    atlas: atlasQuery,
+    memory: memoryRecall,
+    knowledge: knowledgeIngestion,
+    knowledgeFacade,
+    harvestKnowledge: runKnowledgeHarvest,
+    consolidateMemory: runMemoryConsolidate,
     voice,
     vision,
     sentinel,

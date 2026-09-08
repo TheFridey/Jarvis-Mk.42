@@ -9,6 +9,7 @@
 
 export * from './common.ts';
 export * from './provenance.ts';
+export * from './embedding.ts';
 export * from './event.ts';
 export * from './event-names.ts';
 export * from './entity.ts';
@@ -52,3 +53,4 @@ export * from './memory-insight.ts';
 export * from './knowledge-ingestion.ts';
 export * from './atlas-query.ts';
 export * from './memory-recall.ts';
+export * from './knowledge-agent.ts';

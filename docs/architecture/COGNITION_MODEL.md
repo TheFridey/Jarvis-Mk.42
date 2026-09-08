@@ -114,6 +114,22 @@ Local models (llama.cpp / vLLM / Ollama endpoint) are just adapters with
 
 The Context Compiler (Kernel component) builds every `ContextFrame`.
 
+> **Implemented (MK.46, ADR-0039).** The runtime compiler
+> (`apps/core/src/kernel/context/context-compiler.ts`) emits a `ContextPackage`
+> (`packages/contracts/src/context.ts`) — the same idea as `ContextFrame`:
+> bounded, ranked, privacy-filtered, deduped, versioned, with explicit
+> `unknowns` and a `freshness` hint. Its sources are: Kernel state slices,
+> recent events, capability names, **ATLAS** (entities, relationships, facts,
+> observations, conflicts, causal hypotheses via `AtlasQuery` + `AtlasStore`),
+> and **MNEMOSYNE** (episodes, semantic, procedures, preferences via
+> `MemoryRecall`). ATLAS and MNEMOSYNE are fused **only here** (ADR-0020); each
+> is queried directly, never via the other. Every item carries `provenance`,
+> `privacyClass`, `sourceType` and (where present) `confidence`. The package
+> exposes `maxPrivacyClass`; the cognition orchestrator reads it to force
+> `locality: 'local'` + `cloudAllowed: false` for `SENSITIVE`/`RESTRICTED`
+> context and to **fail closed** on `RESTRICTED` with no permitted local route —
+> labels are never stripped.
+
 ### 4.1 `ContextFrame` (`packages/contracts/src/context-frame.ts`)
 
 ```

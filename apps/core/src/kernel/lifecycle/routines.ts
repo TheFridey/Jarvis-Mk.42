@@ -57,4 +57,29 @@ export const ROUTINE_DEFS: Record<string, ScheduleDefinition> = {
     pausedWhenDegraded: true,
     enabled: true,
   },
+  knowledgeHarvest: {
+    // MK.46: harvest MNEMOSYNE candidates from eligible events + run the ATLAS
+    // observation->fact promotion evaluator + expire stale observations.
+    id: 'knowledge.harvest',
+    kind: 'interval',
+    spec: 120_000,
+    singleton: true,
+    maxRetries: 1,
+    retryBackoffMs: 2000,
+    pausedWhenDegraded: true,
+    enabled: true,
+  },
+  memoryConsolidate: {
+    // MK.46: DREAMING (ADR-0022). Off-peak knowledge consolidation — merge
+    // duplicates, extract semantic memory, decay stale assumptions, surface
+    // evidence-backed insights. Deterministic rules only; proposals-only.
+    id: 'memory.consolidate',
+    kind: 'interval',
+    spec: 6 * 3_600_000,
+    singleton: true,
+    maxRetries: 1,
+    retryBackoffMs: 10_000,
+    pausedWhenDegraded: true,
+    enabled: true,
+  },
 };

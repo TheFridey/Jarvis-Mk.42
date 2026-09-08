@@ -27,6 +27,31 @@ export interface KernelConfig {
   modelGatewayUrl: string;
   modelGatewayToken: string;
   modelCloudAllowed: boolean;
+  /** True when a policy-permitted local model route exists. When false, a
+   *  cognition request whose context contains RESTRICTED knowledge fails closed
+   *  rather than routing (never downgraded to cloud). MK.46. */
+  modelLocalRouteAvailable: boolean;
+
+  /** MK.46 knowledge subsystems (ATLAS + MNEMOSYNE). */
+  knowledge: {
+    /** MNEMOSYNE recall weights (ADR-0023). `sim` is additionally hard-capped in
+     *  `applyWeightBounds` so similarity alone cannot dominate. */
+    recallWeights: {
+      sim: number; entity: number; recency: number; importance: number;
+      objective: number; confidence: number; sourceAuthority: number;
+    };
+    /** DREAMING (ADR-0022). */
+    consolidation: {
+      maxProposalsPerRun: number;
+      episodeMergeSimilarity: number;
+      semanticRepetitionThreshold: number;
+      staleDays: number;
+      insightSignificanceFloor: number;
+      lookbackDays: number;
+    };
+    /** Observation -> fact promotion (ATLAS_MODEL.md §6). */
+    promotion: { minCorroboration: number; minMeanConfidence: number };
+  };
 
   /** Bootstrap operator credential (dev). Never logged. */
   bootstrapPrincipalId: string;
@@ -77,6 +102,26 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     modelGatewayUrl: env('JARVIS_MODEL_GATEWAY_URL', 'http://127.0.0.1:7430'),
     modelGatewayToken: env('JARVIS_GATEWAY_TOKEN', 'dev-gateway-token'),
     modelCloudAllowed: envBool('JARVIS_MODEL_CLOUD_ALLOWED', false),
+    modelLocalRouteAvailable: envBool('JARVIS_MODEL_LOCAL_ROUTE', true),
+
+    knowledge: {
+      recallWeights: {
+        sim: 0.20, entity: 0.20, recency: 0.15, importance: 0.15,
+        objective: 0.10, confidence: 0.10, sourceAuthority: 0.10,
+      },
+      consolidation: {
+        maxProposalsPerRun: envInt('JARVIS_CONSOLIDATION_MAX_PROPOSALS', 50),
+        episodeMergeSimilarity: 0.92,
+        semanticRepetitionThreshold: 3,
+        staleDays: 30,
+        insightSignificanceFloor: 0.6,
+        lookbackDays: 14,
+      },
+      promotion: {
+        minCorroboration: envInt('JARVIS_PROMOTION_MIN_CORROBORATION', 2),
+        minMeanConfidence: 0.6,
+      },
+    },
 
     bootstrapPrincipalId: env('JARVIS_BOOTSTRAP_PRINCIPAL', 'principal-operator'),
     bootstrapCredential: env('JARVIS_BOOTSTRAP_CREDENTIAL', 'dev-bootstrap-secret'),

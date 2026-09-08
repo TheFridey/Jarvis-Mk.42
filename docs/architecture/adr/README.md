@@ -72,6 +72,7 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0036](0036-observability-contract.md) | Observability contract — real OTel SDK, mandatory spans/metrics, ledger↔trace correlation | Accepted | Low |
 | [0037](0037-node-protocol-and-backup.md) | Node Protocol v1 (identity, enrollment, rotation, revocation); backup & restore drilled | Accepted | Moderate |
 | [0038](0038-fitness-and-contract-tests.md) | Architecture-fitness & contract-compatibility gates (real, not grep) | Accepted | Low |
+| [0039](0039-atlas-mnemosyne-implemented.md) | ATLAS + MNEMOSYNE implemented — Kernel-internal runtime locations, boundaries preserved, deterministic embeddings, privacy-aware routing | Accepted | Moderate |
 
 ## ASCENSION (Stage A) audit
 

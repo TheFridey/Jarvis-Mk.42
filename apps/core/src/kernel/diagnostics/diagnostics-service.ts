@@ -39,6 +39,11 @@ export interface DiagnosticsDeps {
   modelGatewayHealth?: () => Promise<{ status: HealthStatus; models: number }>;
   countActiveObjectives?: () => Promise<number>;
   visionDiagnostics?: () => DiagnosticsReport['vision'];
+  /** MK.46: real ATLAS + MNEMOSYNE counts (open conflicts, last consolidation). */
+  knowledgeStats?: () => Promise<{
+    atlas: { entities: number; facts: number; relationships: number; observations: number; openConflicts: number };
+    mnemosyne: { episodes: number; semantic: number; procedures: number; candidatesPending: number; lastConsolidationAt: string | null };
+  }>;
 }
 
 export class DiagnosticsService {
@@ -81,6 +86,8 @@ export class DiagnosticsService {
       this.deps.countActiveObjectives?.().catch(() => 0) ?? Promise.resolve(0),
     ]);
 
+    const knowledgeStats = await (this.deps.knowledgeStats?.().catch(() => null) ?? Promise.resolve(null));
+
     const nodeIds = (connectedNodesSlice?.value as { nodeIds: string[] } | undefined)?.nodeIds ?? [];
     const alertIds = (alertsSlice?.value as { alertIds: string[] } | undefined)?.alertIds ?? [];
     const healthReport = this.deps.health.report();
@@ -101,7 +108,12 @@ export class DiagnosticsService {
       },
       { name: 'model-gateway', status: modelGateway.status, placeholder: false, detail: { models: modelGateway.models } },
       { name: 'rtc', status: 'OFFLINE' as HealthStatus, placeholder: true },
-      { name: 'memory-subsystem', status: 'OFFLINE' as HealthStatus, placeholder: true },
+      knowledgeStats
+        ? { name: 'world-model', status: 'HEALTHY' as HealthStatus, placeholder: false, detail: { ...knowledgeStats.atlas } }
+        : { name: 'world-model', status: 'OFFLINE' as HealthStatus, placeholder: true },
+      knowledgeStats
+        ? { name: 'memory-subsystem', status: 'HEALTHY' as HealthStatus, placeholder: false, detail: { ...knowledgeStats.mnemosyne } }
+        : { name: 'memory-subsystem', status: 'OFFLINE' as HealthStatus, placeholder: true },
     ];
 
     const ok =

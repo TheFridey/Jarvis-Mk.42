@@ -1,21 +1,26 @@
 # @jarvis/context
 
+> **Status — IMPLEMENTED in the Kernel.** The Context Compiler runs at
+> `apps/core/src/kernel/context/` (`ContextCompiler`, `ranking.ts`). This
+> package is a README-only pointer.
+
 **Purpose.** The **Context Compiler** (`docs/architecture/COGNITION_MODEL.md`
-§4). Fuses observations + Projected State + World Model queries + Memory recall
-+ active objectives into a single budgeted `ContextFrame`. Implements the
-**priority-tier fill within a hard context-unit budget** (review §16.12), the
-multimodal fusion that resolves "this"/"there" (`PERCEPTION_MODEL.md` §4), and
-explicit `unknowns` marking (L17).
+§4, `KERNEL_CONSTITUTION.md` #5). Assembles a bounded, ranked, privacy-filtered,
+deduplicated, versioned `ContextPackage` from:
 
-**Owns.** No persistent state. Sensitivity classification of a frame (which can
-force `locality` to `prefer-local`).
+- authoritative Kernel state slices
+- recent events (bounded)
+- registered capability names
+- **ATLAS** (MK.46): entities, relationships, facts, observations, conflicts,
+  causal hypotheses — via `AtlasQuery` + `AtlasStore` read paths
+- **MNEMOSYNE** (MK.46): episodes, semantic, procedures, preferences — via
+  `MemoryRecall` (seven-factor composite)
 
-**Depends on.** `@jarvis/contracts`, and the read interfaces of
-`@jarvis/state`, `@jarvis/world-model`, `@jarvis/memory`, `@jarvis/objectives`,
-`@jarvis/scene`.
+It is the **only** place ATLAS and MNEMOSYNE are fused (ADR-0020); each is
+queried directly, never through the other. Every item carries `provenance`,
+`privacyClass`, `sourceType`, and (where the source has one) `confidence`. The
+package exposes `maxPrivacyClass` so cognition can route model locality without
+loosening any label.
 
-**Must not.** Call a model. Produce an unbounded frame. Emit "chat messages"
-(the frame is structured). Write any store.
-
-**Extraction seam.** Co-locate with the knowledge service (it queries World
-Model + Memory heavily).
+**Must not.** Call a model. Produce an unbounded package. Emit "chat messages".
+Write any store.

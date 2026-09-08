@@ -6,16 +6,28 @@ import type { ContextCompiler } from '../context/context-compiler.ts';
 import type { EventManager } from '../event-fabric/event-manager.ts';
 import type { AgentRuntime } from './agent-runtime.ts';
 export class CognitionOrchestrator {
-  constructor(private readonly d:{sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean}){}
+  constructor(private readonly d:{sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean;
+    /** True when a policy-permitted local model route exists. RESTRICTED context
+     *  fails closed when this is false — it is never downgraded to cloud. */
+    localModelAvailable?:()=>boolean}){}
   async submit(req:CognitionRequest):Promise<CognitionResponse>{
     const created=this.d.now(), hash=createHash('sha256').update(req.input).digest('hex');
     const inserted=await this.d.sql<{request_id:string}[]>`insert into cognition.runs(request_id,principal_id,correlation_id,agent_id,status,input_hash,created_at) values(${req.requestId},${req.principalId},${req.correlationId},${req.agentId},'running',${hash},${created}) on conflict(request_id) do nothing returning request_id`;
     if(inserted.length===0){const[existing]=await this.d.sql<Array<{status:string;response:CognitionResponse|null;input_hash:string;principal_id:string}>>`select status,response,input_hash,principal_id from cognition.runs where request_id=${req.requestId}`;if(existing?.input_hash!==hash||existing.principal_id!==req.principalId)throw new Error('cognition request id is bound to different input or principal');if(existing.status==='completed'&&existing.response)return existing.response;throw new Error('cognition request already in progress or failed')}
     await this.emit(EventNames.CognitionStarted,req,{agentId:req.agentId});
     try{
-      const context=await this.d.context.compile({correlationId:req.correlationId,intent:req.input,intentClass:req.task,budgetUnits:4000,maxPrivacyClass:'INTERNAL'});
-      await this.emit(EventNames.CognitionAgentInvoked,req,{agentId:req.agentId,contextId:context.id,contextUnits:context.budget.usedUnits});
-      const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:2000,...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality:req.locality??'any',determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:'INTERNAL',realtime:req.realtime,cloudAllowed:req.cloudAllowed??this.d.cloudAllowed,preferredModels:req.preferredModels,operatorPreferences:{preferredProviders:req.preferredProviders}});
+      // Compile with the ceiling wide open so ATLAS/MNEMOSYNE knowledge is not
+      // dropped before routing can consider it; the package's own maxPrivacyClass
+      // then drives model locality (privacy-aware routing, not label loosening).
+      const context=await this.d.context.compile({correlationId:req.correlationId,intent:req.input,intentClass:req.task,budgetUnits:4000,maxPrivacyClass:'RESTRICTED'});
+      const pc=context.maxPrivacyClass, sensitive=pc==='SENSITIVE'||pc==='RESTRICTED';
+      if(pc==='RESTRICTED'&&!(this.d.localModelAvailable?.()??false)){
+        throw new Error('context contains RESTRICTED knowledge and no policy-permitted local model route is available — refusing to route (privacy fail-closed)');
+      }
+      const locality=sensitive?'local':(req.locality??'any');
+      const cloudAllowed=sensitive?false:(req.cloudAllowed??this.d.cloudAllowed);
+      await this.emit(EventNames.CognitionAgentInvoked,req,{agentId:req.agentId,contextId:context.id,contextUnits:context.budget.usedUnits,maxPrivacyClass:pc,locality,cloudAllowed});
+      const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:2000,...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality,determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:pc,realtime:req.realtime,cloudAllowed,preferredModels:req.preferredModels,operatorPreferences:{preferredProviders:req.preferredProviders}});
       const answer=result.proposals.find(p=>p.kind==='answer');
       await this.emit(EventNames.CognitionModelSelected,req,{modelId:response.modelId,latencyMs:response.usage.latencyMs,costEstimate:response.usage.costEstimate});
       for(const proposal of result.proposals)await this.emit(EventNames.CognitionProposalCreated,req,{proposalId:proposal.proposalId,kind:proposal.kind,confidence:proposal.confidence});

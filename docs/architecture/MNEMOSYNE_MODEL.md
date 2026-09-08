@@ -15,11 +15,19 @@ Written only by the Kernel Knowledge Ingestion mediator.
 
 ## 1 What it holds
 
-MNEMOSYNE is the memory subsystem — package `packages/memory`, schema
-`mnemosyne`. It holds curated, compressible, decaying interpretations built from
-events: episodes (narrative), learned semantic knowledge, repeatable procedures,
-and non-sensitive interaction preferences. It is a cognitive resource, not a
-source of truth. Losing MNEMOSYNE loses recall quality, not history.
+> **Implemented (MK.46, ADR-0039).** Runtime lives in the Kernel modular
+> monolith, not in `packages/memory` (a README pointer): schema `mnemosyne`,
+> code under `apps/core/src/kernel/mnemosyne/` (`MnemosyneStore`,
+> `MemoryRecallService` — the seven-factor composite, `scoreCandidate` /
+> `decideDisposition`, `Consolidator` — deterministic DREAMING). The sole writer
+> and the `ConsolidationSink` are `apps/core/src/kernel/knowledge/knowledge-ingestion.ts`;
+> events become candidates via `.../knowledge/candidate-source.ts`.
+
+MNEMOSYNE is the memory subsystem — schema `mnemosyne`. It holds curated,
+compressible, decaying interpretations built from events: episodes (narrative),
+learned semantic knowledge, repeatable procedures, and non-sensitive interaction
+preferences. It is a cognitive resource, not a source of truth. Losing MNEMOSYNE
+loses recall quality, not history.
 
 `MNEMOSYNE` (capitalised) is the subsystem. `agents/mnemosyne` (memory curation)
 is an unchanged disposable worker; the Glossary disambiguates subsystem vs agent.
