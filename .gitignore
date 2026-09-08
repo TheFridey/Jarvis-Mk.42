@@ -24,3 +24,4 @@ coverage/
 .claude/
 jarvis-*-review.png
 .playwright-mcp/
+artifacts/hardware-validation/

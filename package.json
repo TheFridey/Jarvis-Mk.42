@@ -29,6 +29,7 @@
     "gateway:dev": "pnpm --filter @jarvis/gateway dev",
     "voice:dev": "pnpm --filter @jarvis/voice dev",
     "vision:dev": "pnpm --filter @jarvis/vision dev",
+    "hardware:validate": "node scripts/hardware-validate.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "devDependencies": {
