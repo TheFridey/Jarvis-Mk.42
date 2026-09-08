@@ -39,7 +39,22 @@ export class LocalSceneTransport implements SceneTransport {
 export class KernelSceneTransport implements SceneTransport {
   readonly kind = 'live' as const; private scene?: SemanticScene; private snapshot?: DesktopKernelSnapshot; private status: KernelConnection = { status: 'connecting' }; private stopped = false; private polling = false; private timer?: ReturnType<typeof setTimeout>; private failures = 0;
   private readonly sceneListeners = new Set<(scene: SemanticScene) => void>(); private readonly kernelListeners = new Set<(snapshot: DesktopKernelSnapshot | undefined) => void>(); private readonly connectionListeners = new Set<(state: KernelConnection) => void>();
-  constructor(private readonly options: { endpoint: string; token: string; visionToken?: string; cache?: LayoutCache; fetch?: typeof globalThis.fetch; pollMs?: number; retryMaxMs?: number }) {}
+  private auth?: { accessToken: string; sessionId: string };
+  // RC-audit fix: this client used to send a static `dev-desktop-token` bearer.
+  // The Kernel ingress now requires a session-bound credential (node + session +
+  // scope), so the static token could never authenticate. Mint one the same way
+  // the voice and vision clients do.
+  constructor(private readonly options: { endpoint: string; credential: string; nodeId: string; cache?: LayoutCache; fetch?: typeof globalThis.fetch; pollMs?: number; retryMaxMs?: number }) {}
+  private async authenticate() {
+    if (this.auth) return this.auth;
+    const response = await (this.options.fetch ?? globalThis.fetch)(`${this.options.endpoint.replace(/\/$/, '')}/auth/session`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ credential: this.options.credential, nodeId: this.options.nodeId, scopes: ['desktop.read', 'desktop.write', 'vision.read'], surface: 'desktop' }),
+    });
+    if (!response.ok) throw new Error(`Kernel session exchange ${response.status}`);
+    const body = await response.json() as { accessToken: string; credential: { sessionId: string } };
+    return (this.auth = { accessToken: body.accessToken, sessionId: body.credential.sessionId });
+  }
   subscribe(listener: (scene: SemanticScene) => void) { this.sceneListeners.add(listener); if (this.scene) listener(this.scene); this.start(); return () => this.sceneListeners.delete(listener); }
   subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void) { this.kernelListeners.add(listener); listener(this.snapshot); this.start(); return () => this.kernelListeners.delete(listener); }
   subscribeConnection(listener: (state: KernelConnection) => void) { this.connectionListeners.add(listener); listener(this.status); this.start(); return () => this.connectionListeners.delete(listener); }
@@ -69,11 +84,17 @@ export class KernelSceneTransport implements SceneTransport {
     if (!response.ok) throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);
     return response.json() as Promise<T>;
   }
-  private request(path: string, init: RequestInit = {}) { return (this.options.fetch ?? globalThis.fetch)(`${this.options.endpoint.replace(/\/$/, '')}${path}`, { ...init, headers: { authorization: `Bearer ${this.options.token}`, 'content-type': 'application/json', ...init.headers } }); }
-  private async consumeVision(listener: (frame: AirTouchFrame) => void, signal: AbortSignal) { while (!signal.aborted) { try { const response = await this.request('/vision/stream', { signal, headers: { authorization: `Bearer ${this.options.visionToken ?? this.options.token}` } }); if (!response.ok || !response.body) throw new Error(`vision stream HTTP ${response.status}`); const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); let buffered = ''; while (!signal.aborted) { const part = await reader.read(); if (part.done) break; buffered += part.value; const lines = buffered.split('\n'); buffered = lines.pop() ?? ''; for (const line of lines) if (line.trim()) listener(JSON.parse(line) as AirTouchFrame); } } catch { if (!signal.aborted) await new Promise((resolve) => setTimeout(resolve, 1000)); } } }
+  private async request(path: string, init: RequestInit = {}) {
+    const auth = await this.authenticate();
+    const response = await (this.options.fetch ?? globalThis.fetch)(`${this.options.endpoint.replace(/\/$/, '')}${path}`, { ...init, headers: { authorization: `Bearer ${auth.accessToken}`, 'x-jarvis-node-id': this.options.nodeId, 'x-jarvis-session-id': auth.sessionId, 'content-type': 'application/json', ...init.headers } });
+    // A revoked/expired credential must force a fresh exchange, not a silent stall.
+    if (response.status === 401) { this.auth = undefined; }
+    return response;
+  }
+  private async consumeVision(listener: (frame: AirTouchFrame) => void, signal: AbortSignal) { while (!signal.aborted) { try { const response = await this.request('/vision/stream', { signal }); if (!response.ok || !response.body) throw new Error(`vision stream HTTP ${response.status}`); const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); let buffered = ''; while (!signal.aborted) { const part = await reader.read(); if (part.done) break; buffered += part.value; const lines = buffered.split('\n'); buffered = lines.pop() ?? ''; for (const line of lines) if (line.trim()) listener(JSON.parse(line) as AirTouchFrame); } } catch { if (!signal.aborted) await new Promise((resolve) => setTimeout(resolve, 1000)); } } }
   private schedule(ms: number) { if (!this.stopped) this.timer = setTimeout(() => { this.timer = undefined; void this.poll(); }, ms); }
   private setStatus(status: KernelConnection) { this.status = status; this.connectionListeners.forEach((listener) => listener(status)); }
   private restorePresentation(scene: SemanticScene) { const saved = this.options.cache?.read(scene.id); if (!saved) return scene; const savedById = new Map(saved.objects.map((object) => [object.id, object])); return { ...scene, objects: scene.objects.map((object) => { const prior = savedById.get(object.id); return prior ? { ...object, monitorId: prior.monitorId, position: prior.position, size: prior.size, state: prior.state, pinned: prior.pinned, zIndex: prior.zIndex } : object; }) }; }
 }
 
-export function createDesktopTransport(): SceneTransport { return new KernelSceneTransport({ endpoint: process.env.NEXT_PUBLIC_JARVIS_CORE_URL ?? 'http://127.0.0.1:7420', token: process.env.NEXT_PUBLIC_JARVIS_DESKTOP_TOKEN ?? 'dev-desktop-token', visionToken: process.env.NEXT_PUBLIC_JARVIS_VISION_TOKEN ?? 'dev-vision-token', cache: new BrowserLayoutCache() }); }
+export function createDesktopTransport(): SceneTransport { return new KernelSceneTransport({ endpoint: process.env.NEXT_PUBLIC_JARVIS_CORE_URL ?? 'http://127.0.0.1:7420', credential: process.env.NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL ?? 'dev-bootstrap-secret', nodeId: process.env.NEXT_PUBLIC_JARVIS_NODE_ID ?? 'local-server', cache: new BrowserLayoutCache() }); }

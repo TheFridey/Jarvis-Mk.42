@@ -277,4 +277,107 @@ describe.skipIf(!dockerOk)('ATLAS + MNEMOSYNE load-bearing (integration)', () =>
     const q = await k.knowledgeFacade.query({ principalId, text: 'ScaleSmiths stack', k: 5 });
     expect(q.facts.some((f) => f.attribute === 'stack')).toBe(true);
   });
+
+  // =====================================================================
+  //  RC-audit probes — attacks on ATLAS epistemics and the deletion path
+  // =====================================================================
+  it('AUDIT: an inference cannot be presented as an observation', async () => {
+    await truncateAll(ctx.pg);
+    const k = ctx.makeKernel({ modelGateway: gateway });
+    await k.start();
+
+    // The attack: claim epistemicStatus 'observed' from a non-sensor producer.
+    const sneaky = await k.knowledge.ingest({
+      kind: 'extracted_fact', correlationId: 'fake-obs', principalId,
+      provenance: { method: 'model', producedBy: 'some-model', producedOn: 'local-server', producedAt: '2026-09-10T00:00:00.000Z', correlationId: 'fake-obs', derivedFromUntrusted: true },
+      fact: { subjectRef: 'Aurora', attribute: 'phase', value: 'shipped', epistemicStatus: 'observed', confidence: 0.9, validFrom: '2026-09-10T00:00:00.000Z', evidenceRefs: ['model-run-1'] },
+    });
+    expect(sneaky.atlasFactId).toBeDefined();
+    const [downgraded] = await ctx.pg.sql<{ epistemic_status: string }[]>`select epistemic_status from atlas.facts where attribute='phase'`;
+    expect(downgraded?.epistemic_status).toBe('inferred'); // NOT 'observed'
+
+    // The attack: claim principal authority without being a principal Command.
+    await k.knowledge.ingest({
+      kind: 'extracted_fact', correlationId: 'fake-assert', principalId,
+      provenance: { method: 'inference', producedBy: 'cognition', producedOn: 'local-server', producedAt: '2026-09-10T00:00:00.000Z', correlationId: 'fake-assert', derivedFromUntrusted: false },
+      fact: { subjectRef: 'Aurora', attribute: 'owner', value: 'nobody', epistemicStatus: 'asserted', confidence: 0.9, validFrom: '2026-09-10T00:00:00.000Z', evidenceRefs: ['x'] },
+    });
+    const [notAsserted] = await ctx.pg.sql<{ epistemic_status: string }[]>`select epistemic_status from atlas.facts where attribute='owner'`;
+    expect(notAsserted?.epistemic_status).toBe('inferred');
+
+    // Sensor-origin promotion legitimately keeps 'observed' (control case).
+    await k.knowledge.ingest({
+      kind: 'extracted_fact', correlationId: 'real-obs', principalId,
+      provenance: { method: 'sensor', producedBy: 'observation-promoter', producedOn: 'local-server', producedAt: '2026-09-10T00:00:00.000Z', correlationId: 'real-obs', derivedFromUntrusted: false },
+      fact: { subjectRef: 'Aurora', attribute: 'sensed', value: 'yes', epistemicStatus: 'observed', confidence: 0.8, validFrom: '2026-09-10T00:00:00.000Z', evidenceRefs: ['obs-1'] },
+    });
+    const [sensed] = await ctx.pg.sql<{ epistemic_status: string }[]>`select epistemic_status from atlas.facts where attribute='sensed'`;
+    expect(sensed?.epistemic_status).toBe('observed');
+  });
+
+  it('AUDIT: rejects a fact with fabricated/absent provenance or out-of-range confidence', async () => {
+    await truncateAll(ctx.pg);
+    const k = ctx.makeKernel({ modelGateway: gateway });
+    await k.start();
+
+    const noProvenance = await k.knowledge.ingest({
+      kind: 'extracted_fact', correlationId: 'no-prov', principalId,
+      provenance: {} as never,
+      fact: { subjectRef: 'Ghost', attribute: 'x', value: 1, epistemicStatus: 'inferred', confidence: 0.5, validFrom: '2026-09-10T00:00:00.000Z', evidenceRefs: ['e'] },
+    });
+    expect(noProvenance.atlasFactId).toBeUndefined();
+    expect(noProvenance.routed.rationale).toMatch(/provenance/);
+
+    const badConfidence = await k.knowledge.ingest({
+      kind: 'extracted_fact', correlationId: 'bad-conf', principalId,
+      provenance: { method: 'inference', producedBy: 'cognition', producedOn: 'local-server', producedAt: '2026-09-10T00:00:00.000Z', correlationId: 'bad-conf', derivedFromUntrusted: false },
+      fact: { subjectRef: 'Ghost', attribute: 'y', value: 1, epistemicStatus: 'inferred', confidence: 1.5, validFrom: '2026-09-10T00:00:00.000Z', evidenceRefs: ['e'] },
+    });
+    expect(badConfidence.atlasFactId).toBeUndefined();
+    expect(badConfidence.routed.rationale).toMatch(/confidence/);
+
+    // Neither rejected fact left a row behind.
+    expect(await ctx.pg.sql`select 1 from atlas.facts`).toHaveLength(0);
+  });
+
+  it('AUDIT: privacy deletion removes the memory from recall and context, leaving a content-free tombstone', async () => {
+    await truncateAll(ctx.pg);
+    const k = ctx.makeKernel({ modelGateway: gateway });
+    await k.start();
+
+    await k.knowledge.ingest({
+      kind: 'episode', correlationId: 'forget-1', principalId, provenance: prov('forget-1'),
+      episode: {
+        kind: 'decision', title: 'Aurora migration decision',
+        summary: 'Decided to migrate the Aurora ledger to PostgreSQL because the audit trail requires transactional guarantees',
+        occurredFrom: '2026-09-10T09:00:00.000Z', occurredTo: '2026-09-10T09:05:00.000Z',
+        participantsRefs: [], sourceEventIds: ['evt-forget-1'], salienceHint: 0.8,
+      },
+    });
+    await k.consolidateMemory();
+    const [episode] = await ctx.pg.sql<{ id: string }[]>`select id from mnemosyne.episodes`;
+    expect(episode?.id).toBeDefined();
+
+    const before = await k.memory.recall({ text: 'Aurora ledger migration decision', principalId, k: 5, floor: 0.1 });
+    expect(before.items.some((x) => x.item.id === episode!.id)).toBe(true);
+
+    // Delete for privacy.
+    expect(await k.knowledge.forgetMemory(episode!.id, { principalId, reason: 'operator privacy request', actor: principalId })).toBe(true);
+
+    // Gone from the store, from recall, and from compiled context.
+    expect(await ctx.pg.sql`select 1 from mnemosyne.episodes where id = ${episode!.id}`).toHaveLength(0);
+    const after = await k.memory.recall({ text: 'Aurora ledger migration decision', principalId, k: 5, floor: 0.1 });
+    expect(after.items.some((x) => x.item.id === episode!.id)).toBe(false);
+    const pkg = await k.context.compile({ correlationId: 'ctx-forget', intent: 'Aurora ledger migration decision', intentClass: 'reason', budgetUnits: 4000, maxPrivacyClass: 'RESTRICTED' });
+    expect(pkg.items.some((x) => x.kind === 'episodic_memory')).toBe(false);
+
+    // A tombstone exists and carries NO forgotten content.
+    const [tombstone] = await ctx.pg.sql<{ payload: Record<string, unknown> }[]>`
+      select payload from events.events where type = 'jarvis.memory.record.forgotten'`;
+    expect(tombstone?.payload).toMatchObject({ episodeId: episode!.id, reason: 'operator privacy request', actor: principalId });
+    expect(JSON.stringify(tombstone?.payload)).not.toMatch(/PostgreSQL|Aurora migration|audit trail/);
+
+    // Forgetting something already gone is a no-op, not an error.
+    expect(await k.knowledge.forgetMemory(episode!.id, { principalId, reason: 'again', actor: principalId })).toBe(false);
+  });
 });

@@ -332,8 +332,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso());
   const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, localModelAvailable: () => config.modelLocalRouteAvailable });
   const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
-  const voice = new VoiceGateway({ sessions, mode, cognition, events, token: config.voiceToken, principalId: config.bootstrapPrincipalId });
-  const vision = new VisionGateway({ events, presence, token: config.visionToken, principalId: config.bootstrapPrincipalId });
+  const voice = new VoiceGateway({ sessions, mode, cognition, events, principalId: config.bootstrapPrincipalId });
+  const vision = new VisionGateway({ events, presence, principalId: config.bootstrapPrincipalId });
   const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
@@ -389,7 +389,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     },
   });
 
-  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, token: config.desktopToken, nodeId: config.nodeId });
+  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, nodeId: config.nodeId });
   const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId });
 
   const scheduler = new Scheduler({
@@ -472,6 +472,16 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     });
     scheduler.register(ROUTINE_DEFS.objectiveReeval!, async () => {
       /* No background autonomy: the durable engine is advanced only by explicit commands. */
+    });
+    scheduler.register(ROUTINE_DEFS.nodeLivenessSweep!, async () => {
+      for (const node of await nodes.sweep()) {
+        await events.emit({
+          type: EventNames.NodeDisconnected, retentionClass: 'OPERATIONAL', privacyClass: 'INTERNAL',
+          subject: { kind: 'node', id: node.nodeId }, actor: { kind: 'system', id: 'node-manager' },
+          correlationId: ids.ulid(), causationId: 'node.liveness_sweep', principalId: node.principalId,
+          payload: { nodeId: node.nodeId, reason: 'heartbeat_timeout' },
+        }).catch(() => undefined);
+      }
     });
     scheduler.register(ROUTINE_DEFS.knowledgeHarvest!, async () => { await runKnowledgeHarvest(); });
     scheduler.register(ROUTINE_DEFS.memoryConsolidate!, async () => { await runMemoryConsolidate(); });

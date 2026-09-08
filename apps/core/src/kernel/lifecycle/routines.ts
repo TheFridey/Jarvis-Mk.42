@@ -57,6 +57,18 @@ export const ROUTINE_DEFS: Record<string, ScheduleDefinition> = {
     pausedWhenDegraded: true,
     enabled: true,
   },
+  nodeLivenessSweep: {
+    // Node Protocol v1 liveness: mark connected nodes whose heartbeat has
+    // lapsed as disconnected and emit jarvis.infra.node.disconnected.
+    id: 'node.liveness_sweep',
+    kind: 'interval',
+    spec: 15_000,
+    singleton: true,
+    maxRetries: 1,
+    retryBackoffMs: 2000,
+    pausedWhenDegraded: false, // liveness must keep running while degraded
+    enabled: true,
+  },
   knowledgeHarvest: {
     // MK.46: harvest MNEMOSYNE candidates from eligible events + run the ATLAS
     // observation->fact promotion evaluator + expire stale observations.

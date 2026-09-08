@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'node:crypto';
 import { EventNames, type VisionDiagnostics, type VisionEventCommand, type VisionEventResponse, type VisionSignal } from '@jarvis/contracts';
 import type { AirTouchFrame } from '@jarvis/scene';
 import type { EventManager } from '../event-fabric/event-manager.ts';
@@ -8,9 +7,11 @@ export class VisionGateway {
   private readonly listeners = new Set<(frame: AirTouchFrame) => void>();
   private latestDiagnostics?: VisionDiagnostics;
   private latestSignal?: VisionSignal;
-  constructor(private readonly deps: { events: EventManager; presence: PresenceManager; token: string; principalId: string }) {}
-  authenticate(bearer: string | undefined) { if (!this.deps.token || !bearer?.startsWith('Bearer ')) return false; const supplied = Buffer.from(bearer.slice(7)); const expected = Buffer.from(this.deps.token); return supplied.length === expected.length && timingSafeEqual(supplied, expected); }
-  authorises(principalId: string) { return principalId === this.deps.principalId; }
+  constructor(private readonly deps: { events: EventManager; presence: PresenceManager; principalId: string }) {}
+  // RC-audit: the static-token `authenticate`/`authorises` pair was removed.
+  // All ingress authentication and principal/node binding is enforced by
+  // DiagnosticsHttp via SessionCredentialManager; keeping a second, weaker
+  // static-token check here was dead code that only invited reuse.
   subscribe(listener: (frame: AirTouchFrame) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   diagnostics() { return this.latestDiagnostics; }
   signal() { return this.latestSignal; }

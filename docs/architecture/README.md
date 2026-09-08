@@ -30,6 +30,8 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 20 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
 | 21 | [`AUDIT_MK42_ASCENSION.md`](AUDIT_MK42_ASCENSION.md) | Hostile external architecture audit (ASCENSION Stage A): design vs as-built, the hollow-agency-plane finding, scores, required corrections |
 | 22 | [`HARDENING_SPEC_MK42.md`](HARDENING_SPEC_MK42.md) | ASCENSION Stage B implementation direction: task groups H1–H13, chaos/perf/fitness/contract gates, the FOUNDATION_REVIEW template |
+| 23 | [`AUDIT_MK42_ASCENSION_II.md`](AUDIT_MK42_ASCENSION_II.md) | Hostile external audit II: verified the Stage B brief, found ATLAS/MNEMOSYNE absent and the integration gate self-skipping |
+| 24 | [`MK42_RELEASE_CANDIDATE_AUDIT.md`](MK42_RELEASE_CANDIDATE_AUDIT.md) | **RC1 certification.** Hostile release audit: verdict, per-area scores, verified vs unverified functionality, security/privacy/recovery findings, the 13 defects fixed during the pass, and the conditions MK.43 must not build past |
 
 ## Decision records
 

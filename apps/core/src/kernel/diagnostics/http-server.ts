@@ -86,11 +86,11 @@ export class DiagnosticsHttp {
         return send(200, await this.deps.state.view());
       }
       if (path.startsWith('/desktop/')) {
-        const scope=path==='/desktop/snapshot'?'desktop.read':'desktop.write';if(!await this.authorise(req,[scope],path==='/desktop/approvals'?'strong':undefined)) return send(401, { error: 'unauthorised' });
+        const scope=path==='/desktop/snapshot'?'desktop.read':'desktop.write';const auth=await this.authorise(req,[scope],path==='/desktop/approvals'?'strong':undefined);if(!auth) return send(401, { error: 'unauthorised' });
         if (path === '/desktop/snapshot' && method === 'GET') return send(200, await this.deps.desktop.snapshot());
         if (path === '/desktop/proposals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.submit(await this.body<DesktopProposalCommand>(req)));
         if (path === '/desktop/cognition' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.cognize(await this.body<DesktopCognitionCommand>(req)));
-        if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req)));
+        if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req), { authTrustLevel: auth.trust === 'verified' ? 'verified' : 'trusted' }));
         return send(405, { error: 'method not allowed' });
       }
       if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['voice.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});return send(200,await this.deps.voice.handle(command))}

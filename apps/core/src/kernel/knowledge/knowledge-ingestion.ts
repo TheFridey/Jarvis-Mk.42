@@ -120,6 +120,15 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
     const f = item.fact;
     if (!f) return { routed: { targets: [], rationale: 'fact kind without fact payload' }, emittedEventIds: [] };
 
+    // L11: a belief without a real origin is not storable. Reject before any write.
+    const badProvenance = this.provenanceRejection(provenance);
+    if (badProvenance) {
+      return { routed: { targets: [], rationale: `fact rejected: ${badProvenance}` }, emittedEventIds: [] };
+    }
+    if (!Number.isFinite(f.confidence) || f.confidence < 0 || f.confidence > 1) {
+      return { routed: { targets: [], rationale: `fact rejected: confidence ${String(f.confidence)} outside 0..1 (L12)` }, emittedEventIds: [] };
+    }
+
     const resolved = await this.d.resolver.resolve({
       principalId: item.principalId, ref: f.subjectRef, privacyClass, source: provenance.producedBy,
     });
@@ -130,7 +139,7 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
     }
 
     const now = this.d.clock.nowIso();
-    const epistemicStatus: EpistemicStatus = mode === 'principal' ? 'asserted' : f.epistemicStatus;
+    const epistemicStatus: EpistemicStatus = this.capEpistemicStatus(f.epistemicStatus, mode, provenance);
     const incoming: IncomingFact = {
       attribute: f.attribute, value: f.value, epistemicStatus, confidence: f.confidence,
       validFrom: f.validFrom ?? now, principalAsserted: mode === 'principal',
@@ -416,6 +425,40 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
   }
 
   // ================================================================
+  //  Forgetting — the one operation that genuinely deletes
+  //  (MNEMOSYNE_MODEL.md §8, ATLAS_MODEL.md §9). Right-to-erasure /
+  //  privacy deletion. Everything else archives.
+  //
+  //  The tombstone records only THAT a forget happened (id + reason + actor) —
+  //  never the forgotten content. Ledger events are never touched.
+  //
+  //  RC-audit fix: `MnemosyneStore.forgetEpisode` / `AtlasStore.forgetEntity`
+  //  existed with no caller and no tombstone, so the documented deletion path
+  //  was unreachable.
+  // ================================================================
+  async forgetMemory(episodeId: Ulid, input: { principalId: string; reason: string; actor: string; correlationId?: string }): Promise<boolean> {
+    const existing = await this.d.mnemosyne.getEpisode(episodeId);
+    if (!existing) return false;
+    await this.d.mnemosyne.forgetEpisode(episodeId);
+    const correlationId = input.correlationId ?? episodeId;
+    await this.emit(EventNames.MemoryForgotten, 'episode', episodeId, input.principalId, correlationId, 'INTERNAL', {
+      episodeId, reason: input.reason, actor: input.actor,
+    });
+    return true;
+  }
+
+  async forgetWorldEntity(entityId: Ulid, input: { principalId: string; reason: string; actor: string; correlationId?: string }): Promise<boolean> {
+    const existing = await this.d.atlas.getEntity(entityId);
+    if (!existing) return false;
+    await this.d.atlas.forgetEntity(entityId);
+    const correlationId = input.correlationId ?? entityId;
+    await this.emit(EventNames.WorldForgotten, 'entity', entityId, input.principalId, correlationId, 'INTERNAL', {
+      entityId, reason: input.reason, actor: input.actor,
+    });
+    return true;
+  }
+
+  // ================================================================
   //  Event-derived candidates (CandidateSource feeds these)
   // ================================================================
   async recordEventCandidate(event: StoredEvent): Promise<Ulid | undefined> {
@@ -437,10 +480,21 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
   // ================================================================
   //  helpers
   // ================================================================
+  /**
+   * Complete the caller's provenance seed. It fills only the fields the mediator
+   * legitimately owns (`producedOn`, `producedAt`, `correlationId`); it MUST NOT
+   * invent `method` or `producedBy`, because a manufactured origin is worse than
+   * no fact at all (L11, ATLAS_MODEL.md §3: "the ingestion mediator rejects a
+   * fact without it"). Callers that omit them are rejected by
+   * `assertProvenanceUsable`.
+   *
+   * RC-audit fix: this used to default `method` to 'system' and `producedBy` to
+   * 'knowledge-ingestion', silently fabricating provenance for any caller.
+   */
   private completeProvenance(seed: Provenance, correlationId: string): Provenance {
     return {
-      method: seed.method ?? 'system',
-      producedBy: seed.producedBy || 'knowledge-ingestion',
+      method: seed.method,
+      producedBy: seed.producedBy,
       producedOn: seed.producedOn || 'local-server',
       producedAt: seed.producedAt || this.d.clock.nowIso(),
       correlationId: seed.correlationId || correlationId,
@@ -450,10 +504,46 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
     };
   }
 
+  /** Fact-bearing ingestion requires a real origin (L11). Returns a rejection
+   *  rationale, or undefined when the provenance is usable. */
+  private provenanceRejection(p: Provenance): string | undefined {
+    const methods: Provenance['method'][] = ['sensor', 'model', 'retrieval', 'inference', 'assertion', 'derivation', 'system'];
+    if (!p.method || !methods.includes(p.method)) return `provenance.method missing or invalid (${String(p.method)})`;
+    if (!p.producedBy || p.producedBy.trim() === '') return 'provenance.producedBy missing';
+    if (!p.producedAt || Number.isNaN(Date.parse(p.producedAt))) return 'provenance.producedAt missing or unparseable';
+    return undefined;
+  }
+
+  /**
+   * Epistemic-status ceiling (L14, ATLAS_MODEL.md §3). `observed` means
+   * "perception sensed this directly" and may therefore only be claimed by a
+   * sensor-origin producer — the observation-promotion evaluator. `asserted`
+   * belongs to a principal Command. Anything else that claims either is
+   * downgraded to `inferred`, so an inference can never masquerade as an
+   * observation.
+   *
+   * RC-audit fix: previously only the agent facade capped this, so any direct
+   * `extracted_fact` caller could store `observed`.
+   */
+  private capEpistemicStatus(requested: EpistemicStatus, mode: 'principal' | 'inferred_or_declared', provenance: Provenance): EpistemicStatus {
+    if (mode === 'principal') return 'asserted';
+    if (requested === 'observed') return provenance.method === 'sensor' ? 'observed' : 'inferred';
+    if (requested === 'asserted') return 'inferred';
+    return requested;
+  }
+
+  /**
+   * Privacy classification. An explicit caller hint wins (the principal knows
+   * what is sensitive). Otherwise the class is derived, and untrusted-derived
+   * material may never be published as PUBLIC (ADR-0018).
+   *
+   * RC-audit note: this used to be a dead ladder where every branch returned
+   * INTERNAL. It is still conservative-by-default rather than content-aware —
+   * automatic sensitivity detection is tracked debt, not a shipped capability.
+   */
   private classifyPrivacy(item: IngestionItem, provenance: Provenance): PrivacyClass {
-    if (item.privacyHint) return item.privacyHint;
-    if (item.kind === 'principal_assertion') return 'INTERNAL';
-    if (provenance.derivedFromUntrusted) return 'INTERNAL';
+    const hinted = item.privacyHint;
+    if (hinted) return provenance.derivedFromUntrusted && hinted === 'PUBLIC' ? 'INTERNAL' : hinted;
     return 'INTERNAL';
   }
 

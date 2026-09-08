@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'node:crypto';
 import type { Sql } from '@jarvis/persistence';
 import type { Capability, CapabilityInvocationProposal, CognitionResponse } from '@jarvis/contracts';
 import type {
@@ -29,13 +28,10 @@ interface InvocationRow {
 export type DesktopCommandResult<T> = { ok: true; value: T } | { ok: false; code: 'state_version_conflict' | 'approval_rejected'; currentStateVersion: number };
 
 export class DesktopGateway {
-  constructor(private readonly deps: { sql: Sql; diagnostics: DiagnosticsService; state: StateManager; sessions: SessionManager; approvals: ApprovalManager; agency: AgencyIngress; cognition: CognitionOrchestrator; ids: IdGen; token: string; nodeId: string }) {}
+  constructor(private readonly deps: { sql: Sql; diagnostics: DiagnosticsService; state: StateManager; sessions: SessionManager; approvals: ApprovalManager; agency: AgencyIngress; cognition: CognitionOrchestrator; ids: IdGen; nodeId: string }) {}
 
-  authenticate(bearer: string | undefined): boolean {
-    if (!this.deps.token || !bearer?.startsWith('Bearer ')) return false;
-    const supplied = Buffer.from(bearer.slice(7)); const expected = Buffer.from(this.deps.token);
-    return supplied.length === expected.length && timingSafeEqual(supplied, expected);
-  }
+  // RC-audit: static-token `authenticate` removed — DiagnosticsHttp enforces
+  // session-bound credentials (node + session + scope) for every /desktop route.
 
   async snapshot(): Promise<DesktopKernelSnapshot> {
     const [diagnostics, state, sessions, pending, activity, cognitionRows, objectiveRows] = await Promise.all([
@@ -72,7 +68,15 @@ export class DesktopGateway {
     return { ok: true, value: { commandId: command.commandId, stateVersion: (await this.deps.state.view()).stateVersion, result } };
   }
 
-  async decide(command: DesktopApprovalCommand): Promise<DesktopCommandResult<{ accepted: true; outcome: string }>> {
+  /**
+   * RC-audit hardening: `authTrustLevel` is now supplied by the authenticated
+   * ingress instead of being hardcoded to 'verified'. The HTTP layer already
+   * requires a `strong`, <5-minute-old, session-bound credential for
+   * /desktop/approvals, but hardcoding the trust level here meant the security
+   * property lived entirely in the caller — any future route reaching this method
+   * would have silently inherited 'verified'. Now it fails closed by default.
+   */
+  async decide(command: DesktopApprovalCommand, auth?: { authTrustLevel: 'trusted' | 'verified' }): Promise<DesktopCommandResult<{ accepted: true; outcome: string }>> {
     const state = await this.deps.state.view();
     if (command.expectedStateVersion !== state.stateVersion) return { ok: false, code: 'state_version_conflict', currentStateVersion: state.stateVersion };
     const principalId = (state.slices.active_principal.value as { principalId: string | null }).principalId;
@@ -80,7 +84,7 @@ export class DesktopGateway {
     if (!principalId || request?.id !== command.approvalId) return { ok: false, code: 'approval_rejected', currentStateVersion: state.stateVersion };
     const input = { invocationId: command.invocationId, operatorId: principalId, sessionId: `desktop:${this.deps.nodeId}`, nonce: command.nonce, version: command.version };
     const accepted = command.decision === 'approve'
-      ? await this.deps.approvals.approve({ ...input, authTrustLevel: 'verified', ...(command.confirmationPhrase ? { confirmationPhrase: command.confirmationPhrase } : {}) })
+      ? await this.deps.approvals.approve({ ...input, authTrustLevel: auth?.authTrustLevel ?? 'trusted', ...(command.confirmationPhrase ? { confirmationPhrase: command.confirmationPhrase } : {}) })
       : await this.deps.approvals.deny(input);
     if (!accepted) return { ok: false, code: 'approval_rejected', currentStateVersion: state.stateVersion };
     const [row] = await this.deps.sql<{ proposal: CapabilityInvocationProposal | null }[]>`select proposal from agency.invocations where invocation_id=${command.invocationId} and principal_id=${principalId} limit 1`;

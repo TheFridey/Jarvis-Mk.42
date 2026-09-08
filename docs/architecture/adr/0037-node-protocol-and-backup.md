@@ -1,25 +1,38 @@
 # ADR-0037: Node Protocol v1 design (identity, enrollment, rotation, revocation, attestation, trust-tier store); backup and restore drill design
 
-Status: PARTIAL — persisted enrollment/admission/liveness/revocation/key rotation and a real dump/restore/boot drill are implemented; remote mTLS transport and production WAL operations remain planned.
+Status: PARTIAL — Part B (backup/restore) is DELIVERED and drilled. Part A (Node
+Protocol v1) has a persisted, unit-tested manager (enrollment tokens with a
+trust ceiling, admission, key rotation with overlap, revocation/isolation,
+liveness sweep) but **no network ingress**: no node can enroll or heartbeat over
+the wire, so the protocol is a library the Kernel holds, not an operating
+protocol. Remote mTLS transport and production WAL operations remain planned.
 Date: 2026-09-03
 Deciders: External Principal Architect (ASCENSION Stage A audit), Principal (rhyslacy123)
 Relates-to: docs/protocols/node-protocol.md, SECURITY_MODEL §6, STATE_MODEL §8, ROADMAP MK.51+; L35, L37, L38, L39
 
-> **ASCENSION II correction (2026-09-08):** the original title of this ADR
-> asserted Part A ("Node Protocol v1") was implemented. It was not, and still
-> is not: `packages/protocol` remains a README stub, there is no
-> `projections.nodes` table in any migration, and no admission/enrollment/
-> rotation/revocation/heartbeat code exists anywhere in the repo. Every
-> event's `source.node` is still the single static `config.nodeId` constant —
-> exactly the pre-ADR state this document describes as the problem. Part B
-> (backup/restore) is partially real: `scripts/backup-restore-drill.mjs` runs
-> a genuine test against a real ephemeral Postgres container (verified in this
-> audit), but it exercises an in-process SELECT → TRUNCATE → INSERT round
-> trip on the live connection, not `pg_dump`/`pg_restore`, a separate storage
-> target, or a process restart — it demonstrates transactional round-tripping,
-> not disaster recovery. Both parts remain design-only; see
-> `docs/architecture/AUDIT_MK42_ASCENSION_II.md` for the full finding. Do not
-> cite this ADR's original title as evidence either capability ships.
+> **RC-audit correction (2026-09-08, supersedes the earlier ASCENSION II note
+> which is now itself out of date).** Verified from code:
+>
+> - **Part B — backup/restore: DELIVERED.** `scripts/backup-restore-drill.mjs`
+>   now takes a real `pg_dump -Fc` artifact, drops and recreates the database,
+>   runs `pg_restore --exit-on-error`, asserts Kernel state / ATLAS / MNEMOSYNE /
+>   objectives / agency-invocation / policy rows survived, boots a real Kernel
+>   against the restored database, and confirms a completed invocation is not
+>   re-executed. The gate hard-fails when Docker is absent. The earlier
+>   "SELECT → TRUNCATE → INSERT" criticism no longer applies.
+> - **Part A — Node Protocol v1: PARTIAL, library only.**
+>   `apps/core/src/kernel/nodes/` and migration `0013_session_credentials_nodes.sql`
+>   are real: `nodes.registry`, `nodes.enrollment_tokens`, trust-tier clamping
+>   (`kernel-local` cannot be requested or enrolled), single-use enrollment
+>   tokens, key rotation with an overlap window, revocation that cascades to
+>   session credentials, and a liveness sweep driven by the
+>   `node.liveness_sweep` Scheduler routine. Session credentials are bound to a
+>   node and refuse to authenticate for a revoked or isolated one.
+>   **What is still missing:** there is no `/nodes/*` HTTP surface, so
+>   `enroll`/`heartbeat`/`rotateKey` have no caller outside tests. The only node
+>   in the registry is the composition root, self-registered as `kernel-local` at
+>   cold start. Every event's `source.node` is still the static `config.nodeId`.
+>   Do not cite this ADR as evidence that remote nodes can join.
 
 ## Context
 

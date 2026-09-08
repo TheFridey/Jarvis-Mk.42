@@ -4,6 +4,18 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { SimpleSpanProcessor, type ReadableSpan, type SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+// RC-audit note on auto-instrumentation coverage (2026-09-08):
+//   HttpInstrumentation  — live for the node:http diagnostics/ingress server.
+//   IORedisInstrumentation — live for the ioredis ephemeral store.
+//   NetInstrumentation   — low-level sockets only.
+//   PgInstrumentation    — INERT. It patches node-postgres (`pg`); this repo
+//     uses postgres.js (`postgres`) exclusively, so it can never emit a span.
+//     Kept registered only so it starts working if `pg` is ever introduced;
+//     do NOT treat it as database trace coverage. Pinned by
+//     apps/core/test/observability.integration.test.ts.
+//   Outbound `fetch` (Model Gateway, voice/vision clients) is undici and has no
+//     instrumentation registered — those calls are covered only by the explicit
+//     `withSpan` in HttpModelGatewayClient.
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';

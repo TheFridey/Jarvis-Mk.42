@@ -1,7 +1,20 @@
 // Cross-platform launcher for the integration suite.
 // Sets JARVIS_IT=1 (so vitest.config.ts selects the integration include set)
-// and runs vitest. Integration tests self-skip when Docker is unavailable.
+// and runs vitest.
+//
+// MANDATORY GATE. The integration tests themselves `describe.skipIf(!dockerOk)`,
+// which means that without Docker vitest exits 0 with every suite skipped — a
+// green gate that proved nothing. That false-green was observed live during the
+// MK.42 release-candidate audit (57 integration tests silently skipped inside a
+// passing `verify:full`). Fail loudly instead, matching run-chaos.mjs and
+// backup-restore-drill.mjs.
 import { spawnSync } from 'node:child_process';
+
+const docker = spawnSync('docker', ['ps'], { stdio: 'ignore', shell: process.platform === 'win32' });
+if (docker.status !== 0) {
+  console.error('MANDATORY INTEGRATION GATE FAILED: Docker daemon is unavailable, so every integration suite would self-skip and report a false green.');
+  process.exit(1);
+}
 
 const res = spawnSync(
   'pnpm',

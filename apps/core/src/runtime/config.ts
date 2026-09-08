@@ -20,10 +20,6 @@ export interface KernelConfig {
 
   diagnosticsPort: number;
   diagnosticsHost: string;
-  /** Local desktop ingress bearer. Bind the ingress to loopback in development. */
-  desktopToken: string;
-  voiceToken: string;
-  visionToken: string;
   modelGatewayUrl: string;
   modelGatewayToken: string;
   modelCloudAllowed: boolean;
@@ -96,9 +92,6 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
 
     diagnosticsPort: envInt('JARVIS_DIAGNOSTICS_PORT', 7420),
     diagnosticsHost: env('JARVIS_DIAGNOSTICS_HOST', '127.0.0.1'),
-    desktopToken: env('JARVIS_DESKTOP_TOKEN', 'dev-desktop-token'),
-    voiceToken: env('JARVIS_VOICE_TOKEN', 'dev-voice-token'),
-    visionToken: env('JARVIS_VISION_TOKEN', 'dev-vision-token'),
     modelGatewayUrl: env('JARVIS_MODEL_GATEWAY_URL', 'http://127.0.0.1:7430'),
     modelGatewayToken: env('JARVIS_GATEWAY_TOKEN', 'dev-gateway-token'),
     modelCloudAllowed: envBool('JARVIS_MODEL_CLOUD_ALLOWED', false),
