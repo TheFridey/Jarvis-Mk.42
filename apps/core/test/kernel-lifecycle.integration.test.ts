@@ -72,13 +72,11 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     expect(await k.mode.current()).toBe('AMBIENT');
 
     await k.health.heartbeat({ subsystem: 'event-fabric', status: 'DEGRADED', message: 'simulated' });
-    // health.onChange -> reconcileModeWithHealth
-    await new Promise((r) => setTimeout(r, 20));
     expect(await k.mode.current()).toBe('DEGRADED');
 
     ctx.clock.advance(10); // clear dwell hysteresis (harness minDwellMs=1)
     await k.health.heartbeat({ subsystem: 'event-fabric', status: 'HEALTHY', message: 'recovered' });
-    await new Promise((r) => setTimeout(r, 20));
+    expect(k.health.criticalDepsHealthy()).toBe(true);
     expect(await k.mode.current()).toBe('AMBIENT');
 
     await k.stop();
@@ -106,6 +104,14 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     expect(report.identity.version).toBe('0.43.0');
     await k.stop();
   });
+
+  it('does not degrade mode for a non-critical outage',async()=>{await truncateAll(ctx.pg);const k=ctx.makeKernel();await k.start();await k.health.heartbeat({subsystem:'redis',status:'OFFLINE',message:'optional cache unavailable'});expect(k.health.report().overall).toBe('DEGRADED');expect(k.health.criticalDepsHealthy()).toBe(true);expect(await k.mode.current()).toBe('AMBIENT');await k.stop()});
+
+  it('remains DEGRADED while any critical dependency is unhealthy',async()=>{await truncateAll(ctx.pg);const k=ctx.makeKernel();await k.start();await k.health.heartbeat({subsystem:'event-fabric',status:'DEGRADED',message:'fabric down'});await k.health.heartbeat({subsystem:'agency',status:'DEGRADED',message:'agency down'});ctx.clock.advance(10);await k.health.heartbeat({subsystem:'event-fabric',status:'HEALTHY',message:'fabric recovered'});expect(k.health.criticalDepsHealthy()).toBe(false);expect(await k.mode.current()).toBe('DEGRADED');await k.health.heartbeat({subsystem:'agency',status:'HEALTHY',message:'agency recovered'});expect(await k.mode.current()).toBe('AMBIENT');await k.stop()});
+
+  it('respects dwell during rapid flapping and converges after a later healthy heartbeat',async()=>{await truncateAll(ctx.pg);const k=ctx.makeKernel();await k.start();await k.health.heartbeat({subsystem:'event-fabric',status:'DEGRADED',message:'down'});await k.health.heartbeat({subsystem:'event-fabric',status:'HEALTHY',message:'too soon'});expect(await k.mode.current()).toBe('DEGRADED');ctx.clock.advance(10);await k.health.heartbeat({subsystem:'event-fabric',status:'HEALTHY',message:'stable'});expect(await k.mode.current()).toBe('AMBIENT');await k.stop()});
+
+  it('serialises concurrent critical and outbox health updates to the final critical state',async()=>{await truncateAll(ctx.pg);const k=ctx.makeKernel();await k.start();await Promise.all([k.health.heartbeat({subsystem:'event-fabric',status:'DEGRADED',message:'manual fault'}),k.outboxRelay.tick()]);ctx.clock.advance(10);await k.health.heartbeat({subsystem:'event-fabric',status:'HEALTHY',message:'confirmed recovery'});expect(k.health.report().overall).toBe(k.health.overall);expect(k.health.criticalDepsHealthy()).toBe(true);expect(await k.mode.current()).toBe('AMBIENT');await k.stop()});
 
   it('serves an authenticated desktop snapshot and rejects stale commands', async () => {
     await truncateAll(ctx.pg);

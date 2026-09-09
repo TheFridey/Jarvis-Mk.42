@@ -489,14 +489,17 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   async function reconcileModeWithHealth(overall: string): Promise<void> {
     const cur = await mode.current();
-    if (cur === 'DEGRADED' && health.criticalDepsHealthy()) {
-      await mode.requestTransition('AMBIENT', 'dependency_recovered', 'critical dependencies healthy');
+    const criticalHealthy=health.criticalDepsHealthy();
+    if (cur === 'DEGRADED' && criticalHealthy) {
+      const outcome=await mode.requestTransition('AMBIENT', 'dependency_recovered', 'critical dependencies healthy');
+      if(!outcome.ok&&outcome.code!=='guard_dwell'&&outcome.code!=='same_mode')throw new Error(`health-to-mode recovery failed: ${outcome.code}: ${outcome.detail}`);
     } else if (
-      (overall === 'OFFLINE' || overall === 'DEGRADED') &&
+      !criticalHealthy &&
       cur !== 'DEGRADED' &&
       cur !== 'GUARDIAN'
     ) {
-      await mode.requestTransition('DEGRADED', 'dependency_unhealthy', `overall health ${overall}`);
+      const outcome=await mode.requestTransition('DEGRADED', 'dependency_unhealthy', `overall health ${overall}`);
+      if(!outcome.ok&&outcome.code!=='same_mode')throw new Error(`health-to-mode degradation failed: ${outcome.code}: ${outcome.detail}`);
     }
   }
 
@@ -664,6 +667,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       health.onChange((report) => {
         return reconcileModeWithHealth(report.overall);
       });
+      await reconcileModeWithHealth(health.report().overall);
     },
 
     async stop() {

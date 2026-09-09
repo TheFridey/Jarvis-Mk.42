@@ -143,13 +143,7 @@ export class HealthManager {
     }
 
     const report = this.report();
-    for (const l of this.listeners) {
-      try {
-        await l(report);
-      } catch {
-        /* ignore listener errors */
-      }
-    }
+    for (const listener of this.listeners) await listener(report);
   }
 
   private rollup(): { overall: HealthStatus; criticalIssues: string[] } {

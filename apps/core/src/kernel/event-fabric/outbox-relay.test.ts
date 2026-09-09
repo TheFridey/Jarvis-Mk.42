@@ -20,4 +20,5 @@ describe('outbox dead-letter recursion',()=>{
     for(let i=0;i<20;i++){await relay.drainOnce();clock.advance(10)}
     expect(rows).toHaveLength(8);
   });
+  it('joins an in-flight relay pass before stop resolves',async()=>{const clock=new FakeClock(0),e=event('original',EventNames.ModeChanged);let claimed=false,marked=false,release!:()=>void;const publishing=new Promise<void>(resolve=>{release=resolve});const relay=new OutboxRelay({store:{byId:async()=>e}as never,outbox:{claimBatch:async()=>claimed?[]:(claimed=true,[{id:'1',eventId:e.id,attempts:1}]),markDispatched:async()=>{marked=true},reschedule:async()=>undefined}as never,bus:{isHealthy:()=>true,publish:async()=>publishing}as never,deadLetter:new MemoryDeadLetterSink(),events:{}as never,clock,onHealth:()=>undefined},{pollMs:100,batchSize:1,maxAttempts:2,baseBackoffMs:1});const tick=relay.tick();let stopped=false;const stop=relay.stop().then(()=>{stopped=true});await Promise.resolve();expect(stopped).toBe(false);release();await Promise.all([tick,stop]);expect(marked).toBe(true);expect(stopped).toBe(true)});
 });

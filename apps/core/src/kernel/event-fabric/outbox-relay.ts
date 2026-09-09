@@ -27,7 +27,7 @@ export function deadLetterNotificationEligible(eventType: string): boolean {
 
 export class OutboxRelay {
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private running = false;
+  private activeRun?: Promise<void>;
   private stopped = true;
   private consecutiveFailures = 0;
 
@@ -56,11 +56,12 @@ export class OutboxRelay {
 
   /** Run one drain pass immediately (used by tests and shutdown flush). */
   async tick(): Promise<void> {
-    if (this.running) {
-      this.schedule(this.opts.pollMs);
-      return;
-    }
-    this.running = true;
+    if (this.activeRun) return this.activeRun;
+    const run=this.runTick();this.activeRun=run;
+    try{await run}finally{if(this.activeRun===run)this.activeRun=undefined}
+  }
+
+  private async runTick():Promise<void>{
     try {
       const drained = await this.drainOnce();
       this.consecutiveFailures = 0;
@@ -70,7 +71,6 @@ export class OutboxRelay {
       const detail = err instanceof Error ? err.message : String(err);
       await this.deps.onHealth('DEGRADED', `outbox relay error: ${detail}`);
     } finally {
-      this.running = false;
       const backoff = this.consecutiveFailures > 0
         ? Math.min(this.opts.pollMs * 2 ** this.consecutiveFailures, 30_000)
         : this.opts.pollMs;
@@ -134,7 +134,9 @@ export class OutboxRelay {
   async stop(): Promise<void> {
     this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
-    // final flush attempt
+    // Join an in-flight pass before the final flush so no relay work can
+    // outlive PostgreSQL during Kernel teardown.
+    await this.activeRun;
     await this.tick().catch(() => undefined);
   }
 }
