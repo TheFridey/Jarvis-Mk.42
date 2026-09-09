@@ -374,7 +374,16 @@ Two defects in the audit's *own* new tooling were found and fixed by these repea
 
 Both live in the new `packages/testkit/src/nats-container.ts` (`startEphemeralNats`), a sibling of `startEphemeralPg`, so all three JetStream suites share one implementation instead of three copies of the same hazard.
 
-A green run on the GitHub-hosted workflow for the audit commit is required before the `mk42-rc1.1` tag is created.
+**Hosted CI for the audit commit `6655887`: run [34408708468](https://github.com/TheFridey/Jarvis-Mk.42/actions/runs/34408708468) — `success`.** All 16 steps ran; none skipped. Verified from the run log that both new suites genuinely executed on the GitHub runner rather than self-skipping:
+
+```
+✓ |integration| apps/core/test/rc11-nats-outage-audit.integration.test.ts (3 tests) 13694ms
+✓ |integration| apps/core/test/rc11-event-fabric-audit.integration.test.ts (3 tests) 1413ms
+✓ |integration| apps/core/test/nats-jetstream.integration.test.ts     (2 tests)  2891ms
+  Test Files  14 passed (14)
+```
+
+This run is also the `JARVIS_IT_WORKERS=2` determinism evidence that the audit host could not produce: 14 integration files, zero skipped, at two workers.
 
 ---
 
@@ -432,7 +441,7 @@ Those defects are now fixed at the root, and the fixes are proven against real i
 
 **RC1.1 EVENT FABRIC — GO**
 
-Conditional, as the brief requires, on the GitHub-hosted workflow being green for the audit commit before `mk42-rc1.1` is tagged.
+The condition is met: hosted CI run 34408708468 for the audit commit is green across all sixteen steps, with both new real-NATS suites executing on the runner at `JARVIS_IT_WORKERS=2`.
 
 Carried forward, unresolved and explicitly not covered by this GO:
 
