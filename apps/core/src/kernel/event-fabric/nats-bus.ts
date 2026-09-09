@@ -1,8 +1,7 @@
 /**
  * NATS JetStream EventBus (ADR-0005). Streams:
- *   EPHEMERAL  -> jarvis.perception.>            (TRANSIENT)
- *   OPERATIONS -> jarvis.>  (catch-all minus below)
- *   SECURE     -> jarvis.kernel.identity.>, .policy.>, .permission.>, agency.capability.>
+ * Each canonical event subject is owned by exactly one stream. The explicit
+ * topology is derived from EventNames; JetStream has no negative subject filter.
  *
  * Durable pull consumers, explicit ack, bounded redelivery. On connection loss
  * the bus reports unhealthy; the Kernel keeps writing PostgreSQL + outbox, and
@@ -18,6 +17,7 @@ import {
   type NatsConnection,
 } from 'nats';
 import type { Event } from '@jarvis/contracts';
+import { STREAMS, streamForEventType, streamSubjectsForFilter, validateStreamTopology } from './stream-topology.ts';
 import {
   deliverWithGuards,
   subjectMatches,
@@ -27,20 +27,6 @@ import {
   type ProcessedLedger,
   type Subscription,
 } from './bus.ts';
-
-const STREAMS: { name: string; subjects: string[] }[] = [
-  { name: 'EPHEMERAL', subjects: ['jarvis.perception.>'] },
-  {
-    name: 'SECURE',
-    subjects: [
-      'jarvis.kernel.identity.>',
-      'jarvis.kernel.policy.>',
-      'jarvis.kernel.permission.>',
-      'jarvis.agency.capability.>',
-    ],
-  },
-  { name: 'OPERATIONS', subjects: ['jarvis.>'] }, // declared last; overlap resolved by explicit filter subjects on consumers
-];
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -57,14 +43,16 @@ export class NatsEventBus implements EventBus {
     private readonly processed: ProcessedLedger,
     private readonly deadLetter: DeadLetterSink,
     private readonly onDeadLetter?: (e: Event, err: string) => void,
+    private readonly onTransportHealth?: (healthy:boolean, detail:string)=>void|Promise<void>,
   ) {}
 
   async start(): Promise<void> {
+    validateStreamTopology();
     this.nc = await connect({ servers: this.url, reconnect: true, maxReconnectAttempts: -1 });
     this.js = this.nc.jetstream();
     this.jsm = await this.nc.jetstreamManager();
 
-    for (const s of STREAMS) {
+    for (const s of [...STREAMS].sort((a) => a.name === 'OPERATIONS' ? -1 : 1)) {
       const existing = await this.jsm.streams.info(s.name).catch(() => null);
       if (!existing) {
         await this.jsm.streams.add({
@@ -73,18 +61,21 @@ export class NatsEventBus implements EventBus {
           retention: RetentionPolicy.Limits,
           max_age: s.name === 'EPHEMERAL' ? 10 * 60 * 1e9 : 30 * 24 * 3600 * 1e9,
         });
+      } else if (JSON.stringify([...existing.config.subjects].sort()) !== JSON.stringify([...s.subjects].sort())) {
+        await this.jsm.streams.update(s.name, { ...existing.config, subjects: s.subjects });
       }
     }
 
     this.healthy = true;
+    await this.onTransportHealth?.(true,'jetstream connected');
     void this.watchConnection();
   }
 
   private async watchConnection(): Promise<void> {
     if (!this.nc) return;
     for await (const status of this.nc.status()) {
-      if (status.type === 'disconnect' || status.type === 'error') this.healthy = false;
-      if (status.type === 'reconnect') this.healthy = true;
+      if (status.type === 'disconnect' || status.type === 'error'){this.healthy = false;await this.onTransportHealth?.(false,`jetstream ${status.type}`)}
+      if (status.type === 'reconnect'){this.healthy = true;await this.onTransportHealth?.(true,'jetstream reconnected')}
     }
   }
 
@@ -94,6 +85,7 @@ export class NatsEventBus implements EventBus {
 
   async publish(event: Event): Promise<void> {
     if (!this.js) throw new Error('nats bus not started');
+    streamForEventType(event.type);
     await this.js.publish(event.type, encoder.encode(JSON.stringify(event)), {
       msgID: event.id, // JetStream dedupe on republish
     });
@@ -106,17 +98,15 @@ export class NatsEventBus implements EventBus {
     // A consumer reads from whichever stream carries its subjects. For the
     // Nervous System every kernel consumer wants OPERATIONS + SECURE; we bind
     // one durable consumer per (stream) it needs.
-    const streamsForConsumer = STREAMS.filter((s) =>
-      full.subjects.some((sub) => s.subjects.some((ss) => overlaps(ss, sub))),
-    );
+    const streamsForConsumer = STREAMS.map((stream) => ({stream, filters:streamSubjectsForFilter(stream.name, full.subjects, subjectMatches)})).filter((x) => x.filters.length);
 
-    for (const stream of streamsForConsumer) {
+    for (const {stream, filters} of streamsForConsumer) {
       const durable = `${full.consumer}--${stream.name}`.replace(/[^a-zA-Z0-9_-]/g, '_');
       const cfg: Partial<ConsumerConfig> = {
         durable_name: durable,
         ack_policy: AckPolicy.Explicit,
         max_deliver: full.maxAttempts + 1,
-        filter_subjects: full.subjects,
+        filter_subjects: filters,
       };
       await this.jsm.consumers.add(stream.name, cfg).catch(async (e: unknown) => {
         // already exists is fine
@@ -159,11 +149,4 @@ export class NatsEventBus implements EventBus {
     await this.nc?.close().catch(() => undefined);
     this.healthy = false;
   }
-}
-
-function overlaps(streamSubject: string, consumerSubject: string): boolean {
-  return (
-    subjectMatches(streamSubject, consumerSubject) ||
-    subjectMatches(consumerSubject, streamSubject)
-  );
 }

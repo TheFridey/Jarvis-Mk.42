@@ -2,7 +2,8 @@
  * Outbox relay: polls events.outbox and publishes committed events to the bus
  * (ADR-0009). Runs only on the Kernel. If the bus is unhealthy it backs off and
  * retries - the events are safe in PostgreSQL. After `maxAttempts` an entry is
- * dead-lettered and an `event.dead_lettered` DIAGNOSTIC event is emitted, and
+ * dead-lettered and, when eligible, one `event.dead_lettered` observation is emitted. A
+ * failed observation is itself recorded in the DLQ but can never emit another.
  * the event-fabric subsystem reports DEGRADED.
  */
 import { EventNames } from '@jarvis/contracts';
@@ -20,6 +21,10 @@ export interface OutboxRelayOptions {
   baseBackoffMs: number;
 }
 
+export function deadLetterNotificationEligible(eventType: string): boolean {
+  return eventType !== EventNames.EventDeadLettered;
+}
+
 export class OutboxRelay {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private running = false;
@@ -34,7 +39,7 @@ export class OutboxRelay {
       deadLetter: DeadLetterSink;
       events: EventManager;
       clock: Clock;
-      onHealth: (status: 'HEALTHY' | 'DEGRADED', detail: string) => void;
+      onHealth: (status: 'HEALTHY' | 'DEGRADED', detail: string) => void | Promise<void>;
     },
     private readonly opts: OutboxRelayOptions,
   ) {}
@@ -59,11 +64,11 @@ export class OutboxRelay {
     try {
       const drained = await this.drainOnce();
       this.consecutiveFailures = 0;
-      if (drained > 0) this.deps.onHealth('HEALTHY', 'outbox draining');
+      if (drained > 0) await this.deps.onHealth('HEALTHY', 'outbox draining');
     } catch (err) {
       this.consecutiveFailures++;
       const detail = err instanceof Error ? err.message : String(err);
-      this.deps.onHealth('DEGRADED', `outbox relay error: ${detail}`);
+      await this.deps.onHealth('DEGRADED', `outbox relay error: ${detail}`);
     } finally {
       this.running = false;
       const backoff = this.consecutiveFailures > 0
@@ -103,8 +108,7 @@ export class OutboxRelay {
               lastError: msg,
             });
             await this.deps.outbox.markDispatched(row.id, this.deps.clock.nowIso());
-            await this.deps.events
-              .emit({
+            if (deadLetterNotificationEligible(event.type)) await this.deps.events.emit({
                 type: EventNames.EventDeadLettered,
                 retentionClass: 'SECURITY',
                 privacyClass: 'INTERNAL',
@@ -114,9 +118,8 @@ export class OutboxRelay {
                 causationId: event.id,
                 principalId: event.principalId,
                 payload: { eventId: event.id, consumer: 'outbox-relay', attempts: row.attempts, lastError: msg },
-              })
-              .catch(() => undefined);
-            this.deps.onHealth('DEGRADED', `outbox dead-lettered ${event.id}`);
+              }).catch(() => undefined);
+            await this.deps.onHealth('DEGRADED', `outbox dead-lettered ${event.id}`);
           } else {
             const next = new Date(this.deps.clock.epochMs() + this.opts.baseBackoffMs * 2 ** row.attempts);
             await this.deps.outbox.reschedule(row.id, next.toISOString(), msg);

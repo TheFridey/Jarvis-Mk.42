@@ -134,9 +134,15 @@ JetStream is a bounded fan-out + short replay buffer.
 
 | Stream | Subjects | JS retention | Backs retentionClass |
 |---|---|---|---|
-| `EPHEMERAL` | `jarvis.perception.>`, other `TRANSIENT` subjects | minutes / size cap | `TRANSIENT` |
-| `OPERATIONS` | all other `jarvis.>` | ~30 d | `OPERATIONAL`, `MEMORY_CANDIDATE`, `DIAGNOSTIC` |
-| `SECURE` | `jarvis.kernel.identity.>`, `jarvis.kernel.policy.>`, `jarvis.kernel.permission.>`, `jarvis.agency.capability.>`, GUARDIAN mode changes | ~90 d | `AUDIT`, `SECURITY` |
+| `EPHEMERAL` | exact canonical `jarvis.perception.*` event subjects | minutes / size cap | high-frequency perception |
+| `SECURE` | exact canonical identity, policy, permission, agency capability lifecycle, and `jarvis.security.*` event subjects | ~30 d | security-isolated subjects |
+| `OPERATIONS` | every other exact canonical event subject | ~30 d | normal persistent operations |
+
+The lists are generated from `EventNames` by `streamForEventType`. They contain
+exact subjects rather than an overlapping `jarvis.>` catch-all. Startup fails
+before stream creation if a canonical name is missing or has more than one
+owner. Consumer filters select from the already non-overlapping ownership; they
+are not used as a conflict-resolution mechanism.
 
 Consumers are **durable pull consumers** with explicit ack, max-deliver, and a
 dead-letter subject.
@@ -200,9 +206,9 @@ dead-letter subject.
 |---|---|---|---|
 | `TRANSIENT` | **not persisted** | `EPHEMERAL`, minutes | optional in-memory ring buffer only |
 | `OPERATIONAL` | 90 d, then archived partition | `OPERATIONS`, ~30 d | state changes, sessions, modes, health |
-| `AUDIT` | indefinite, tamper-evident partition | `SECURE`, ~90 d | policy, grants, executions |
+| `AUDIT` | indefinite, tamper-evident partition | type-routed stream, ~30 d | policy, grants, executions |
 | `MEMORY_CANDIDATE` | until consolidated or 30 d | `OPERATIONS` | a future Memory service promotes these |
-| `SECURITY` | indefinite, tamper-evident partition | `SECURE` | auth, denials, GUARDIAN, anomalies |
+| `SECURITY` | indefinite, tamper-evident partition | type-routed stream | auth, denials, GUARDIAN, anomalies |
 | `DIAGNOSTIC` | 14 d | `OPERATIONS` | context.compiled, scheduler ticks |
 
 Anything `TRANSIENT` that must outlive its window is **re-emitted** by a

@@ -14,7 +14,7 @@ the modular-monolith extraction seam (`SYSTEM_BOUNDARIES.md` §10) and for
 node↔Kernel messaging.
 
 ## Decision
-Use **NATS with JetStream**. Three streams: `LEDGER`, `SIGNAL`, `DERIVED`
+Use **NATS with JetStream**. Three streams: `EPHEMERAL`, `SECURE`, `OPERATIONS`
 (`EVENT_ARCHITECTURE.md` §3), with durable pull consumers, explicit ack,
 max-deliver, and dead-letter subjects. NATS core request/reply is the RPC
 mechanism for in-process→service extraction and for Node Protocol control
@@ -69,3 +69,12 @@ recent-history buffer, not the archive.
 Replacing NATS with Kafka/Redpanda is an adapter swap plus stream/topic
 re-provisioning; consumer logic (idempotent, per-subject ordered) is
 unchanged. The RPC-substrate use would also need re-hosting (Nest transport).
+
+Stream ownership is derived from the canonical `EventNames` table. Each exact
+event subject belongs to exactly one of `EPHEMERAL`, `SECURE`, or `OPERATIONS`;
+there is no `jarvis.>` stream catch-all because JetStream forbids overlapping
+stream subjects. The Kernel validates total, unique ownership before connecting.
+
+The PostgreSQL dead-letter table is authoritative. `EventDeadLettered` is a
+best-effort observability event; if its own outbox delivery exhausts retries it
+is recorded and disposed without emitting another notification.

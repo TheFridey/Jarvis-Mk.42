@@ -164,10 +164,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const processed = new PgProcessedLedger(pg.sql);
   const deadLetter = new PgDeadLetterSink(pg.sql);
 
+  let reportNatsHealth:(healthy:boolean,detail:string)=>void|Promise<void>=()=>undefined;
   const useInProc = ov.forceInProcessBus || !config.natsEnabled;
   const bus: EventBus = useInProc
     ? new InProcessEventBus(processed, deadLetter)
-    : new NatsEventBus(config.natsUrl, processed, deadLetter);
+    : new NatsEventBus(config.natsUrl, processed, deadLetter,undefined,(healthy,detail)=>reportNatsHealth(healthy,detail));
 
   const events = new EventManager({
     sql: pg.sql,
@@ -190,6 +191,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   replayBus.registerProjector('state', (e) => stateProjector.apply(e));
 
   const health = new HealthManager({ state, events, clock, ids });
+  reportNatsHealth=(healthy,detail)=>health.heartbeat({subsystem:'nats',status:healthy?'HEALTHY':'OFFLINE',message:detail});
 
   let currentPrincipalId = config.bootstrapPrincipalId;
   let presenceIsPresent = false;
@@ -344,9 +346,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       deadLetter,
       events,
       clock,
-      onHealth: (status, detail) => {
-        void health.heartbeat({ subsystem: 'event-fabric', status: status === 'HEALTHY' ? 'HEALTHY' : 'DEGRADED', message: detail });
-      },
+      onHealth: (status, detail) => health.heartbeat({ subsystem: 'event-fabric', status: status === 'HEALTHY' ? 'HEALTHY' : 'DEGRADED', message: detail }),
     },
     {
       pollMs: config.outboxPollMs,
@@ -608,7 +608,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         await health.heartbeat({ subsystem: 'nats', status: 'OFFLINE', message: err instanceof Error ? err.message : String(err) });
       }
       outboxRelay.start();
-      await health.heartbeat({ subsystem: 'event-fabric', status: 'HEALTHY', message: 'outbox relay running' });
+      await health.heartbeat({ subsystem: 'event-fabric', status: bus.isHealthy() ? 'HEALTHY' : 'DEGRADED', message: bus.isHealthy() ? 'outbox relay running' : 'outbox durable; transport unavailable' });
       await agencyRecovery.recoverExpiredLeases();
       await health.heartbeat({ subsystem: 'agency', status: 'HEALTHY', message: `${registeredCapabilities.length} registered capabilities` });
       await health.heartbeat({ subsystem: 'adapter-host', status: 'HEALTHY', message: 'isolated worker host ready' });
