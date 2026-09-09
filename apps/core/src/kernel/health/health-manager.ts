@@ -79,15 +79,24 @@ export class HealthManager {
         updatedAt: this.deps.clock.nowIso(),
         ...(hb.detail ? { detail: hb.detail } : {}),
       });
-    } else {
-      if (existing.status === hb.status && existing.message === (hb.message ?? existing.message)) {
-        existing.updatedAt = this.deps.clock.nowIso();
-        if (hb.detail) existing.detail = hb.detail;
-        return;
-      }
     }
 
     const before = existing?.status ?? 'STARTING';
+    /**
+     * `jarvis.kernel.health.transitioned` means exactly what it says. Emitting
+     * one for a same-status heartbeat turns a chatty caller into an unbounded
+     * durable-event source: the outbox relay heartbeats `event-fabric:
+     * DEGRADED` once per dead-lettered event, and while a differing *message*
+     * counted as a transition each of those emitted a durable event that itself
+     * dead-lettered, so a single permanent NATS outage grew the event log
+     * forever (RC1.1 audit, AUDIT 3).
+     *
+     * Listeners still run on every heartbeat. They are in-memory and emit
+     * nothing unless the mode actually changes, and a recovery heartbeat that
+     * was refused by dwell hysteresis must get another chance to reconcile —
+     * otherwise the Kernel stays DEGRADED until the status happens to flap.
+     */
+    const statusChanged = before !== hb.status;
     const overallBefore = this.rollup().overall;
 
     const updated: SubsystemHealth = {
@@ -103,7 +112,7 @@ export class HealthManager {
 
     const { overall, criticalIssues } = this.rollup();
 
-    await this.deps.events
+    if (statusChanged) await this.deps.events
       .emit({
         type: EventNames.HealthTransitioned,
         retentionClass: 'OPERATIONAL',

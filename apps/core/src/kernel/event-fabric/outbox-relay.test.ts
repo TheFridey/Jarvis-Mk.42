@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventNames, type Event } from '@jarvis/contracts';
 import { FakeClock } from '../../runtime/clock.ts';
-import { OutboxRelay } from './outbox-relay.ts';
+import { deadLetterNotificationEligible, OutboxRelay } from './outbox-relay.ts';
 import { MemoryDeadLetterSink } from './stores.ts';
 
 const event=(id:string,type:string):Event=>({id,type,schemaVersion:1,retentionClass:'OPERATIONAL',time:'2026-01-01T00:00:00.000Z',recordedAt:'2026-01-01T00:00:00.000Z',source:{node:'n',component:'test'},subject:{kind:'test',id},actor:{kind:'system',id:'test'},provenance:{method:'system',producedBy:'test',producedOn:'n',producedAt:'2026-01-01T00:00:00.000Z',correlationId:id,derivedFromUntrusted:false},causationId:'none',correlationId:id,principalId:'system',privacyClass:'INTERNAL',payload:{}});
@@ -21,4 +21,16 @@ describe('outbox dead-letter recursion',()=>{
     expect(rows).toHaveLength(8);
   });
   it('joins an in-flight relay pass before stop resolves',async()=>{const clock=new FakeClock(0),e=event('original',EventNames.ModeChanged);let claimed=false,marked=false,release!:()=>void;const publishing=new Promise<void>(resolve=>{release=resolve});const relay=new OutboxRelay({store:{byId:async()=>e}as never,outbox:{claimBatch:async()=>claimed?[]:(claimed=true,[{id:'1',eventId:e.id,attempts:1}]),markDispatched:async()=>{marked=true},reschedule:async()=>undefined}as never,bus:{isHealthy:()=>true,publish:async()=>publishing}as never,deadLetter:new MemoryDeadLetterSink(),events:{}as never,clock,onHealth:()=>undefined},{pollMs:100,batchSize:1,maxAttempts:2,baseBackoffMs:1});const tick=relay.tick();let stopped=false;const stop=relay.stop().then(()=>{stopped=true});await Promise.resolve();expect(stopped).toBe(false);release();await Promise.all([tick,stop]);expect(marked).toBe(true);expect(stopped).toBe(true)});
+});
+
+describe('dead-letter notification eligibility',()=>{
+  it('suppresses a notification for every event-fabric self-observation',()=>{
+    // Guarding only EventDeadLettered left the DLQ -> health -> event -> DLQ
+    // cycle open (RC1.1 audit, AUDIT 3).
+    expect(deadLetterNotificationEligible(EventNames.EventDeadLettered)).toBe(false);
+    expect(deadLetterNotificationEligible(EventNames.HealthTransitioned)).toBe(false);
+    expect(deadLetterNotificationEligible(EventNames.EventRejected)).toBe(false);
+    expect(deadLetterNotificationEligible(EventNames.ModeChanged)).toBe(true);
+    expect(deadLetterNotificationEligible(EventNames.SchedulerTick)).toBe(true);
+  });
 });

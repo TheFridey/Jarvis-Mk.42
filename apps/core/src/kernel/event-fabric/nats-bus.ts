@@ -71,11 +71,28 @@ export class NatsEventBus implements EventBus {
     void this.watchConnection();
   }
 
+  /**
+   * A throwing health listener must not tear down the status loop: if this
+   * iterator ends early the bus can never report `reconnect` again, so a single
+   * blip would leave the Kernel permanently convinced the transport is down.
+   */
+  private async reportTransport(healthy: boolean, detail: string): Promise<void> {
+    try {
+      await this.onTransportHealth?.(healthy, detail);
+    } catch (err) {
+      console.error(`nats-bus: transport health listener failed (${detail}):`, err);
+    }
+  }
+
   private async watchConnection(): Promise<void> {
     if (!this.nc) return;
-    for await (const status of this.nc.status()) {
-      if (status.type === 'disconnect' || status.type === 'error'){this.healthy = false;await this.onTransportHealth?.(false,`jetstream ${status.type}`)}
-      if (status.type === 'reconnect'){this.healthy = true;await this.onTransportHealth?.(true,'jetstream reconnected')}
+    try {
+      for await (const status of this.nc.status()) {
+        if (status.type === 'disconnect' || status.type === 'error') { this.healthy = false; await this.reportTransport(false, `jetstream ${status.type}`); }
+        if (status.type === 'reconnect') { this.healthy = true; await this.reportTransport(true, 'jetstream reconnected'); }
+      }
+    } catch (err) {
+      if (!this.nc.isClosed()) console.error('nats-bus: status watcher stopped unexpectedly:', err);
     }
   }
 

@@ -11,7 +11,7 @@ as cognitive resources.
 > **The models are not JARVIS.** OpenAI, Anthropic, Gemini, local models, TTS,
 > vision — all replaceable. JARVIS is what persists around them.
 
-## Current status — MK.42 RC1
+## Current status — MK.42 RC1.1
 
 Certified by an independent hostile release-candidate audit
 (`docs/architecture/MK42_RELEASE_CANDIDATE_AUDIT.md`, 2026-09-08), which read the
@@ -19,7 +19,18 @@ code rather than the claims, ran every gate against real infrastructure, and
 attempted the forbidden operations. **Verdict: GO for `mk42-rc1`.** Read that
 document for scores, the exact commands, and the debt list.
 
-RC1 ships:
+A second, narrower audit then took the event fabric apart
+(`docs/architecture/MK42_RC1_1_EVENT_FABRIC_AUDIT.md`, 2026-09-09). It proved
+JetStream subject ownership against a live server — all 109 canonical events,
+exactly one stream each, no wildcards — and found that the previously-claimed
+dead-letter recursion fix was incomplete: a permanent NATS outage still grew the
+durable event log without bound, via a cycle running through
+`jarvis.kernel.health.transitioned` rather than the guarded notification event.
+That, and a health-listener change that could kill the Kernel process outright,
+are fixed at the root and proven against real NATS + real Postgres.
+**Verdict: GO for `mk42-rc1.1`.**
+
+RC1.1 ships everything in RC1, plus:
 
 1. The **architectural constitution** — `docs/architecture/`
 2. **Architecture Decision Records** — `docs/architecture/adr/`
@@ -31,14 +42,14 @@ RC1 ships:
 8. **Session-bound access credentials.** Every `/desktop/*`, `/voice/*` and `/vision/*` request presents a credential minted at `/auth/session` and bound to an admitted node, a live session and an explicit scope. Logout, session end, identity revocation, principal disable and node revocation all invalidate it immediately; rotation retires the previous generation; approvals additionally require a `strong` credential issued within five minutes. The earlier "tokens are not invalidated on logout" gap is **closed**.
 9. **Real observability.** A registered OpenTelemetry `NodeSDK` with OTLP export and resource identity; `currentTraceId()` returns a genuine trace id and the Event Manager stamps it onto the durable `events.events` row, so the ledger joins to the trace. Span coverage is partial — see below.
 10. **Real disaster recovery.** `pnpm backup:drill` takes a `pg_dump -Fc` artifact, drops and recreates the database, runs `pg_restore --exit-on-error`, asserts Kernel state / ATLAS / MNEMOSYNE / objectives / agency-invocation / policy rows survived, boots a real Kernel against the restored database, and confirms a completed invocation is not re-executed. It hard-fails when Docker is absent.
-11. Typed, runtime-validated contracts plus unit, integration (real ephemeral Postgres — the gate now hard-fails rather than self-skipping without Docker), contract, security, fitness and chaos gates, all green in CI on every push to `main`.
+11. Typed, runtime-validated contracts plus unit, integration (real ephemeral Postgres **and** real NATS JetStream — the gate hard-fails rather than self-skipping without Docker), contract, security, fitness and chaos gates. The full gate set is green on the GitHub-hosted workflow for the current `main` commit; check the Actions tab rather than assuming, since earlier commits have shipped red.
 12. A Tauri/Next.js desktop experience prototype and an isolated capability-worker host whose replies are bound by a per-invocation HMAC + nonce + staleness check (worker spoofing, stale replies and wrong-invocation replies are structurally rejected).
 
 **Known gaps, stated plainly:**
 
 - **Node Protocol v1 (ADR-0037) is a library, not an operating protocol.** The persisted registry, single-use enrollment tokens with a trust ceiling (`kernel-local` can never be requested), key rotation with overlap, revocation cascading to credentials, and a scheduled liveness sweep are all real and unit-tested. There is **no `/nodes/*` ingress**, so no remote node can enroll or heartbeat over the wire; the only registered node is the composition root. Every event's `source.node` is still the static `nodeId`.
 - **Span coverage is partial.** Only two Kernel paths create explicit spans (`model_gateway.generate`, `agency.executor.invoke`). The registered `instrumentation-pg` is **inert** — it patches `node-postgres` while this repo uses `postgres.js` — and outbound `fetch` (undici) has no instrumentation. An interaction touching neither instrumented path carries no trace id.
-- **The chaos gate does not inject faults into a live Kernel.** It proves the host-level fault-injection mechanisms work and covers Kernel degradation logic deterministically; it does not kill NATS/Redis/Postgres underneath a running Kernel and observe recovery.
+- **The chaos gate itself does not inject faults into a live Kernel.** It proves the host-level fault-injection mechanisms work and covers Kernel degradation logic deterministically. The RC1.1 audit closed part of this gap outside the chaos gate: `apps/core/test/rc11-nats-outage-audit.integration.test.ts` does kill real NATS underneath a running Kernel and assert the full degrade → reconnect → outbox-drain → no-duplicates cycle. **Redis and Postgres are still not killed under a running Kernel.**
 - **Verification reads through the same adapter module it is checking.** The Executor owns the strategy and the comparison, so an adapter can never self-certify completion — but a fully malicious adapter could lie consistently in both the execute and the verify read. A verification world outside the adapter is future work.
 - **The bootstrap credential is the single root of trust.** `authStrength: 'strong'` is asserted by the ingress, not proven by a second factor; there is no MFA. The default is `dev-bootstrap-secret` and nothing refuses to start when it is combined with a non-loopback bind. `/diagnostics` and `/state` are unauthenticated on loopback.
 - **Privacy classes are caller-asserted.** The mediator defaults everything to `INTERNAL` and only guarantees that untrusted-derived material never becomes `PUBLIC`; there is no content-aware sensitivity detection. Labels are enforced hard once set: two independent layers (Kernel routing and the Model Gateway registry) keep `SENSITIVE`/`RESTRICTED` context away from cloud models, and fail closed when no local route exists.

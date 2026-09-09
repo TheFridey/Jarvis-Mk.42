@@ -29,8 +29,14 @@ if (res.error) console.error(res.error.message);
 // container that outlives this whole process (observed: a leaked container
 // degraded the Docker daemon badly enough to make later runs falsely report
 // "Docker unavailable"). Sweep for stragglers unconditionally on exit.
-const list = spawnSync('docker', ['ps', '-aq', '--filter', 'name=jarvis-it-pg-'], { encoding: 'utf8' });
-const ids = (list.stdout ?? '').trim().split(/\r?\n/).filter(Boolean);
+// Sweep every ephemeral-container prefix the suites create, not just Postgres:
+// the JetStream suites run their own `jarvis-it-nats-*` / `jarvis-audit-*`
+// containers, and those leaked past this net until the RC1.1 audit.
+const PREFIXES = ['jarvis-it-pg-', 'jarvis-it-nats-', 'jarvis-audit-'];
+const ids = PREFIXES.flatMap((prefix) => {
+  const list = spawnSync('docker', ['ps', '-aq', '--filter', `name=${prefix}`], { encoding: 'utf8' });
+  return (list.stdout ?? '').trim().split(/\r?\n/).filter(Boolean);
+});
 if (ids.length > 0) {
   console.error(`run-it: sweeping ${ids.length} leaked ephemeral test container(s)`);
   spawnSync('docker', ['rm', '-f', ...ids], { stdio: 'inherit' });

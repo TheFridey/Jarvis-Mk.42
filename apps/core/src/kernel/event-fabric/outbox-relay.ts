@@ -21,8 +21,22 @@ export interface OutboxRelayOptions {
   baseBackoffMs: number;
 }
 
+/**
+ * Event-fabric self-observations. Dead-lettering one of these must never emit a
+ * further durable notification: the notification would travel the same broken
+ * transport, dead-letter in turn, and emit another. Guarding only
+ * `EventDeadLettered` is not enough — `HealthTransitioned` is emitted *by* the
+ * dead-letter path itself, so it closes the same cycle one hop further out
+ * (RC1.1 audit, AUDIT 3).
+ */
+const FABRIC_SELF_OBSERVATIONS: ReadonlySet<string> = new Set<string>([
+  EventNames.EventDeadLettered,
+  EventNames.EventRejected,
+  EventNames.HealthTransitioned,
+]);
+
 export function deadLetterNotificationEligible(eventType: string): boolean {
-  return eventType !== EventNames.EventDeadLettered;
+  return !FABRIC_SELF_OBSERVATIONS.has(eventType);
 }
 
 export class OutboxRelay {
@@ -61,15 +75,30 @@ export class OutboxRelay {
     try{await run}finally{if(this.activeRun===run)this.activeRun=undefined}
   }
 
+  /**
+   * Health listeners are allowed to throw (the Kernel's health->mode
+   * reconciliation deliberately surfaces a failed transition to its caller).
+   * The relay, however, is driven from a `setTimeout`, so letting that throw
+   * escape `tick()` turns it into an unhandled rejection that kills the
+   * process. Report it and keep the relay scheduled.
+   */
+  private async reportHealth(status: 'HEALTHY' | 'DEGRADED', detail: string): Promise<void> {
+    try {
+      await this.deps.onHealth(status, detail);
+    } catch (err) {
+      console.error(`outbox-relay: health listener failed (${status}: ${detail}):`, err);
+    }
+  }
+
   private async runTick():Promise<void>{
     try {
       const drained = await this.drainOnce();
       this.consecutiveFailures = 0;
-      if (drained > 0) await this.deps.onHealth('HEALTHY', 'outbox draining');
+      if (drained > 0) await this.reportHealth('HEALTHY', 'outbox draining');
     } catch (err) {
       this.consecutiveFailures++;
       const detail = err instanceof Error ? err.message : String(err);
-      await this.deps.onHealth('DEGRADED', `outbox relay error: ${detail}`);
+      await this.reportHealth('DEGRADED', `outbox relay error: ${detail}`);
     } finally {
       const backoff = this.consecutiveFailures > 0
         ? Math.min(this.opts.pollMs * 2 ** this.consecutiveFailures, 30_000)
@@ -119,7 +148,10 @@ export class OutboxRelay {
                 principalId: event.principalId,
                 payload: { eventId: event.id, consumer: 'outbox-relay', attempts: row.attempts, lastError: msg },
               }).catch(() => undefined);
-            await this.deps.onHealth('DEGRADED', `outbox dead-lettered ${event.id}`);
+            // Deliberately NOT per-event-id: a unique message per dead-letter is
+            // what previously made every dead-letter a fresh durable
+            // HealthTransitioned event (RC1.1 audit, AUDIT 3).
+            await this.reportHealth('DEGRADED', 'outbox dead-lettering: transport unavailable');
           } else {
             const next = new Date(this.deps.clock.epochMs() + this.opts.baseBackoffMs * 2 ** row.attempts);
             await this.deps.outbox.reschedule(row.id, next.toISOString(), msg);
