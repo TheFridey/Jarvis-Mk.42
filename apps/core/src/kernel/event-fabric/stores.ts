@@ -99,4 +99,12 @@ export class OutboxStore {
       select count(*)::text as c from events.outbox where dispatched_at is null`;
     return Number(r?.c ?? '0');
   }
+
+  /** A verified transport recovery supersedes outage backoff. Preserve attempt
+   * history, but make durable pending rows immediately eligible for relay. */
+  async releasePendingForRecovery(nowIso: string): Promise<void> {
+    await this.sql`
+      update events.outbox set next_attempt_at = ${nowIso}
+      where dispatched_at is null and next_attempt_at > ${nowIso}`;
+  }
 }

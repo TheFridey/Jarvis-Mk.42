@@ -1,5 +1,11 @@
 # @jarvis/protocol
 
+> **README-ONLY, PARTIAL TARGET SEAM — NOT A WORKSPACE PACKAGE.** Shared event
+> and node contracts currently live in `packages/contracts`; enrollment and
+> trust lifecycle live in `apps/core/src/kernel/nodes/`. A complete importable
+> wire codec/negotiation package has not shipped, so consumers must not import
+> or claim `@jarvis/protocol` today.
+
 **Purpose.** Wire-level framing shared by every process and node: the `Event`
 envelope encoder/decoder and validation hook, and the Node Protocol handshake
 (CONNECT → AUTHENTICATE → DECLARE → ADMIT → HEARTBEAT) state machine types.

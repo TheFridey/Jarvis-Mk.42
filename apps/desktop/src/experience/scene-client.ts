@@ -1,100 +1,50 @@
 'use client';
-import type { CognitionResponse } from '@jarvis/contracts'; import type { AirTouchFrame, DesktopApprovalCommand, DesktopCognitionCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
-import { applySceneIntent, createSnapshot } from '@jarvis/scene';
+import type { CognitionResponse } from '@jarvis/contracts';
+import type { AirTouchFrame, DesktopApprovalCommand, DesktopCognitionCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, ExperienceClientMessage, ExperienceServerMessage, ExperienceStreamUpdate, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
+import { applySceneIntent, createSnapshot, ExperienceReducer } from '@jarvis/scene';
 
-export type KernelConnection = { status: 'connecting' | 'live' | 'reconnecting' | 'offline' | 'demo'; lastConnectedAt?: string; error?: string };
-export interface SceneTransport {
-  readonly kind: 'live' | 'demo';
-  subscribe(listener: (scene: SemanticScene) => void): () => void;
-  subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void): () => void;
-  subscribeConnection(listener: (state: KernelConnection) => void): () => void;
-  subscribeAirTouch(listener: (frame: AirTouchFrame) => void): () => void;
-  submit(intent: SceneIntent, expectedVersion: number): Promise<void>;
-  submitProposal(command: DesktopProposalCommand): Promise<DesktopProposalResponse>;
-  submitCognition(command: DesktopCognitionCommand): Promise<CognitionResponse>;
-  decideApproval(command: DesktopApprovalCommand): Promise<void>;
-  reconnect(): Promise<void>;
-  close(): void;
-}
-export interface LayoutCache { read(sceneId: string): SceneSnapshot | undefined; write(sceneId: string, snapshot: SceneSnapshot): void; }
-export class BrowserLayoutCache implements LayoutCache { read(sceneId: string) { try { const raw = localStorage.getItem(`jarvis:scene:${sceneId}`); return raw ? JSON.parse(raw) as SceneSnapshot : undefined; } catch { return undefined; } } write(sceneId: string, snapshot: SceneSnapshot) { localStorage.setItem(`jarvis:scene:${sceneId}`, JSON.stringify(snapshot)); } }
+export type KernelConnection = { status: 'connecting' | 'live' | 'reconnecting' | 'stale' | 'offline' | 'demo'; lastConnectedAt?: string; staleSince?: string; error?: string };
+export interface SceneTransport { readonly kind:'live'|'demo'; subscribe(listener:(scene:SemanticScene)=>void):()=>void; subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void):()=>void; subscribeConnection(listener:(state:KernelConnection)=>void):()=>void; subscribeAirTouch(listener:(frame:AirTouchFrame)=>void):()=>void; submit(intent:SceneIntent,expectedVersion:number):Promise<void>; submitProposal(command:DesktopProposalCommand):Promise<DesktopProposalResponse>; submitCognition(command:DesktopCognitionCommand):Promise<CognitionResponse>; decideApproval(command:DesktopApprovalCommand):Promise<void>; reconnect():Promise<void>; close():void; }
+export interface LayoutCache { read(sceneId:string):SceneSnapshot|undefined; write(sceneId:string,snapshot:SceneSnapshot):void; }
+export class BrowserLayoutCache implements LayoutCache { read(sceneId:string){try{const raw=localStorage.getItem(`jarvis:scene:${sceneId}`);return raw?JSON.parse(raw) as SceneSnapshot:undefined}catch{return undefined}} write(sceneId:string,snapshot:SceneSnapshot){localStorage.setItem(`jarvis:scene:${sceneId}`,JSON.stringify(snapshot))} }
 
-export class LocalSceneTransport implements SceneTransport {
-  readonly kind = 'demo' as const; private scene: SemanticScene; private restored = false; private readonly listeners = new Set<(scene: SemanticScene) => void>();
-  constructor(initial: SemanticScene, private readonly cache?: LayoutCache) { this.scene = initial; }
-  subscribe(listener: (scene: SemanticScene) => void) { if (!this.restored) { this.restored = true; this.restoreCached(); } this.listeners.add(listener); listener(this.scene); return () => this.listeners.delete(listener); }
-  subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void) { listener(undefined); return () => undefined; }
-  subscribeConnection(listener: (state: KernelConnection) => void) { listener({ status: 'demo' }); return () => undefined; }
-  subscribeAirTouch() { return () => undefined; }
-  restoreCached() { const saved = this.cache?.read(this.scene.id); if (!saved) return; this.scene = applySceneIntent(this.scene, { type: 'restore', snapshot: saved, availableResourceRefs: this.scene.objects.flatMap((object) => object.resourceRefs), monitors: this.scene.monitors, input: 'keyboard' }); this.emit(); }
-  async submit(intent: SceneIntent, expectedVersion: number) { if (expectedVersion !== this.scene.version) throw new Error('SCENE_VERSION_CONFLICT'); this.scene = applySceneIntent(this.scene, intent); this.cache?.write(this.scene.id, createSnapshot(this.scene, 'latest')); this.emit(); }
-  async submitProposal(): Promise<DesktopProposalResponse> { throw new Error('DEMO_MODE_NO_KERNEL'); }
-  async submitCognition(): Promise<CognitionResponse> { throw new Error('DEMO_MODE_NO_KERNEL'); }
-  async decideApproval(): Promise<void> { throw new Error('DEMO_MODE_NO_KERNEL'); }
-  async reconnect() { this.emit(); }
-  close() { this.listeners.clear(); }
-  private emit() { this.listeners.forEach((listener) => listener(this.scene)); }
-}
+export class LocalSceneTransport implements SceneTransport { readonly kind='demo' as const;private scene:SemanticScene;private restored=false;private readonly listeners=new Set<(scene:SemanticScene)=>void>();constructor(initial:SemanticScene,private readonly cache?:LayoutCache){this.scene=initial}subscribe(listener:(scene:SemanticScene)=>void){if(!this.restored){this.restored=true;this.restoreCached()}this.listeners.add(listener);listener(this.scene);return()=>this.listeners.delete(listener)}subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void){listener(undefined);return()=>undefined}subscribeConnection(listener:(state:KernelConnection)=>void){listener({status:'demo'});return()=>undefined}subscribeAirTouch(){return()=>undefined}restoreCached(){const saved=this.cache?.read(this.scene.id);if(!saved)return;this.scene=applySceneIntent(this.scene,{type:'restore',snapshot:saved,availableResourceRefs:this.scene.objects.flatMap((object)=>object.resourceRefs),monitors:this.scene.monitors,input:'keyboard'});this.emit()}async submit(intent:SceneIntent,expectedVersion:number){if(expectedVersion!==this.scene.version)throw new Error('SCENE_VERSION_CONFLICT');this.scene=applySceneIntent(this.scene,intent);this.cache?.write(this.scene.id,createSnapshot(this.scene,'latest'));this.emit()}async submitProposal():Promise<DesktopProposalResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async submitCognition():Promise<CognitionResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async decideApproval():Promise<void>{throw new Error('DEMO_MODE_NO_KERNEL')}async reconnect(){this.emit()}close(){this.listeners.clear()}private emit(){this.listeners.forEach((listener)=>listener(this.scene))}}
 
+interface SocketLike { readonly readyState:number; onopen:null|(()=>void); onmessage:null|((event:{data:string})=>void); onclose:null|((event:{code:number;reason:string})=>void); onerror:null|(()=>void); send(data:string):void; close(code?:number,reason?:string):void; }
+type SocketFactory=(url:string)=>SocketLike;
 export class KernelSceneTransport implements SceneTransport {
-  readonly kind = 'live' as const; private scene?: SemanticScene; private snapshot?: DesktopKernelSnapshot; private status: KernelConnection = { status: 'connecting' }; private stopped = false; private polling = false; private timer?: ReturnType<typeof setTimeout>; private failures = 0;
-  private readonly sceneListeners = new Set<(scene: SemanticScene) => void>(); private readonly kernelListeners = new Set<(snapshot: DesktopKernelSnapshot | undefined) => void>(); private readonly connectionListeners = new Set<(state: KernelConnection) => void>();
-  private auth?: { accessToken: string; sessionId: string };
-  // RC-audit fix: this client used to send a static `dev-desktop-token` bearer.
-  // The Kernel ingress now requires a session-bound credential (node + session +
-  // scope), so the static token could never authenticate. Mint one the same way
-  // the voice and vision clients do.
-  constructor(private readonly options: { endpoint: string; credential: string; nodeId: string; cache?: LayoutCache; fetch?: typeof globalThis.fetch; pollMs?: number; retryMaxMs?: number }) {}
-  private async authenticate() {
-    if (this.auth) return this.auth;
-    const response = await (this.options.fetch ?? globalThis.fetch)(`${this.options.endpoint.replace(/\/$/, '')}/auth/session`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ credential: this.options.credential, nodeId: this.options.nodeId, scopes: ['desktop.read', 'desktop.write', 'vision.read'], surface: 'desktop' }),
-    });
-    if (!response.ok) throw new Error(`Kernel session exchange ${response.status}`);
-    const body = await response.json() as { accessToken: string; credential: { sessionId: string } };
-    return (this.auth = { accessToken: body.accessToken, sessionId: body.credential.sessionId });
-  }
-  subscribe(listener: (scene: SemanticScene) => void) { this.sceneListeners.add(listener); if (this.scene) listener(this.scene); this.start(); return () => this.sceneListeners.delete(listener); }
-  subscribeKernel(listener: (snapshot: DesktopKernelSnapshot | undefined) => void) { this.kernelListeners.add(listener); listener(this.snapshot); this.start(); return () => this.kernelListeners.delete(listener); }
-  subscribeConnection(listener: (state: KernelConnection) => void) { this.connectionListeners.add(listener); listener(this.status); this.start(); return () => this.connectionListeners.delete(listener); }
-  subscribeAirTouch(listener: (frame: AirTouchFrame) => void) { const abort = new AbortController(); void this.consumeVision(listener, abort.signal); return () => abort.abort(); }
-  async submit(intent: SceneIntent, expectedVersion: number) { if (!this.scene || expectedVersion !== this.scene.version) throw new Error('SCENE_VERSION_CONFLICT'); const authoritativeVersion = this.scene.version; this.scene = { ...applySceneIntent(this.scene, intent), version: authoritativeVersion }; this.options.cache?.write(this.scene.id, createSnapshot(this.scene, 'presentation')); this.sceneListeners.forEach((listener) => listener(this.scene!)); }
-  async submitProposal(command: DesktopProposalCommand) { return this.command<DesktopProposalResponse>('/desktop/proposals', command); }
-  async submitCognition(command: DesktopCognitionCommand) { return this.command<CognitionResponse>('/desktop/cognition', command); }
-  async decideApproval(command: DesktopApprovalCommand) { await this.command('/desktop/approvals', command); await this.poll(); }
-  async reconnect() { this.failures = 0; this.setStatus({ status: 'reconnecting' }); await this.poll(); }
-  close() { this.stopped = true; if (this.timer) clearTimeout(this.timer); }
-  private start() { if (this.stopped) this.stopped = false; if (!this.timer && !this.polling) void this.poll(); }
-  private async poll() {
-    if (this.stopped || this.polling) return;
-    this.polling = true;
-    if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
-    try {
-      const response = await this.request('/desktop/snapshot'); if (!response.ok) throw new Error(`Kernel snapshot HTTP ${response.status}`);
-      const snapshot = await response.json() as DesktopKernelSnapshot; if (snapshot.schemaVersion !== 1 || !snapshot.scene || typeof snapshot.stateVersion !== 'number') throw new Error('Invalid Kernel snapshot');
-      this.failures = 0; this.snapshot = snapshot; this.scene = this.restorePresentation(snapshot.scene); this.kernelListeners.forEach((listener) => listener(snapshot)); this.sceneListeners.forEach((listener) => listener(this.scene!)); this.setStatus({ status: 'live', lastConnectedAt: new Date().toISOString() }); this.schedule(this.options.pollMs ?? 1500);
-    } catch (error) { this.failures++; this.setStatus({ status: this.snapshot ? 'reconnecting' : 'offline', ...(error instanceof Error ? { error: error.message } : {}) }); this.schedule(Math.min((this.options.pollMs ?? 1500) * 2 ** Math.min(this.failures, 5), this.options.retryMaxMs ?? 15_000)); }
-    finally { this.polling = false; }
-  }
-  private async command<T = unknown>(path: string, body: unknown): Promise<T> {
-    if (this.status.status !== 'live' || !this.snapshot) throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
-    const response = await this.request(path, { method: 'POST', body: JSON.stringify(body) });
-    if (response.status === 409) { await this.poll(); throw new Error('STATE_VERSION_CONFLICT'); }
-    if (!response.ok) throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);
-    return response.json() as Promise<T>;
-  }
-  private async request(path: string, init: RequestInit = {}) {
-    const auth = await this.authenticate();
-    const response = await (this.options.fetch ?? globalThis.fetch)(`${this.options.endpoint.replace(/\/$/, '')}${path}`, { ...init, headers: { authorization: `Bearer ${auth.accessToken}`, 'x-jarvis-node-id': this.options.nodeId, 'x-jarvis-session-id': auth.sessionId, 'content-type': 'application/json', ...init.headers } });
-    // A revoked/expired credential must force a fresh exchange, not a silent stall.
-    if (response.status === 401) { this.auth = undefined; }
-    return response;
-  }
-  private async consumeVision(listener: (frame: AirTouchFrame) => void, signal: AbortSignal) { while (!signal.aborted) { try { const response = await this.request('/vision/stream', { signal }); if (!response.ok || !response.body) throw new Error(`vision stream HTTP ${response.status}`); const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); let buffered = ''; while (!signal.aborted) { const part = await reader.read(); if (part.done) break; buffered += part.value; const lines = buffered.split('\n'); buffered = lines.pop() ?? ''; for (const line of lines) if (line.trim()) listener(JSON.parse(line) as AirTouchFrame); } } catch { if (!signal.aborted) await new Promise((resolve) => setTimeout(resolve, 1000)); } } }
-  private schedule(ms: number) { if (!this.stopped) this.timer = setTimeout(() => { this.timer = undefined; void this.poll(); }, ms); }
-  private setStatus(status: KernelConnection) { this.status = status; this.connectionListeners.forEach((listener) => listener(status)); }
-  private restorePresentation(scene: SemanticScene) { const saved = this.options.cache?.read(scene.id); if (!saved) return scene; const savedById = new Map(saved.objects.map((object) => [object.id, object])); return { ...scene, objects: scene.objects.map((object) => { const prior = savedById.get(object.id); return prior ? { ...object, monitorId: prior.monitorId, position: prior.position, size: prior.size, state: prior.state, pinned: prior.pinned, zIndex: prior.zIndex } : object; }) }; }
+  readonly kind='live' as const;private scene?:SemanticScene;private snapshot?:DesktopKernelSnapshot;private status:KernelConnection={status:'connecting'};private stopped=false;private started=false;private failures=0;private reconnectTimer?:ReturnType<typeof setTimeout>;private heartbeatTimer?:ReturnType<typeof setTimeout>;private socket?:SocketLike;private auth?:{accessToken:string;sessionId:string};private readonly reducer=new ExperienceReducer();
+  private readonly sceneListeners=new Set<(scene:SemanticScene)=>void>();private readonly kernelListeners=new Set<(snapshot:DesktopKernelSnapshot|undefined)=>void>();private readonly connectionListeners=new Set<(state:KernelConnection)=>void>();
+  constructor(private readonly options:{endpoint:string;credential:string;nodeId:string;cache?:LayoutCache;fetch?:typeof globalThis.fetch;socket?:SocketFactory;retryBaseMs?:number;retryMaxMs?:number}){}
+  subscribe(listener:(scene:SemanticScene)=>void){this.sceneListeners.add(listener);if(this.scene)listener(this.scene);this.start();return()=>this.sceneListeners.delete(listener)}
+  subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void){this.kernelListeners.add(listener);listener(this.snapshot);this.start();return()=>this.kernelListeners.delete(listener)}
+  subscribeConnection(listener:(state:KernelConnection)=>void){this.connectionListeners.add(listener);listener(this.status);this.start();return()=>this.connectionListeners.delete(listener)}
+  subscribeAirTouch(listener:(frame:AirTouchFrame)=>void){const abort=new AbortController();void this.consumeVision(listener,abort.signal);return()=>abort.abort()}
+  async submit(intent:SceneIntent,expectedVersion:number){if(!this.scene||expectedVersion!==this.scene.version)throw new Error('SCENE_VERSION_CONFLICT');const authoritativeVersion=this.scene.version;this.scene={...applySceneIntent(this.scene,intent),version:authoritativeVersion};this.options.cache?.write(this.scene.id,createSnapshot(this.scene,'presentation'));this.sceneListeners.forEach((listener)=>listener(this.scene!))}
+  async submitProposal(command:DesktopProposalCommand){return this.command<DesktopProposalResponse>('/desktop/proposals',command)}
+  async submitCognition(command:DesktopCognitionCommand){return this.command<CognitionResponse>('/desktop/cognition',command)}
+  async decideApproval(command:DesktopApprovalCommand){await this.command('/desktop/approvals',command)}
+  async reconnect(){this.failures=0;if(this.reconnectTimer)clearTimeout(this.reconnectTimer);this.reconnectTimer=undefined;this.replaceSocket('manual reconnect');this.setStatus({status:this.snapshot?'reconnecting':'connecting',...(this.snapshot?{staleSince:new Date().toISOString()}: {})});await this.bootstrapAndConnect(true)}
+  close(){this.stopped=true;if(this.reconnectTimer)clearTimeout(this.reconnectTimer);if(this.heartbeatTimer)clearTimeout(this.heartbeatTimer);this.socket?.close(1000,'client shutdown');this.socket=undefined}
+  private start(){if(this.started)return;this.started=true;this.stopped=false;void this.bootstrapAndConnect(true)}
+  private async authenticate(){if(this.auth)return this.auth;const response=await(this.options.fetch??globalThis.fetch)(`${this.base()}/auth/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({credential:this.options.credential,nodeId:this.options.nodeId,scopes:['desktop.read','desktop.write','vision.read','experience.read'],surface:'desktop'})});if(!response.ok)throw new Error(`Kernel session exchange ${response.status}`);const body=await response.json() as{accessToken:string;credential:{sessionId:string}};return(this.auth={accessToken:body.accessToken,sessionId:body.credential.sessionId})}
+  private async bootstrapAndConnect(refreshSnapshot:boolean){if(this.stopped)return;try{await this.authenticate();if(refreshSnapshot||!this.snapshot)await this.bootstrap();this.openSocket()}catch(error){this.fail(error)}}
+  private async bootstrap(){const response=await this.request('/desktop/snapshot');if(!response.ok)throw new Error(`Kernel snapshot HTTP ${response.status}`);const snapshot=await response.json() as DesktopKernelSnapshot;if(snapshot.schemaVersion!==2||snapshot.operatingPictureVersion!==1||!snapshot.scene||snapshot.sceneVersion!==snapshot.scene.version)throw new Error('Invalid Kernel operating picture');this.reducer.bootstrap(snapshot);this.applyPicture(snapshot)}
+  private openSocket(){if(this.stopped)return;const factory=this.options.socket??((url)=>new WebSocket(url) as unknown as SocketLike);const socket=factory(`${this.base().replace(/^http/,'ws')}/experience/stream`);this.socket=socket;socket.onopen=()=>{if(this.socket!==socket)return;const auth=this.auth!;const message:ExperienceClientMessage={type:'experience.subscribe',schemaVersion:1,accessToken:auth.accessToken,nodeId:this.options.nodeId,sessionId:auth.sessionId,channels:['system','objectives','cognition','agency','notifications','scene','telemetry'],...(this.reducer.resume()?{resume:this.reducer.resume()}: {})};socket.send(JSON.stringify(message))};socket.onmessage=(event)=>{if(this.socket!==socket)return;this.onMessage(JSON.parse(event.data) as ExperienceServerMessage)};socket.onerror=()=>{if(this.socket===socket)this.markStale('realtime transport error')};socket.onclose=(event)=>{if(this.socket!==socket||this.stopped)return;this.socket=undefined;if(event.code===4003)this.auth=undefined;this.markStale(event.reason||`stream closed ${event.code}`);this.scheduleReconnect()}}
+  private onMessage(message:ExperienceServerMessage){this.armHeartbeat();if(message.type==='experience.ready'){this.failures=0;this.setStatus({status:'live',lastConnectedAt:new Date().toISOString()});return}if(message.type==='experience.heartbeat')return;if(message.type==='experience.resync_required'){this.resync();return}if(message.type==='experience.error'){this.markStale(message.detail);return}const result=this.reducer.apply(message as ExperienceStreamUpdate);if(result.status==='applied')this.applyPicture(result.picture);else if(result.status==='resync_required')this.resync()}
+  private applyPicture(picture:DesktopKernelSnapshot){this.snapshot=picture;this.scene=this.restorePresentation(picture.scene);this.kernelListeners.forEach((listener)=>listener(picture));this.sceneListeners.forEach((listener)=>listener(this.scene!))}
+  private markStale(error:string){this.setStatus({status:this.snapshot?'stale':'offline',...(this.snapshot?{staleSince:new Date().toISOString()}:{}),error})}
+  private fail(error:unknown){this.failures++;this.markStale(error instanceof Error?error.message:String(error));this.scheduleReconnect()}
+  private scheduleReconnect(){if(this.stopped||this.reconnectTimer)return;const delay=Math.min((this.options.retryBaseMs??500)*2**Math.min(this.failures++,5),this.options.retryMaxMs??15_000);this.setStatus({status:this.snapshot?'reconnecting':'offline',...(this.snapshot?{staleSince:this.status.staleSince??new Date().toISOString()}:{}),error:this.status.error});this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=undefined;void this.bootstrapAndConnect(false)},delay)}
+  private armHeartbeat(){if(this.heartbeatTimer)clearTimeout(this.heartbeatTimer);this.heartbeatTimer=setTimeout(()=>{this.markStale('experience heartbeat timeout');this.socket?.close(4000,'heartbeat timeout')},30_000)}
+  private resync(){this.replaceSocket('snapshot resync');void this.bootstrapAndConnect(true)}
+  private replaceSocket(reason:string){const socket=this.socket;this.socket=undefined;socket?.close(1000,reason)}
+  private async command<T=unknown>(path:string,body:unknown):Promise<T>{if(this.status.status!=='live'||!this.snapshot)throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');const response=await this.request(path,{method:'POST',body:JSON.stringify(body)});if(response.status===409){await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')}if(!response.ok)throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);return response.json() as Promise<T>}
+  private async request(path:string,init:RequestInit={}){const auth=await this.authenticate();const response=await(this.options.fetch??globalThis.fetch)(`${this.base()}${path}`,{...init,headers:{authorization:`Bearer ${auth.accessToken}`,'x-jarvis-node-id':this.options.nodeId,'x-jarvis-session-id':auth.sessionId,'content-type':'application/json',...init.headers}});if(response.status===401)this.auth=undefined;return response}
+  private async consumeVision(listener:(frame:AirTouchFrame)=>void,signal:AbortSignal){while(!signal.aborted){try{const response=await this.request('/vision/stream',{signal});if(!response.ok||!response.body)throw new Error(`vision stream HTTP ${response.status}`);const reader=response.body.pipeThrough(new TextDecoderStream()).getReader();let buffered='';while(!signal.aborted){const part=await reader.read();if(part.done)break;buffered+=part.value;const lines=buffered.split('\n');buffered=lines.pop()??'';for(const line of lines)if(line.trim())listener(JSON.parse(line) as AirTouchFrame)}}catch{if(!signal.aborted)await new Promise((resolve)=>setTimeout(resolve,1000))}}}
+  private setStatus(status:KernelConnection){this.status=status;this.connectionListeners.forEach((listener)=>listener(status))}
+  private restorePresentation(scene:SemanticScene){const saved=this.options.cache?.read(scene.id);if(!saved)return scene;const savedById=new Map(saved.objects.map((object)=>[object.id,object]));return{...scene,objects:scene.objects.map((object)=>{const prior=savedById.get(object.id);return prior?{...object,monitorId:prior.monitorId,position:prior.position,size:prior.size,state:prior.state,pinned:prior.pinned,zIndex:prior.zIndex}:object})}}
+  private base(){return this.options.endpoint.replace(/\/$/,'')}
 }
 
-export function createDesktopTransport(): SceneTransport { return new KernelSceneTransport({ endpoint: process.env.NEXT_PUBLIC_JARVIS_CORE_URL ?? 'http://127.0.0.1:7420', credential: process.env.NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL ?? 'dev-bootstrap-secret', nodeId: process.env.NEXT_PUBLIC_JARVIS_NODE_ID ?? 'local-server', cache: new BrowserLayoutCache() }); }
+export function createDesktopTransport():SceneTransport{return new KernelSceneTransport({endpoint:process.env.NEXT_PUBLIC_JARVIS_CORE_URL??'http://127.0.0.1:7420',credential:process.env.NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL??'dev-bootstrap-secret',nodeId:process.env.NEXT_PUBLIC_JARVIS_NODE_ID??'local-server',cache:new BrowserLayoutCache()})}

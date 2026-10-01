@@ -1,5 +1,10 @@
 # @jarvis/capabilities
 
+> **README-ONLY EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** Registry code is
+> in `apps/core/src/kernel/capability-registry/`; Executor code is in
+> `apps/core/src/kernel/executor/`; adapter isolation is in `apps/adapter-host`.
+> This directory contains no importable implementation.
+
 **Purpose.** The **Capability Registry** and the **Capability Executor**
 pipeline (`docs/architecture/AGENCY_MODEL.md`, ADR-0016). The Registry holds
 versioned `Capability` manifests. The Executor is the **only path to an

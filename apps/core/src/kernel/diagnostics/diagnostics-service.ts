@@ -37,6 +37,7 @@ export interface DiagnosticsDeps {
   pingDb: () => Promise<boolean>;
   pingRedis: () => Promise<boolean>;
   busHealthy: () => boolean;
+  eventFabricDiagnostics?: () => DiagnosticsReport['eventFabric'];
   modelGatewayHealth?: () => Promise<{ status: HealthStatus; models: number }>;
   countActiveObjectives?: () => Promise<number>;
   visionDiagnostics?: () => DiagnosticsReport['vision'];
@@ -100,7 +101,7 @@ export class DiagnosticsService {
         name: 'event-bus',
         status: this.deps.busHealthy() ? 'HEALTHY' : 'DEGRADED',
         placeholder: false,
-        detail: { pendingOutbox: outboxPending },
+        detail: { pendingOutbox: outboxPending, ...(this.deps.eventFabricDiagnostics?.() ?? {}) },
       },
       {
         name: 'nats',
@@ -138,6 +139,7 @@ export class DiagnosticsService {
         outboxPending,
         deadLettered,
       },
+      ...(this.deps.eventFabricDiagnostics?.() ? { eventFabric: this.deps.eventFabricDiagnostics() } : {}),
       state: {
         stateVersion: stateView.stateVersion,
         lastMutationAt,

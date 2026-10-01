@@ -124,7 +124,7 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     const snapshotResponse = await fetch(`${base}/desktop/snapshot`, { headers });
     expect(snapshotResponse.status).toBe(200);
     const snapshot = await snapshotResponse.json() as { schemaVersion: number; principalId: string; stateVersion: number; diagnostics: { mode: string }; scene: { presentation: string; version: number } };
-    expect(snapshot).toMatchObject({ schemaVersion: 1, principalId: 'principal-operator', diagnostics: { mode: 'AMBIENT' } });
+    expect(snapshot).toMatchObject({ schemaVersion: 2, operatingPictureVersion: 1, principalId: 'principal-operator', diagnostics: { mode: 'AMBIENT' } });
     expect(snapshot.scene.version).toBe(snapshot.stateVersion);
     const stale = await fetch(`${base}/desktop/proposals`, { method: 'POST', headers, body: JSON.stringify({ commandId: 'stale', expectedStateVersion: snapshot.stateVersion - 1, proposal: {} }) });
     expect(stale.status).toBe(409);

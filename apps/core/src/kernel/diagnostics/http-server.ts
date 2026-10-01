@@ -21,6 +21,8 @@ import type { VoiceGateway } from '../voice/voice-gateway.ts';
 import type { VisionEventCommand, VoiceEventCommand } from '@jarvis/contracts';
 import type { VisionGateway } from '../vision/vision-gateway.ts';
 import type { IdentityManager, SessionCredentialManager } from '../identity/index.ts';import type{SessionManager}from'../session/index.ts';import type{NodeStore}from'../nodes/index.ts';import type{IdGen}from'../../runtime/ids.ts';
+import { extractTraceContext, withSpan, withTraceContext } from '@jarvis/telemetry';
+import { ExperienceProjection, ExperienceStreamServer } from '../experience/index.ts';
 
 export interface DiagnosticsHttpDeps {
   diagnostics: DiagnosticsService;
@@ -30,10 +32,12 @@ export interface DiagnosticsHttpDeps {
   voice: VoiceGateway;
   vision: VisionGateway;
   identity:IdentityManager;sessions:SessionManager;credentials:SessionCredentialManager;nodeStore:NodeStore;ids:IdGen;nodeId:string;principalId:string;
+  experience:ExperienceProjection;
 }
 
 export class DiagnosticsHttp {
   private server: Server | undefined;
+  private stream: ExperienceStreamServer | undefined;
 
   constructor(private readonly deps: DiagnosticsHttpDeps) {}
 
@@ -41,6 +45,8 @@ export class DiagnosticsHttp {
     this.server = createServer((req, res) => {
       void this.handle(req, res);
     });
+    this.stream = new ExperienceStreamServer({ projection:this.deps.experience, authenticate:async(binding,scopes)=>this.deps.credentials.authenticate(`Bearer ${binding.accessToken}`,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes}), allowedOrigin:(origin)=>this.allowedOrigin(origin), reportError:(error)=>console.error('experience-stream:',error) });
+    this.stream.attach(this.server);
     return new Promise((resolve) => {
       this.server!.listen(port, host, () => {
         const addr = this.server!.address();
@@ -50,6 +56,19 @@ export class DiagnosticsHttp {
   }
 
   private async handle(
+    req: import('node:http').IncomingMessage,
+    res: import('node:http').ServerResponse,
+  ): Promise<void> {
+    const headers: Record<string, string | undefined> = {};
+    for (const [key, value] of Object.entries(req.headers)) headers[key] = Array.isArray(value) ? value.join(',') : value;
+    const parent = extractTraceContext(headers);
+    return withTraceContext(parent, () => withSpan('kernel.interaction', {
+      'http.request.method': req.method ?? 'GET',
+      'url.path': (req.url ?? '/').split('?')[0] ?? '/',
+    }, () => this.handleInner(req, res)));
+  }
+
+  private async handleInner(
     req: import('node:http').IncomingMessage,
     res: import('node:http').ServerResponse,
   ): Promise<void> {
@@ -66,9 +85,9 @@ export class DiagnosticsHttp {
 
     try {
       const path = url.split('?')[0] ?? '/';
-      if(path==='/auth/session'){if(method!=='POST')return send(405,{error:'method not allowed'});const body=await this.body<{credential:string;nodeId:string;scopes:string[];surface?:string}>(req);const node=await this.deps.nodeStore.get(body.nodeId);if(!node||['revoked','isolated','disconnected'].includes(node.status))return send(403,{error:'node not admitted'});const auth=await this.deps.identity.authenticate({method:'bootstrap',credential:body.credential,nodeId:body.nodeId,claimedPrincipalId:this.deps.principalId});if(!auth.ok)return send(401,{error:auth.code});const allowed=['desktop.read','desktop.write','voice.write','vision.write','vision.read'];if(!Array.isArray(body.scopes)||body.scopes.some(s=>!allowed.includes(s)))return send(403,{error:'scope not issuable'});let session=await this.deps.sessions.open({type:body.surface==='voice'?'rtc':'user_interaction',principalId:auth.context.principalId,nodeId:body.nodeId,correlationId:this.deps.ids.ulid(),contextRef:body.surface??'desktop'});const active=await this.deps.sessions.transition({sessionId:session.id,to:'active',reason:'authenticated',expectedVersion:session.version});if(!active.ok)return send(500,{error:'session activation failed'});session=active.session;const issued=await this.deps.credentials.issue({identityId:auth.context.identityId,principalId:auth.context.principalId,sessionId:session.id,nodeId:body.nodeId,scopes:body.scopes,authStrength:'strong'});return send(201,{accessToken:issued.accessToken,credential:issued.credential})}
+      if(path==='/auth/session'){if(method!=='POST')return send(405,{error:'method not allowed'});const body=await this.body<{credential:string;nodeId:string;scopes:string[];surface?:string}>(req);const node=await this.deps.nodeStore.get(body.nodeId);if(!node||['revoked','isolated','disconnected'].includes(node.status))return send(403,{error:'node not admitted'});const auth=await this.deps.identity.authenticate({method:'bootstrap',credential:body.credential,nodeId:body.nodeId,claimedPrincipalId:this.deps.principalId});if(!auth.ok)return send(401,{error:auth.code});const allowed=['desktop.read','desktop.write','voice.write','vision.write','vision.read','experience.read'];if(!Array.isArray(body.scopes)||body.scopes.some(s=>!allowed.includes(s)))return send(403,{error:'scope not issuable'});let session=await this.deps.sessions.open({type:body.surface==='voice'?'rtc':'user_interaction',principalId:auth.context.principalId,nodeId:body.nodeId,correlationId:this.deps.ids.ulid(),contextRef:body.surface??'desktop'});const active=await this.deps.sessions.transition({sessionId:session.id,to:'active',reason:'authenticated',expectedVersion:session.version});if(!active.ok)return send(500,{error:'session activation failed'});session=active.session;const issued=await this.deps.credentials.issue({identityId:auth.context.identityId,principalId:auth.context.principalId,sessionId:session.id,nodeId:body.nodeId,scopes:body.scopes,authStrength:'strong'});return send(201,{accessToken:issued.accessToken,credential:issued.credential})}
       if(path==='/auth/rotate'){if(method!=='POST')return send(405,{error:'method not allowed'});const binding=this.binding(req);if(!binding.sessionId)return send(401,{error:'session required'});const next=await this.deps.credentials.rotate(req.headers.authorization??'',{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:[]});return next?send(200,{accessToken:next.accessToken,credential:next.credential}):send(401,{error:'unauthorised'})}
-      if(path==='/auth/logout'){if(method!=='POST')return send(405,{error:'method not allowed'});const binding=this.binding(req);const auth=await this.deps.credentials.authenticate(req.headers.authorization,{...binding,scopes:[]});if(!auth?.sessionId)return send(401,{error:'unauthorised'});const session=await this.deps.sessions.get(auth.sessionId);if(!session)return send(401,{error:'session unavailable'});const ended=await this.deps.sessions.transition({sessionId:session.id,to:'ended',reason:'logout',expectedVersion:-1});return ended.ok?send(204,null):send(409,{error:ended.code})}
+      if(path==='/auth/logout'){if(method!=='POST')return send(405,{error:'method not allowed'});const binding=this.binding(req);const auth=await this.deps.credentials.authenticate(req.headers.authorization,{...binding,scopes:[]});if(!auth?.sessionId)return send(401,{error:'unauthorised'});const session=await this.deps.sessions.get(auth.sessionId);if(!session)return send(401,{error:'session unavailable'});const ended=await this.deps.sessions.transition({sessionId:session.id,to:'ended',reason:'logout',expectedVersion:-1});if(ended.ok)this.stream?.disconnectSession(session.id);return ended.ok?send(204,null):send(409,{error:ended.code})}
       if (path === '/healthz') {
         if (method !== 'GET') return send(405, { error: 'method not allowed' });
         const report = this.deps.health.report();
@@ -110,6 +129,7 @@ export class DiagnosticsHttp {
   private async body<T>(req: import('node:http').IncomingMessage): Promise<T> { const chunks: Buffer[] = []; let size = 0; for await (const chunk of req) { const buffer = Buffer.from(chunk); size += buffer.length; if (size > 1_000_000) throw new Error('request body too large'); chunks.push(buffer); } return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T; }
 
   async close(): Promise<void> {
+    await this.stream?.close(); this.stream = undefined;
     if (!this.server) return;
     await new Promise<void>((resolve) => this.server!.close(() => resolve()));
     this.server = undefined;

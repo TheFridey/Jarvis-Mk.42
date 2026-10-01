@@ -14,6 +14,8 @@ export interface KernelConfig {
 
   /** Empty => NATS disabled, in-process bus only (dev/tests). */
   natsEnabled: boolean;
+  /** Sustained transport loss before the critical event fabric degrades. */
+  natsDegradeAfterMs: number;
 
   otlpEndpoint: string;
   telemetryDisabled: boolean;
@@ -60,6 +62,23 @@ export interface KernelConfig {
   retentionSweepMs: number;
 }
 
+export const DEVELOPMENT_BOOTSTRAP_CREDENTIAL = 'dev-bootstrap-secret';
+export const DEVELOPMENT_GATEWAY_TOKEN = 'dev-gateway-token';
+
+/** Default development credentials are permitted only on a loopback ingress.
+ * NODE_ENV is deliberately not an escape hatch: a non-loopback bind makes the
+ * credential remotely reachable regardless of the process label. */
+export function isLoopbackHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return normalized === 'localhost' || normalized === '::1' || /^127(?:\.\d{1,3}){3}$/.test(normalized);
+}
+
+export function assertSecureIngressConfig(config: Pick<KernelConfig, 'diagnosticsHost' | 'bootstrapCredential'>): void {
+  if (!isLoopbackHost(config.diagnosticsHost) && config.bootstrapCredential === DEVELOPMENT_BOOTSTRAP_CREDENTIAL) {
+    throw new Error('refusing non-loopback diagnostics ingress with the default bootstrap credential; set JARVIS_BOOTSTRAP_CREDENTIAL or bind to loopback');
+  }
+}
+
 function env(name: string, fallback: string): string {
   const v = process.env[name];
   return v === undefined || v === '' ? fallback : v;
@@ -86,6 +105,7 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     redisUrl: env('JARVIS_REDIS_URL', 'redis://localhost:6380'),
     natsUrl: env('JARVIS_NATS_URL', 'nats://localhost:4222'),
     natsEnabled: envBool('JARVIS_NATS_ENABLED', true),
+    natsDegradeAfterMs: envInt('JARVIS_NATS_DEGRADE_AFTER_MS', 5_000),
 
     otlpEndpoint: env('JARVIS_OTLP_ENDPOINT', 'http://localhost:4318/v1/traces'),
     telemetryDisabled: envBool('JARVIS_TELEMETRY_DISABLED', false),
@@ -93,7 +113,7 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     diagnosticsPort: envInt('JARVIS_DIAGNOSTICS_PORT', 7420),
     diagnosticsHost: env('JARVIS_DIAGNOSTICS_HOST', '127.0.0.1'),
     modelGatewayUrl: env('JARVIS_MODEL_GATEWAY_URL', 'http://127.0.0.1:7430'),
-    modelGatewayToken: env('JARVIS_GATEWAY_TOKEN', 'dev-gateway-token'),
+    modelGatewayToken: env('JARVIS_GATEWAY_TOKEN', DEVELOPMENT_GATEWAY_TOKEN),
     modelCloudAllowed: envBool('JARVIS_MODEL_CLOUD_ALLOWED', false),
     modelLocalRouteAvailable: envBool('JARVIS_MODEL_LOCAL_ROUTE', true),
 
@@ -117,7 +137,7 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     },
 
     bootstrapPrincipalId: env('JARVIS_BOOTSTRAP_PRINCIPAL', 'principal-operator'),
-    bootstrapCredential: env('JARVIS_BOOTSTRAP_CREDENTIAL', 'dev-bootstrap-secret'),
+    bootstrapCredential: env('JARVIS_BOOTSTRAP_CREDENTIAL', DEVELOPMENT_BOOTSTRAP_CREDENTIAL),
 
     outboxPollMs: envInt('JARVIS_OUTBOX_POLL_MS', 200),
     outboxMaxAttempts: envInt('JARVIS_OUTBOX_MAX_ATTEMPTS', 8),
@@ -125,5 +145,7 @@ export function loadConfig(overrides: Partial<KernelConfig> = {}): KernelConfig 
     modeMinDwellMs: envInt('JARVIS_MODE_MIN_DWELL_MS', 5_000),
     retentionSweepMs: envInt('JARVIS_RETENTION_SWEEP_MS', 3_600_000),
   };
-  return { ...base, ...overrides };
+  const config = { ...base, ...overrides };
+  assertSecureIngressConfig(config);
+  return config;
 }

@@ -1,151 +1,105 @@
-# Roadmap — MK.42 → MK.100
+# JARVIS roadmap and implementation status
 
-How JARVIS evolves without destroying its foundations (L40). MK.42 is the
-spine; every later MK **adds** through the designed extension points
-(`KERNEL_CONSTITUTION.md` §4) and never rewrites the core.
+This document separates historical MK lineage from current repository truth.
+MK numbers describe architecture lineage and capability waves; they are not
+product releases. Product/build semantics are defined in
+[`VERSIONING.md`](./VERSIONING.md).
 
----
+Status words are evidence-bearing:
 
-## The invariant
+- **VERIFIED** — implementation and its required repository gates have passed.
+- **IMPLEMENTED BUT NOT HARDWARE-VERIFIED** — code and automated tests exist,
+  but the named physical device/provider/network path was not exercised.
+- **PARTIAL** — a coherent subset exists; listed gaps remain.
+- **PLANNED** — accepted direction without implementing runtime code.
+- **DEFERRED** — intentionally outside the current release target.
 
-For any MK.N (N > 42), these do not change without an ADR that proves the 40
-laws still hold:
+Historical plans and ADRs remain useful records, but do not outrank code,
+migrations, tests, and the latest audit evidence.
 
-- The 40 laws.
-- The 16 Kernel components and their ownership.
-- The `Event` envelope, `Provenance`, `Fact`, `Capability`, `ModelRequest`,
-  `NodeDescriptor` contract *shapes* (they version additively).
-- The rule that authoritative state lives only in the Kernel's PostgreSQL.
-- The Executor pipeline stages.
-- The trust-boundary topology.
+## Frozen invariant
 
-Everything else is expected to grow.
+JARVIS remains a modular monolith. PostgreSQL is authoritative. Durable events
+flow through the Event Manager and transactional outbox to JetStream. Models
+reason, agents propose, the Kernel decides, the Executor acts, and verification
+determines whether an effect occurred. Interfaces and perception do not own or
+mutate authoritative state.
 
-## What each later MK adds through existing seams
+The Kernel constitution freezes 16 authority components. A read-only derived
+projection, adapter, client, or presentation service does not become another
+Kernel authority component.
 
-| Capability wanted | Seam it enters through | Kernel change? |
+## Current truth at RC1.2
+
+| System | Status | Current repository evidence and boundary |
 |---|---|---|
-| A new AI provider | Gateway adapter + Model Registry rows | none |
-| Local / on-device models | Model Registry rows `locality: local` + a local inference process | none |
-| A new tool/effect | Capability manifest + out-of-process adapter | none |
-| A new specialised agent | Agent manifest in `agents/*` | none |
-| A new sensor / observation | New `jarvis.perception.*` signal type | none (maybe a new ingestion rule) |
-| A new Experience surface (mobile, TV) | New SDK client + Node Protocol registration | none |
-| A phone as a node | Node type `owned-mobile` + Node Protocol | none |
-| Multi-user | Issue more principals; per-principal policy/grants; row filters | none (columns already exist) |
-| Multi-device realtime media | Activate LiveKit direction (ADR-0012); `apps/relay` | none to Kernel; new infra |
-| AR | Node type + pose/gaze/hands observations + spatial-UI surface capability; Scene Graph already present | none |
-| Robotics / device control | Node type + CRITICAL capability manifests on a robot node; Executor already gates | none |
-| Splitting the monolith | Replace an in-process module binding with NATS request/reply + own schema (`SYSTEM_BOUNDARIES.md` §10) | mechanical, no consumer change |
+| Kernel composition and lifecycle | **VERIFIED** | `apps/core/src/kernel/lifecycle`; restart, health, and lifecycle integration coverage. |
+| PostgreSQL authoritative state and migrations | **VERIFIED** | `packages/persistence`; forward-only migrations `0001`–`0013`; event/state/agency/cognition/ATLAS/MNEMOSYNE schemas. |
+| Event Manager, transactional outbox, JetStream | **VERIFIED** | Durable append/outbox, idempotency, DLQ, topology, outage and recovery audit. PostgreSQL remains authority. |
+| Redis ephemeral state | **VERIFIED** | Optional ephemeral cache/presence behavior; never authority. |
+| Policy, Permission, Approval | **VERIFIED** | Fail-closed policy and grant/approval/token paths with unit, integration, security, and fitness gates. |
+| Capability Registry and Executor | **VERIFIED** | Durable invocation lifecycle, isolated adapter host, simulate/execute/verify/rollback gates. This does not certify every external adapter target. |
+| Agency Plane | **PARTIAL** | Load-bearing core is wired; the full historical HEPHAESTUS breadth and every external integration are not certified. |
+| Context Compiler | **VERIFIED** | Bounded ranked fusion of Kernel state, events, ATLAS, and MNEMOSYNE with privacy-aware routing. |
+| Model Registry and Model Gateway | **PARTIAL** | Routing, adapters, budgets, circuit breakers, tracing, and tests exist. Live provider credentials, quotas, latency, and availability are environment-dependent and not certified here. |
+| ATLAS temporal world model | **VERIFIED** | PostgreSQL-backed temporal facts, conflicts, provenance, queries, and ingestion ownership. |
+| MNEMOSYNE memory | **VERIFIED** | Candidate gate, recall, consolidation proposals, and PostgreSQL persistence. It is not authoritative truth. |
+| Objective Engine and Scheduler | **VERIFIED** | Durable objective ownership, scheduling, and restart behavior exist in the Kernel. |
+| Notification, Health, Audit/diagnostics | **VERIFIED** | Real derived reports and health transitions; no fabricated provider/hardware metrics. |
+| Scene Graph and spatial desktop | **VERIFIED** | Semantic scene state and browser desktop build/tests; presentation remains behind `SceneTransport`. |
+| Experience Projection and realtime desktop stream | **VERIFIED** | Typed read-only operating picture, authenticated scoped WebSocket updates, bounded resume/backpressure, heartbeat/revocation, and honest stale-state client behavior. Snapshot remains bootstrap/recovery. |
+| Forge Cosmos GPU renderer and Core V2 | **IMPLEMENTED BUT NOT HARDWARE-VERIFIED** | WebGL React Three Fiber environment consumes `@jarvis/scene`; its layered state-derived Core retains accessible DOM text, accepts bounded derived audio envelopes, offers opt-in transition sounds, and supports measured AUTO quality, reduced-motion/low-power/hidden-window budgets and a no-WebGL fallback. Workstation, audio-device, integrated-GPU, and native Tauri performance remain unverified. |
+| Tauri native desktop shell | **IMPLEMENTED BUT NOT HARDWARE-VERIFIED** | Tauri project and web build exist; native Rust compilation/device execution is not part of current evidence. |
+| Voice subsystem | **PARTIAL** | Authenticated typed ingress and Kernel integration exist; microphone/wake/ASR hardware path is not certified. |
+| Vision and Air Touch | **IMPLEMENTED BUT NOT HARDWARE-VERIFIED** | Local MediaPipe pipeline, typed privacy boundary, screen probe, and tests exist; webcam acquisition remains unverified. |
+| Node Protocol | **PARTIAL** | Contracts, enrollment, credentials, trust lifecycle, and stores exist. Complete transport framing/negotiation and multi-node live proof remain planned. |
+| OpenTelemetry | **PARTIAL** | Real SDK/export, inbound interaction, context, model, agent, capability, event/outbox, useful PostgreSQL boundary spans, trace propagation, and undici instrumentation exist. The complete metrics catalogue and every process/path remain incomplete. |
+| Back-up and restore | **VERIFIED** | Mandatory repository drill exercises real `pg_dump`/`pg_restore`. Off-host operational recovery is environment-specific. |
+| Mobile/display nodes | **PLANNED** | Must consume scoped projections and register through Node Protocol. |
+| ScaleSmiths capability integration | **PLANNED** | Must enter through registered capabilities, policy, permission, approval, Executor, and verification. |
+| LiveKit, AR, robotics, multi-user delegation | **DEFERRED** | Retained as future directions; no current-runtime claim. |
 
-## Indicative phase sequence (not dates)
+## Historical MK lineage
 
-### MK.42 — GENESIS (this repo)
-Constitution, ADRs, diagrams, inert skeleton, typed contracts. No runtime.
+The lineage is architectural history, not a queue of wholly unbuilt releases:
 
-### MK.43 — Spine
-Kernel core: Identity, Session, Event Manager (PG + outbox + NATS), State
-Manager (projectors), Audit. PostgreSQL/Redis/NATS/MinIO in Compose. Contracts
-become runtime-validated. Diagnostics read-only UI. **Exit criterion**: events
-in, projections rebuilt on restart in < 10 s, audit trail queryable.
+- **MK.42 — Genesis:** constitution, boundaries, contracts, and original
+  skeleton. Historical phrase “no runtime” describes the starting point only.
+- **MK.43 — Spine:** Kernel, authoritative persistence, event fabric, state,
+  audit/diagnostics. Shipped and verified in the current modular monolith.
+- **MK.44 — Authority:** policy, permission, approval, registry, and Executor.
+  The load-bearing core shipped; historical HEPHAESTUS breadth remains partial.
+- **MK.45 — Cognition:** Context Compiler, model registry/gateway, proposals,
+  and agent runtime shipped. Live providers remain deployment evidence.
+- **MK.46 — Knowledge:** ATLAS and MNEMOSYNE shipped in the Kernel modular
+  monolith, despite old README-only extraction package diagrams.
+- **MK.47 — Perception:** voice/vision/screen foundations shipped; physical
+  microphone/webcam validation remains environment-specific.
+- **MK.48 — Objectives:** objective, scheduler, notification, and health
+  foundations shipped.
+- **MK.49 — Experience:** Scene Graph and web desktop shipped; native Tauri
+  hardware/runtime proof remains outstanding.
+- **MK.50 — Agency breadth:** core agency mechanisms and several adapters
+  shipped; broad external integrations are not all live-certified.
+- **MK.51+ — Spatial and multi-node:** partial Node Protocol foundation;
+  additional nodes and remote media remain planned.
+- **MK.60+ / MK.70+ / MK.80+ / MK.90+:** GPU-node, AR, robotics, and multi-user
+  directions are deferred until real requirements and verification exist.
 
-### MK.44 — Authority
-Policy Engine (deterministic rules + property tests), Permission Engine
-(grants, scopes, TTL tokens, approval workflow), Capability Registry, the
-Executor pipeline with one trivial capability (`filesystem` read/write in a
-workspace) end-to-end incl. simulate/verify/rollback. **Exit**: no effect
-possible outside the pipeline; fail-closed proven.
+## Extension seams
 
-**Collapsed into HEPHAESTUS (2026-09-03).** MK.44 and MK.50 are delivered
-together as the **HEPHAESTUS — Safe Agency** phase: the authority core plus
-the full agency breadth (8 real adapters), the Credential Broker, the Adapter
-Host, the Capability SDK, Sentinel, the Guardian Response Playbook, and FORGE +
-JARVIS LABS self-extension. Architecture: ADR-0025..0030, `AGENCY_MODEL.md`,
-`SENTINEL_MODEL.md`, `docs/security/threat-model.md` (T16–T28). Spec:
-`docs/superpowers/specs/2026-09-03-hephaestus-safe-agency-design.md`.
+New providers enter through Model Gateway adapters and Model Registry rows. New
+effects enter as registered capability manifests plus isolated adapters. New
+agents remain proposal-only. New sensors emit typed observations. New surfaces
+consume scoped derived projections and submit validated commands. None may
+create a second authority, database, workflow engine, world model, memory
+system, or direct effect path.
 
-### MK.45 — Cognition
-Model Gateway (2+ provider adapters), Model Registry, Context Compiler with the
-budget/priority-tier algorithm, `Proposal` + Validator, Agent Runtime with
-`oracle`. **Exit**: swap a provider with zero Kernel/contract change; context
-frames respect the hard budget.
+## Explicit anti-targets
 
-### MK.46 — Knowledge
-World Model (entities, facts, evidence, temporal queries, belief revision) and
-Memory (episodes, recall, decay) as separate schemas/services. Ingestion
-pipeline. `mnemosyne`. **Exit**: every fact has provenance+confidence; "I don't
-know" is a real answer; conflict recorded not overwritten.
-
-**Status (2026-09-01):** Foundation landed — contracts (`causal`, `memory`,
-`memory-candidate`, `memory-insight`, `knowledge-ingestion`, `atlas-query`,
-`memory-recall`; `entity`/`fact`/`observation` extended), schemas `atlas` +
-`mnemosyne` (migrations 0005/0006), ADR-0020..0023, `ATLAS_MODEL.md` +
-`MNEMOSYNE_MODEL.md`. Services (ingestion mediator, ATLAS read/write, MNEMOSYNE
-recall/consolidation/insight) are the next sub-plans.
-
-### MK.47 — Perception
-`apps/voice` (wake, ASR local), `apps/vision` (presence, hands, pose),
-screen/cursor telemetry, multimodal fusion in the Context Compiler. **Exit**:
-raw media never leaves the workstation; wake is fully local; perception cannot
-reach cognition packages.
-
-### MK.48 — Objectives & autonomy loop
-Objective Engine (decomposition, success criteria, status), Scheduler,
-Notification Manager, Health Manager degradation state machine, `prometheus`.
-**Exit**: JARVIS pursues a standing objective across restarts with no
-conversation open.
-
-### MK.49 — Experience
-Tauri shell, multi-monitor layout, voice surface, notification surfaces,
-approval UX. Full `packages/sdk`. **Exit**: interfaces hold zero authoritative
-state; all mutation via validated commands.
-
-### MK.50 — Agency breadth
-`terminal`, `github`, `docker`, `web`, `browser`, `scalesmiths`,
-`communications` adapters. `forge`, `scout`, `hermes`, `atlas`, `hephaestus`,
-`sentinel`, `argus`, `daedalus`. **Exit**: each adapter scoped-credential only;
-CRITICAL requires dual control.
-
-**Delivered with HEPHAESTUS** (see MK.44 note). The eight real adapters
-(`filesystem`, `github`, `docker`, `terminal`, `windows`, `browser`, `web`,
-`telemetry`), the `sentinel` specialist, and `forge` self-extension land in
-that phase; `email`/`calendar`/`scalesmiths`/`smart-home`/`mobile`/`robotics`
-are manifest-only interfaces (`active: false`) proving the pipeline gates them.
-
-### MK.51+ — Spatial & multi-node
-Scene Graph population, second workstation, phone node, display node, LiveKit
-for multi-node media, `apps/relay` for off-LAN nodes.
-
-### MK.60+ — GPU node & local frontier
-Dedicated inference node; privacy-classified context stays local by routing.
-
-### MK.70+ — AR
-Headset node; spatial UI surfaces; gaze/hands-first interaction.
-
-### MK.80+ — Robotics / physical device control
-Robot node; motion capabilities (CRITICAL); simulation-first mandatory;
-physical-world verification.
-
-### MK.90+ — Multi-user / delegation
-Additional principals; delegation grants; true two-person control; per-
-principal world models with shared entities.
-
-## Anti-goals across all MKs
-
-- No "temporary" shortcut that bypasses the Executor, the Validator, or the
-  Policy Engine.
-- No provider name in a Kernel contract.
-- No agent or interface writing authoritative state.
-- No security control that is only a prompt.
-- No unbounded persistence.
-- No microservice created before its lifecycle/blast-radius justifies it.
-- No God service. If a component's ownership list grows, split it and record
-  the split in `DATA_OWNERSHIP.md` §5.
-
-## How to change the constitution
-
-If a law genuinely must change: write an ADR that (1) states which law, (2)
-shows why the current form blocks a real need, (3) proves the other 39 still
-hold under the new form, (4) lists every document and contract that must be
-updated, (5) states reversal difficulty. Ratify before implementing. This
-document and `PRINCIPLES.md` are updated in the same change.
+- No Temporal or competing workflow authority.
+- No microservice split for aesthetics and no NestJS rewrite by implication.
+- No direct agent/frontend/provider mutation of authoritative state.
+- No provider name in Kernel contracts and no credential in model metadata.
+- No fake activity, quotas, cost, telemetry, hardware state, or animation.
+- No unbounded persistence and no weakening forward-only migration history.

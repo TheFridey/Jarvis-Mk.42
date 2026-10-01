@@ -1,5 +1,10 @@
 # @jarvis/kernel
 
+> **README-ONLY ARCHITECTURAL SEAM — NOT A WORKSPACE PACKAGE.** The real
+> composition root is `apps/core/src/kernel/lifecycle/kernel.ts`, and component
+> implementations live under `apps/core/src/kernel/*`. This directory does not
+> define a second framework or Kernel component.
+
 **Purpose.** The Kernel module framework — component base classes, the port
 (service-interface) definitions each of the 16 Kernel components implements, and
 the composition root that `apps/core` wires together. It encodes the structural

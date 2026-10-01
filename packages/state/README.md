@@ -1,5 +1,10 @@
 # @jarvis/state
 
+> **README-ONLY EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** The implemented
+> State Manager, projector, store, subscriptions, and slice validation live in
+> `apps/core/src/kernel/state/`. This directory is not an alternate state
+> authority.
+
 **Purpose.** State Manager internals (`docs/architecture/STATE_MODEL.md`,
 ADR-0017): the projector framework (`(readModel, event) → readModel`, pure,
 idempotent on `Event.id`), per-read-model checkpoints, **single-writer**

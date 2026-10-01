@@ -36,6 +36,7 @@ export class NatsEventBus implements EventBus {
   private js?: JetStreamClient;
   private jsm?: JetStreamManager;
   private healthy = false;
+  private connectionGeneration = 0;
   private readonly closers: Array<() => Promise<void>> = [];
 
   constructor(
@@ -48,27 +49,61 @@ export class NatsEventBus implements EventBus {
 
   async start(): Promise<void> {
     validateStreamTopology();
-    this.nc = await connect({ servers: this.url, reconnect: true, maxReconnectAttempts: -1 });
-    this.js = this.nc.jetstream();
-    this.jsm = await this.nc.jetstreamManager();
+    if (this.isHealthy()) {
+      await this.verifyReady();
+      await this.reportTransport(true, 'jetstream readiness reverified');
+      return;
+    }
+    const generation = ++this.connectionGeneration;
+    let connection: NatsConnection | undefined;
+    try {
+      connection = await connect({ servers: this.url, reconnect: true, maxReconnectAttempts: -1 });
+      this.nc = connection;
+      this.js = connection.jetstream();
+      this.jsm = await connection.jetstreamManager();
 
-    for (const s of [...STREAMS].sort((a) => a.name === 'OPERATIONS' ? -1 : 1)) {
-      const existing = await this.jsm.streams.info(s.name).catch(() => null);
-      if (!existing) {
-        await this.jsm.streams.add({
-          name: s.name,
-          subjects: s.subjects,
-          retention: RetentionPolicy.Limits,
-          max_age: s.name === 'EPHEMERAL' ? 10 * 60 * 1e9 : 30 * 24 * 3600 * 1e9,
-        });
-      } else if (JSON.stringify([...existing.config.subjects].sort()) !== JSON.stringify([...s.subjects].sort())) {
-        await this.jsm.streams.update(s.name, { ...existing.config, subjects: s.subjects });
+      for (const s of [...STREAMS].sort((a) => a.name === 'OPERATIONS' ? -1 : 1)) {
+        const existing = await this.jsm.streams.info(s.name).catch(() => null);
+        if (!existing) {
+          await this.jsm.streams.add({
+            name: s.name,
+            subjects: s.subjects,
+            retention: RetentionPolicy.Limits,
+            max_age: s.name === 'EPHEMERAL' ? 10 * 60 * 1e9 : 30 * 24 * 3600 * 1e9,
+          });
+        } else if (JSON.stringify([...existing.config.subjects].sort()) !== JSON.stringify([...s.subjects].sort())) {
+          await this.jsm.streams.update(s.name, { ...existing.config, subjects: s.subjects });
+        }
+      }
+      await this.verifyReady();
+      this.healthy = true;
+      await this.reportTransport(true, 'jetstream connected');
+      void this.watchConnection(connection, generation);
+    } catch (error) {
+      this.healthy = false;
+      if (this.nc === connection) {
+        this.nc = undefined;
+        this.js = undefined;
+        this.jsm = undefined;
+      }
+      await connection?.close().catch(() => undefined);
+      throw error;
+    }
+  }
+
+  /** Connection alone is insufficient recovery evidence: JetStream and every
+   * canonical stream must be queryable with the validated topology. */
+  async verifyReady(): Promise<void> {
+    validateStreamTopology();
+    if (!this.nc || this.nc.isClosed() || !this.jsm) throw new Error('NATS connection is unavailable');
+    for (const stream of STREAMS) {
+      const info = await this.jsm.streams.info(stream.name);
+      const actual = [...info.config.subjects].sort();
+      const expected = [...stream.subjects].sort();
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(`JetStream stream ${stream.name} subjects differ from canonical topology`);
       }
     }
-
-    this.healthy = true;
-    await this.onTransportHealth?.(true,'jetstream connected');
-    void this.watchConnection();
   }
 
   /**
@@ -84,15 +119,15 @@ export class NatsEventBus implements EventBus {
     }
   }
 
-  private async watchConnection(): Promise<void> {
-    if (!this.nc) return;
+  private async watchConnection(connection: NatsConnection, generation: number): Promise<void> {
     try {
-      for await (const status of this.nc.status()) {
+      for await (const status of connection.status()) {
+        if (generation !== this.connectionGeneration) return;
         if (status.type === 'disconnect' || status.type === 'error') { this.healthy = false; await this.reportTransport(false, `jetstream ${status.type}`); }
         if (status.type === 'reconnect') { this.healthy = true; await this.reportTransport(true, 'jetstream reconnected'); }
       }
     } catch (err) {
-      if (!this.nc.isClosed()) console.error('nats-bus: status watcher stopped unexpectedly:', err);
+      if (!connection.isClosed()) console.error('nats-bus: status watcher stopped unexpectedly:', err);
     }
   }
 
@@ -161,9 +196,13 @@ export class NatsEventBus implements EventBus {
   }
 
   async close(): Promise<void> {
+    this.connectionGeneration++;
     for (const c of this.closers) await c().catch(() => undefined);
     await this.nc?.drain().catch(() => undefined);
     await this.nc?.close().catch(() => undefined);
     this.healthy = false;
+    this.nc = undefined;
+    this.js = undefined;
+    this.jsm = undefined;
   }
 }

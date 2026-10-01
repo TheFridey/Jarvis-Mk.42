@@ -1,1 +1,1 @@
-{"name":"@jarvis/gateway","version":"0.50.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/main.ts","start":"tsx src/main.ts"},"dependencies":{"@jarvis/contracts":"workspace:*"}}
+{"name":"@jarvis/gateway","version":"0.50.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/main.ts","start":"tsx src/main.ts"},"dependencies":{"@jarvis/contracts":"workspace:*","@jarvis/telemetry":"workspace:*"}}

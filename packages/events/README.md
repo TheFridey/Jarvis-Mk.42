@@ -1,5 +1,10 @@
 # @jarvis/events
 
+> **README-ONLY EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** The implemented
+> Event Manager, PostgreSQL ledger access, transactional outbox, JetStream bus,
+> replay, and retention code live in `apps/core/src/kernel/event-fabric/`.
+> Preserve that modular-monolith location unless extraction is ADR-approved.
+
 **Purpose.** Event Manager internals (`docs/architecture/EVENT_ARCHITECTURE.md`,
 ADR-0009): append to the PostgreSQL `events` ledger, the transactional
 **outbox** relay to NATS JetStream, per-`type`+`schemaVersion` payload

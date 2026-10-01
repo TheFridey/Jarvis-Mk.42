@@ -1,5 +1,10 @@
 # @jarvis/objectives
 
+> **README-ONLY EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** The implemented
+> Objective Engine is `apps/core/src/kernel/objective/objective-engine.ts`, with
+> scheduling under `apps/core/src/kernel/scheduler/` and persistence in the
+> forward-only cognition/objective migrations.
+
 **Purpose.** The **Objective Engine** (`docs/architecture/ROADMAP.md` MK.48,
 contract `@jarvis/contracts/objective.ts`). Owns objectives: creation,
 decomposition into child objectives, success criteria, and status transitions.

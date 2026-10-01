@@ -41,6 +41,18 @@ export interface DiagnosticsReport {
     deadLettered: number;
   };
 
+  eventFabric?: {
+    phase: 'HEALTHY' | 'RECONNECTING' | 'SUSTAINED_OUTAGE' | 'RECOVERING';
+    degradeAfterMs: number;
+    outageStartedAt: Timestamp | null;
+    graceDeadlineAt: Timestamp | null;
+    lastConnectedAt: Timestamp | null;
+    lastVerifiedAt: Timestamp | null;
+    lastRelaySuccessAt: Timestamp | null;
+    lastError: string | null;
+    waitingForRelayEvidence: boolean;
+  };
+
   state: {
     stateVersion: number;
     lastMutationAt: Timestamp | null;

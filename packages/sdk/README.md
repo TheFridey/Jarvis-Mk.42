@@ -1,5 +1,10 @@
 # @jarvis/sdk
 
+> **README-ONLY, PLANNED EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** There is
+> no general `@jarvis/sdk` implementation. Current desktop interaction uses the
+> authenticated Kernel ingress plus `SceneTransport` in the Scene/Desktop code.
+> New surfaces must not assume this package is available.
+
 **Purpose.** The client library every Experience-Plane app uses
 (`docs/architecture/SYSTEM_BOUNDARIES.md` §2): typed **read** subscriptions to
 scoped projections + notifications, and typed **`Command` / `Proposal`**

@@ -11,7 +11,7 @@ as cognitive resources.
 > **The models are not JARVIS.** OpenAI, Anthropic, Gemini, local models, TTS,
 > vision — all replaceable. JARVIS is what persists around them.
 
-## Current status — MK.42 RC1.1
+## Current status — MK.42 RC1.2
 
 Certified by an independent hostile release-candidate audit
 (`docs/architecture/MK42_RELEASE_CANDIDATE_AUDIT.md`, 2026-09-08), which read the
@@ -30,7 +30,12 @@ That, and a health-listener change that could kill the Kernel process outright,
 are fixed at the root and proven against real NATS + real Postgres.
 **Verdict: GO for `mk42-rc1.1`.**
 
-RC1.1 ships everything in RC1, plus:
+RC1.2 retains the verified RC1.1 event-fabric work and aligns code, package
+topology, security defaults, observability, and architecture documentation.
+`docs/architecture/ROADMAP.md` is the current status matrix; older audit reports
+remain point-in-time evidence rather than present-tense truth.
+
+RC1.2 ships everything in RC1.1, plus:
 
 1. The **architectural constitution** — `docs/architecture/`
 2. **Architecture Decision Records** — `docs/architecture/adr/`
@@ -44,14 +49,20 @@ RC1.1 ships everything in RC1, plus:
 10. **Real disaster recovery.** `pnpm backup:drill` takes a `pg_dump -Fc` artifact, drops and recreates the database, runs `pg_restore --exit-on-error`, asserts Kernel state / ATLAS / MNEMOSYNE / objectives / agency-invocation / policy rows survived, boots a real Kernel against the restored database, and confirms a completed invocation is not re-executed. It hard-fails when Docker is absent.
 11. Typed, runtime-validated contracts plus unit, integration (real ephemeral Postgres **and** real NATS JetStream — the gate hard-fails rather than self-skipping without Docker), contract, security, fitness and chaos gates. The full gate set is green on the GitHub-hosted workflow for the current `main` commit; check the Actions tab rather than assuming, since earlier commits have shipped red.
 12. A Tauri/Next.js desktop experience prototype and an isolated capability-worker host whose replies are bound by a per-invocation HMAC + nonce + staleness check (worker spoofing, stale replies and wrong-invocation replies are structurally rejected).
+13. A typed **Experience Projection / Operating Picture** that bootstraps from
+    the authenticated snapshot endpoint and then updates the desktop through a
+    scoped, session-bound WebSocket stream. Resume history, heartbeat credential
+    revalidation, backpressure limits, ordered idempotent reduction, and visibly
+    stale disconnected data are implemented without adding a new authority or
+    durable event store.
 
 **Known gaps, stated plainly:**
 
 - **Node Protocol v1 (ADR-0037) is a library, not an operating protocol.** The persisted registry, single-use enrollment tokens with a trust ceiling (`kernel-local` can never be requested), key rotation with overlap, revocation cascading to credentials, and a scheduled liveness sweep are all real and unit-tested. There is **no `/nodes/*` ingress**, so no remote node can enroll or heartbeat over the wire; the only registered node is the composition root. Every event's `source.node` is still the static `nodeId`.
-- **Span coverage is partial.** Only two Kernel paths create explicit spans (`model_gateway.generate`, `agency.executor.invoke`). The registered `instrumentation-pg` is **inert** — it patches `node-postgres` while this repo uses `postgres.js` — and outbound `fetch` (undici) has no instrumentation. An interaction touching neither instrumented path carries no trace id.
+- **Span coverage remains partial, but the known driver mismatch is closed.** The inert `instrumentation-pg` registration was removed. Explicit spans now cover incoming Kernel interactions, context compilation, model-gateway and provider requests, agent and capability invocation, useful `postgres.js` transaction boundaries, event append, and outbox relay. Undici instruments outbound `fetch`. The complete metrics catalogue and every process/path are not yet covered.
 - **The chaos gate itself does not inject faults into a live Kernel.** It proves the host-level fault-injection mechanisms work and covers Kernel degradation logic deterministically. The RC1.1 audit closed part of this gap outside the chaos gate: `apps/core/test/rc11-nats-outage-audit.integration.test.ts` does kill real NATS underneath a running Kernel and assert the full degrade → reconnect → outbox-drain → no-duplicates cycle. **Redis and Postgres are still not killed under a running Kernel.**
 - **Verification reads through the same adapter module it is checking.** The Executor owns the strategy and the comparison, so an adapter can never self-certify completion — but a fully malicious adapter could lie consistently in both the execute and the verify read. A verification world outside the adapter is future work.
-- **The bootstrap credential is the single root of trust.** `authStrength: 'strong'` is asserted by the ingress, not proven by a second factor; there is no MFA. The default is `dev-bootstrap-secret` and nothing refuses to start when it is combined with a non-loopback bind. `/diagnostics` and `/state` are unauthenticated on loopback.
+- **The bootstrap credential is the single root of trust.** `authStrength: 'strong'` is asserted by the ingress, not proven by a second factor; there is no MFA. Development defaults are permitted on loopback only. Core and Model Gateway startup fail closed when their default credentials are combined with a non-loopback bind. `/diagnostics` and `/state` remain unauthenticated on loopback.
 - **Privacy classes are caller-asserted.** The mediator defaults everything to `INTERNAL` and only guarantees that untrusted-derived material never becomes `PUBLIC`; there is no content-aware sensitivity detection. Labels are enforced hard once set: two independent layers (Kernel routing and the Model Gateway registry) keep `SENSITIVE`/`RESTRICTED` context away from cloud models, and fail closed when no local route exists.
 - **Knowledge-plane embeddings** are the deterministic `deterministic-hash-v1` client (offline, reproducible), not a model — similarity is one bounded recall factor. DREAMING runs deterministic rules only (no `mnemosyne` agent yet).
 
@@ -85,8 +96,8 @@ distributed (single-node only).
 | Path | Purpose |
 |---|---|
 | `apps/` | Deployable processes. `core` = Kernel. `gateway` = Model Gateway. `voice`/`vision` = perception. `desktop` = Tauri shell. `diagnostics` = operator UI. `relay` = future edge node (empty seam). |
-| `packages/` | In-repo libraries consumed by apps. `contracts` = shared types. `kernel` = Kernel module code. See `packages/README.md`. |
-| `agents/` | Disposable cognitive-worker manifests. The full Agent Runtime remains incomplete. |
+| `packages/` | Real workspace libraries plus explicitly labelled README-only extraction seams. Kernel implementations remain under `apps/core/src/kernel/*`; a folder name alone is not an importable package. |
+| `agents/` | Disposable cognitive-worker manifests; the implemented bounded Agent Runtime is in `apps/core/src/kernel/cognition/agent-runtime.ts`. |
 | `capabilities/` | Permissioned effect manifests; selected providers include executable adapters. Every consequential action must pass through the Kernel Executor. |
 | `infrastructure/` | Docker Compose, Postgres, Redis, NATS, observability configuration. |
 | `docs/` | Architecture, ADRs, protocols, security, diagrams. |

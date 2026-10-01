@@ -26,13 +26,18 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 16 | [`SENTINEL_MODEL.md`](SENTINEL_MODEL.md) | Defensive security intelligence: deterministic detectors, the proposing-only specialist, the Guardian Response Playbook |
 | 17 | [`LOCALITY_MODEL.md`](LOCALITY_MODEL.md) | What runs on-device vs local server vs cloud, and why |
 | 18 | [`FAILURE_MODEL.md`](FAILURE_MODEL.md) | Degradation ladder for every dependency failure |
-| 19 | [`ROADMAP.md`](ROADMAP.md) | MK.42 → MK.100 evolution without foundation loss |
+| 19 | [`ROADMAP.md`](ROADMAP.md) | Current evidence-bearing status plus historical MK.42 → MK.100 lineage |
+| 19a | [`VERSIONING.md`](VERSIONING.md) | Product release vs architectural MK/component/schema version semantics |
+| 19b | [`MARK42_EXPERIENCE_TARGET.md`](MARK42_EXPERIENCE_TARGET.md) | Authoritative Forge Cosmos Experience target and truthful derived-projection boundary |
+| 19c | [`DESKTOP_TRANSPORT.md`](DESKTOP_TRANSPORT.md) | Implemented snapshot-bootstrap and authenticated realtime Experience transport, recovery and stale-data behavior |
+| 19d | [`FORGE_COSMOS_RENDERER.md`](FORGE_COSMOS_RENDERER.md) | GPU/DOM boundary, truthful visual-state mapping, quality tiers and explicit performance budgets |
 | 20 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
 | 21 | [`AUDIT_MK42_ASCENSION.md`](AUDIT_MK42_ASCENSION.md) | Hostile external architecture audit (ASCENSION Stage A): design vs as-built, the hollow-agency-plane finding, scores, required corrections |
 | 22 | [`HARDENING_SPEC_MK42.md`](HARDENING_SPEC_MK42.md) | ASCENSION Stage B implementation direction: task groups H1–H13, chaos/perf/fitness/contract gates, the FOUNDATION_REVIEW template |
 | 23 | [`AUDIT_MK42_ASCENSION_II.md`](AUDIT_MK42_ASCENSION_II.md) | Hostile external audit II: verified the Stage B brief, found ATLAS/MNEMOSYNE absent and the integration gate self-skipping |
 | 24 | [`MK42_RELEASE_CANDIDATE_AUDIT.md`](MK42_RELEASE_CANDIDATE_AUDIT.md) | **RC1 certification.** Hostile release audit: verdict, per-area scores, verified vs unverified functionality, security/privacy/recovery findings, the 13 defects fixed during the pass, and the conditions MK.43 must not build past |
 | 25 | [`MK42_RC1_1_EVENT_FABRIC_AUDIT.md`](MK42_RC1_1_EVENT_FABRIC_AUDIT.md) | **RC1.1 certification.** Event-fabric audit: JetStream subject ownership proved against a live server (109 events, one owner each), the unbounded dead-letter recursion that survived the previous fix, the unhandled-rejection regression in the health lifecycle, real NATS outage/recovery evidence, and the start-up/run-time degradation asymmetry still open |
+| 26 | [`MK42_RC1_2_ALIGNMENT_AUDIT.md`](MK42_RC1_2_ALIGNMENT_AUDIT.md) | RC1.2 code/docs/package/security/observability alignment, exact local gate evidence, and the unresolved Docker-backed verification block |
 
 ## Decision records
 

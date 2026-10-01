@@ -14,7 +14,7 @@
 import { validateEventDraft } from '@jarvis/validation';
 import { EventNames, type Event, type EventActor, type PrivacyClass, type Provenance, type RetentionClass } from '@jarvis/contracts';
 import type { Sql } from '@jarvis/persistence';
-import { currentTraceId } from '@jarvis/telemetry';
+import { currentTraceId, withSpan } from '@jarvis/telemetry';
 import type { Clock } from '../../runtime/clock.ts';
 import type { IdGen } from '../../runtime/ids.ts';
 import type { EventBus } from './bus.ts';
@@ -59,6 +59,7 @@ export interface TxRunner {
 
 export class EventManager {
   private appended = 0;
+  private readonly appendListeners = new Set<(event: Event) => void | Promise<void>>();
 
   constructor(
     private readonly deps: {
@@ -77,6 +78,8 @@ export class EventManager {
   get appendedCount(): number {
     return this.appended;
   }
+  onAppended(listener:(event:Event)=>void|Promise<void>):()=>void{this.appendListeners.add(listener);return()=>this.appendListeners.delete(listener)}
+  private notifyAppended(event:Event){for(const listener of this.appendListeners)Promise.resolve(listener(event)).catch((error)=>console.error('event-manager: append listener failed:',error))}
 
   private buildEvent(input: EmitInput): Event {
     const now = this.deps.clock.nowIso();
@@ -155,11 +158,17 @@ export class EventManager {
       return event;
     }
 
-    await this.deps.tx.begin(async (tx) => {
+    await withSpan('postgres.event_append', {
+      'jarvis.correlation_id': event.correlationId,
+      'jarvis.event.type': event.type,
+      'db.system': 'postgresql',
+      'db.operation.name': 'transaction',
+    }, () => this.deps.tx.begin(async (tx) => {
       await this.deps.store.appendInTx(tx, [event]);
       await this.deps.outbox.enqueueInTx(tx, [event.id], event.recordedAt);
-    });
+    }));
     this.appended++;
+    this.notifyAppended(event);
     return event;
   }
 
@@ -179,6 +188,9 @@ export class EventManager {
     await this.deps.store.appendInTx(tx, [event]);
     await this.deps.outbox.enqueueInTx(tx, [event.id], event.recordedAt);
     this.appended++;
+    // The caller-owned transaction commits after this method returns. Schedule
+    // derived readers on the next task so they cannot observe pre-commit state.
+    setTimeout(() => this.notifyAppended(event), 0);
     return event;
   }
 }

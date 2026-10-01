@@ -5,5 +5,6 @@ export * from './event-store.ts';
 export * from './stores.ts';
 export * from './event-manager.ts';
 export * from './outbox-relay.ts';
+export * from './nats-fabric-health.ts';
 export * from './replay.ts';
 export * from './retention.ts';

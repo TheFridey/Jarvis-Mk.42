@@ -64,14 +64,20 @@ Subordinate to [`PRINCIPLES.md`](PRINCIPLES.md).
 ### NATS offline
 - **Kernel keeps writing PostgreSQL** (events + outbox rows). Distribution
   pauses.
+- Connection loss enters `RECOVERING` for `JARVIS_NATS_DEGRADE_AFTER_MS`
+  (5 seconds by default). Reconnection within that grace does not change the
+  global Kernel mode. An outage beyond it marks the critical `event-fabric`
+  subsystem `DEGRADED`, so the Kernel enters `DEGRADED` without terminating.
 - Consumers (projectors, World Model ingestion, Notification, Audit) stop
   receiving; projectors can also catch up directly from `events` (the
   authority) — the Kernel does this after a short NATS outage rather than
   waiting.
 - Perception spools to bounded local buffers; drops oldest signal on overflow;
   emits a gap marker on reconnect.
-- On recovery: outbox relay resumes from the last dispatched row; consumers
-  catch up via durable consumers or PG backfill.
+- On recovery: JetStream and canonical stream topology must first be readable.
+  The outbox relay then resumes from the last dispatched row; if a backlog
+  exists, one successful relay pass is required before `event-fabric` returns
+  `HEALTHY`. Consumers catch up via durable consumers or PG backfill.
 
 ### GPU unavailable
 - Local perception models fall back to lighter models / CPU; if impossible,

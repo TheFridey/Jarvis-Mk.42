@@ -36,6 +36,7 @@ import type { StateManager } from '../state/state-manager.ts';
 import type { AtlasStore } from '../atlas/stores.ts';
 import { buildPackage, scoreItem, type RankInput } from './ranking.ts';
 import { canonicalJson } from '../../runtime/canonical-json.ts';
+import { withSpan } from '@jarvis/telemetry';
 
 const PRIVACY_ORDER: PrivacyClass[] = ['PUBLIC', 'INTERNAL', 'SENSITIVE', 'RESTRICTED'];
 
@@ -88,6 +89,19 @@ export class ContextCompiler {
   constructor(private readonly deps: ContextCompilerDeps) {}
 
   async compile(req: ContextRequest): Promise<ContextPackage> {
+    return withSpan('context.compile', {
+      'jarvis.correlation_id': req.correlationId,
+      'jarvis.context.intent_class': req.intentClass,
+      'jarvis.context.budget_units': req.budgetUnits,
+    }, async (span) => {
+      const result = await this.compileInner(req);
+      span.setAttribute('jarvis.context.used_units', result.budget.usedUnits);
+      span.setAttribute('jarvis.context.truncated', result.budget.truncated);
+      return result;
+    });
+  }
+
+  private async compileInner(req: ContextRequest): Promise<ContextPackage> {
     const now = this.deps.clock.epochMs();
     const nowIso = this.deps.clock.nowIso();
     const candidates: RankInput[] = [];

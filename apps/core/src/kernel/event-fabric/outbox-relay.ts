@@ -13,6 +13,7 @@ import type { EventStore } from './event-store.ts';
 import type { EventManager } from './event-manager.ts';
 import type { DeadLetterSink } from './bus.ts';
 import type { OutboxStore } from './stores.ts';
+import { withSpan } from '@jarvis/telemetry';
 
 export interface OutboxRelayOptions {
   pollMs: number;
@@ -54,6 +55,7 @@ export class OutboxRelay {
       events: EventManager;
       clock: Clock;
       onHealth: (status: 'HEALTHY' | 'DEGRADED', detail: string) => void | Promise<void>;
+      onPublish?: () => void | Promise<void>;
     },
     private readonly opts: OutboxRelayOptions,
   ) {}
@@ -124,9 +126,15 @@ export class OutboxRelay {
         }
         try {
           if (!this.deps.bus.isHealthy()) throw new Error('bus unhealthy');
-          await this.deps.bus.publish(event);
-          await this.deps.outbox.markDispatched(row.id, this.deps.clock.nowIso());
+          await withSpan('outbox.relay.publish', {
+            'jarvis.correlation_id': event.correlationId,
+            'jarvis.event.type': event.type,
+          }, async () => {
+            await this.deps.bus.publish(event);
+            await this.deps.outbox.markDispatched(row.id, this.deps.clock.nowIso());
+          });
           published++;
+          await this.deps.onPublish?.();
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           if (row.attempts >= this.opts.maxAttempts) {

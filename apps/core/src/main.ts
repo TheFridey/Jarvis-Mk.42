@@ -35,7 +35,7 @@ try {
   await kernel.start();
   const report = await kernel.diagnostics.report();
   process.stderr.write(
-    `[kernel] operational  mode=${report.mode}  diagnostics=http://localhost:${kernel.diagnosticsPort}/diagnostics\n`,
+    `[kernel] operational  mode=${report.mode}  diagnostics=http://${config.diagnosticsHost}:${kernel.diagnosticsPort}/diagnostics\n`,
   );
 } catch (err) {
   process.stderr.write(`[kernel] failed to start: ${String(err)}\n`);

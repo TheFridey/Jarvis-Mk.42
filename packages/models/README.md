@@ -1,5 +1,10 @@
 # @jarvis/models
 
+> **README-ONLY EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** Kernel-side model
+> client/runtime code lives in `apps/core/src/kernel/cognition/`; provider
+> routing and adapters live in `apps/gateway/src/`. This directory contains no
+> registry implementation or provider credentials.
+
 **Purpose.** The **Model Registry** types and the **routing-policy** library
 (`docs/architecture/COGNITION_MODEL.md` §2, ADR-0010). Given a `ModelRequest`
 and the registered `ModelRegistration`s, select a model by capability match,

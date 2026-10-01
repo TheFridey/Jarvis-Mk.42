@@ -4,19 +4,13 @@
  *
  * WHAT THIS PROVES (against a real Kernel and real Postgres):
  *   1. a real NodeSDK provider is registered and exports genuine spans
- *   2. PostgreSQL auto-instrumentation produces spans for real Kernel queries
+ *   2. postgres.js work is traced explicitly at useful persistence boundaries
  *   3. `currentTraceId()` returns a real trace id inside an active span, and the
  *      Event Manager stamps it onto the durable `events.events` row — the
  *      ledger<->trace correlation ADR-0036 requires
  *
- * WHAT THIS DOES NOT PROVE — and the RC audit records as debt: explicit span
- * coverage of the full named chain (desktop/voice -> Context -> cognition ->
- * gateway -> agent -> Agency -> Executor -> Adapter -> verification). Only two
- * Kernel paths create explicit spans today (`model_gateway.generate` in
- * HttpModelGatewayClient, `agency.executor.invoke` in the Executor), so an
- * interaction that touches neither carries no trace id on its ledger rows.
- * ADR-0036's status line states this honestly ("complete named-path span
- * coverage remains in progress"); this test pins the mechanism that does work.
+ * It does not claim live provider, external adapter, hardware, or collector
+ * behavior. Those remain separate deployment evidence.
  *
  * Telemetry is started here with an in-memory exporter BEFORE the Kernel boots.
  * `startTelemetry` returns early when an SDK is already registered, so the
@@ -63,20 +57,39 @@ describe.skipIf(!dockerOk)('observability is real (integration)', () => {
     expect(probe!.attributes['jarvis.probe']).toBe('rc-audit');
   });
 
-  it('DOCUMENTED GAP: the registered PostgreSQL auto-instrumentation is inert for this driver', async () => {
-    // `@opentelemetry/instrumentation-pg` patches node-postgres (`pg`). This
-    // repository uses postgres.js (`postgres`) exclusively — `pg` is not a
-    // dependency anywhere — so that instrumentation can never emit a span, even
-    // though a full Kernel cold start executes a great deal of SQL.
-    //
-    // This test asserts the CURRENT TRUTH so the gap cannot be quietly forgotten
-    // and so that adding real postgres.js tracing makes this test fail loudly
-    // (at which point invert it). Recorded in the RC audit under observability.
+  it('traces postgres.js at the authoritative event append transaction boundary', async () => {
     const k = ctx.makeKernel();
     await k.start();
     await flushTelemetry();
-    const dbSpans = spans.filter((s) => /^(pg|postgres)[.:]/i.test(s.name));
-    expect(dbSpans).toEqual([]);
+    const dbSpans = spans.filter((s) => s.name === 'postgres.event_append');
+    expect(dbSpans.length).toBeGreaterThan(0);
+    expect(dbSpans.every((s) => s.attributes['db.system'] === 'postgresql')).toBe(true);
+  });
+
+  it('keeps representative cognition spans and durable events on one trace', async () => {
+    const correlationId = 'corr-representative-interaction';
+    const modelGateway = {
+      generate: async (request: import('@jarvis/contracts').ModelRequest) => withSpan('model_gateway.request', { 'jarvis.correlation_id': request.correlationId }, async () => ({
+        modelId: 'test-local', output: { proposals: [], evidence: [] },
+        usage: { contextUnits: 1, outputUnits: 1, costEstimate: 0, latencyMs: 1 }, finishReason: 'stop' as const,
+        provenance: { method: 'model' as const, producedBy: 'test-local', producedOn: 'integration', producedAt: new Date().toISOString(), correlationId: request.correlationId, derivedFromUntrusted: true },
+      })),
+      health: async () => [],
+    };
+    const k = ctx.makeKernel({ modelGateway });
+    await k.start();
+    const traceId = await withSpan('kernel.interaction', { 'jarvis.correlation_id': correlationId }, async () => {
+      const activeTrace = currentTraceId();
+      await k.cognition.submit({ requestId: 'request-trace-1', principalId: 'principal-operator', correlationId, input: 'summarise current state', agentId: 'agents.oracle', task: 'reason', locality: 'local' });
+      return activeTrace;
+    });
+    await flushTelemetry();
+
+    const names = spans.filter((s) => s.spanContext().traceId === traceId).map((s) => s.name);
+    expect(names).toEqual(expect.arrayContaining(['kernel.interaction', 'context.compile', 'agent.invoke', 'model_gateway.request', 'postgres.event_append']));
+    const rows = await ctx.pg.sql<{ trace_id: string | null }[]>`select trace_id from events.events where correlation_id=${correlationId}`;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.trace_id === traceId)).toBe(true);
   });
 
   it('stamps the active trace id onto the durable event ledger (ledger<->trace correlation)', async () => {

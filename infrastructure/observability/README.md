@@ -1,32 +1,34 @@
-# infrastructure/observability
+# Local observability
 
-OpenTelemetry end to end. Every process initialises tracing/metrics/logging via
-`@jarvis/telemetry` and exports OTLP to the local collector.
+OpenTelemetry trace export is implemented for the Kernel and Model Gateway via
+`@jarvis/telemetry`. Other processes are not claimed to initialise it.
 
-## Pipeline
-
-```
-apps/* + packages/* ---OTLP---> otel-collector (local server) ---> local backend
-                                                              \--> (future) remote APM
+```text
+apps/core + apps/gateway -- OTLP/HTTP --> local collector --> configured trace backend
 ```
 
-## What is instrumented
+## Live trace coverage
 
-- **Traces**: one span tree per interaction, tagged with `correlationId` in
-  `meta.traceId` so an OTel trace and an `AuditTrace` cross-reference
-  (`EVENT_ARCHITECTURE.md` §6).
-- **Metrics**: event append rate by class, outbox depth, projector lag per read
-  model, JetStream consumer pending, capability-invocation outcomes,
-  model-gateway cost/latency/tokens per provider, agent lease outcomes, Health
-  degradation state.
-- **Logs**: structured, correlation-tagged. No prompt/response content, no
-  secrets, no raw perception media.
+- incoming Kernel and Model Gateway interactions, with remote context extraction;
+- Context compilation;
+- model-gateway requests and provider attempts;
+- agent and capability invocations;
+- useful `postgres.js` event-append transaction boundaries;
+- durable event append correlation and outbox relay publishing;
+- supported HTTP, undici/fetch, ioredis, and network instrumentation.
 
-## Boundaries
+The Event Manager records the active `traceId` on canonical durable events, so
+events and traces can be joined by trace and correlation IDs. Span attributes
+contain identifiers and bounded operational metadata, not prompts, responses,
+credentials, or raw perception media.
 
-- Telemetry is **best-effort** and on **no** critical path — its failure never
-  changes behaviour.
-- Telemetry is **not** business state — it lives outside PostgreSQL
-  (`DATA_OWNERSHIP.md` §1).
-- `diagnostics` reads metrics/traces for the operator view; it does not mutate
-  anything.
+## Not yet claimed
+
+The complete metrics list in ADR-0036, structured OTel logging, every process,
+every Executor stage, and a production collector/backend are incomplete or
+deployment-specific. There is no `node-postgres` instrumentation: this
+repository uses `postgres.js`, so database coverage is explicit and bounded.
+
+Telemetry is best-effort, non-authoritative, and never a policy, workflow, or
+health authority. Missing telemetry renders as unavailable rather than being
+invented by the Experience Plane.

@@ -1,6 +1,6 @@
 # ADR-0036: Observability is a contract, not a wish — a real OTel SDK, mandatory spans and metrics on the load-bearing paths, and ledger↔trace correlation; unmet parts of the "complete coverage" claim are retracted until met
 
-Status: PARTIAL — NodeSDK, OTLP trace export, resource identity and core auto-instrumentation are implemented; complete named-path span coverage remains in progress.
+Status: PARTIAL — NodeSDK, OTLP trace export, trace propagation, supported HTTP/undici/Redis/network instrumentation, explicit postgres.js boundaries, and the principal interaction/context/model/agent/capability/event paths are implemented. The complete metrics catalogue, every process, and every fine-grained Executor stage remain in progress.
 Date: 2026-09-03
 Deciders: External Principal Architect (ASCENSION Stage A audit), Principal (rhyslacy123)
 Relates-to: ADR-0009 Amendment 1 (`traceId` on the envelope), EVENT_ARCHITECTURE §6, MK43_IMPLEMENTATION_NOTES §2; corrects `packages/telemetry`
@@ -150,3 +150,14 @@ ahead of, reality.
 
 **Low.** Telemetry is on no critical path; the SDK can be swapped or disabled.
 The span/metric *names* become a soft contract for dashboards — additive.
+
+## RC1.2 implementation note (2026-09-29)
+
+The repository uses `postgres.js`, not `node-postgres`; therefore the inert
+`@opentelemetry/instrumentation-pg` registration was removed rather than kept
+as false coverage. `postgres.event_append` traces the useful authoritative
+transaction boundary explicitly. Undici instrumentation covers outbound
+`fetch`, while domain spans retain model-gateway/provider meaning. Inbound Core
+and Model Gateway handlers extract trace context. Representative integration
+coverage proves a single trace across interaction, Context Compiler, agent,
+model gateway, PostgreSQL event append, and durable event `trace_id`.

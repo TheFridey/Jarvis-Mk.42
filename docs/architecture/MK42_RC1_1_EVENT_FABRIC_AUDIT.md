@@ -300,7 +300,7 @@ The same removal put `NatsEventBus.watchConnection()` at risk: a throw from `onT
 
 Both are fixed below, without reverting Codex's intent: `HealthManager` still propagates to direct callers, but the two background loops now absorb, log and continue.
 
-### One asymmetry reported, deliberately not changed
+### One asymmetry reported, deliberately not changed by the audit
 
 A NATS outage produces different mode outcomes depending on *when* it happens:
 
@@ -308,6 +308,22 @@ A NATS outage produces different mode outcomes depending on *when* it happens:
 - **NATS drops while running** → only the `nats` subsystem (non-critical) is heartbeat, by both the transport callback and the `healthSelfCheck` routine. `event-fabric` stays `HEALTHY` until the relay actually dead-letters something. Overall health goes `DEGRADED`, but **mode stays `AMBIENT`** (measured: `{"natsHealth":"OFFLINE","overall":"DEGRADED","mode":"AMBIENT"}`).
 
 Staying available is consistent with `FAILURE_MODEL.md` § *NATS offline* ("Kernel keeps writing PostgreSQL. Distribution pauses."), and the audit confirmed the outage is genuinely survived with no loss and no duplicates. It is not a false-AMBIENT-while-critical-unhealthy bug: no critical subsystem is unhealthy by the system's own definition. But the two paths disagree about the same physical condition, and the resolution — either heartbeat `event-fabric` from the transport callback, or stop heartbeating it at start-up — is a posture decision for the principal architect, not one an external auditor should make unilaterally. **Recorded as DEFECT-6, non-blocking.**
+
+### DEFECT-6 resolution (2026-09-09)
+
+DEFECT-6 is resolved by the change titled `fix: unify nats degradation and recovery posture`. The audit finding above is retained as historical evidence.
+
+The final policy is:
+
+- `JARVIS_NATS_DEGRADE_AFTER_MS` controls one shared start-up/run-time grace period; the default is **5,000 ms**.
+- A connection loss first makes NATS and the critical `event-fabric` subsystem `RECOVERING`. `HealthManager.criticalDepsHealthy()` intentionally accepts `RECOVERING`, so a short interruption does not force a global mode change.
+- If the same outage survives the grace deadline, NATS becomes `OFFLINE`, `event-fabric` becomes `DEGRADED`, and normal health-to-mode reconciliation moves the Kernel to `DEGRADED`. This applies identically during cold start and after an established connection.
+- PostgreSQL remains the durable authority. Event commits continue and the transactional outbox accumulates while distribution is unavailable; NATS remains non-fatal.
+- A reconnected socket is not sufficient recovery evidence. The bus must query JetStream and confirm every canonical stream still has the validated subject topology. When a sustained outage left queued rows, at least one successful outbox relay pass is additionally required. A large valid backlog therefore does not hold the system degraded until it reaches zero, while a merely reappeared TCP connection cannot produce a false healthy signal.
+- Initial connection failures are retried by one bounded background timer. Runtime reconnects continue to use the NATS client's reconnect loop. Timer callbacks and health callbacks contain and report errors, so they cannot escape as unhandled rejections.
+- Same-status health samples remain non-durable; only status transitions emit `HealthTransitioned`. The RC1.1 DLQ recursion guard and fixed-point invariant remain unchanged.
+
+Structured diagnostics now expose the transport phase, outage/grace timestamps, last connection and JetStream verification, last successful relay evidence, pending recovery evidence, and the last error.
 
 ### Determinism
 
@@ -445,5 +461,5 @@ The condition is met: hosted CI run 34408708468 for the audit commit is green ac
 
 Carried forward, unresolved and explicitly not covered by this GO:
 
-- **DEFECT-6** — the start-up/run-time degradation asymmetry needs a posture decision.
+- **DEFECT-6 — RESOLVED 2026-09-09.** Start-up and run-time outages now share the grace, sustained-degradation, and evidence-based recovery state machine documented above.
 - The audit covered the **event fabric only**. Nothing here revalidates cognition, agency, voice, vision, or the hardware capability gaps that `MK42_RELEASE_CANDIDATE_AUDIT.md` listed as unproven.

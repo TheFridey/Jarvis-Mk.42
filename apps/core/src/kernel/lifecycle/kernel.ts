@@ -26,8 +26,9 @@ import { BASE_RULE_PACK, evaluatePolicy } from '@jarvis/permissions';
 import type { AdapterHost } from '@jarvis/adapter-host';
 import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { startTelemetry, stopTelemetry } from '@jarvis/telemetry';
+import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
 
-import type { KernelConfig } from '../../runtime/config.ts';
+import { assertSecureIngressConfig, type KernelConfig } from '../../runtime/config.ts';
 import { SystemClock, type Clock } from '../../runtime/clock.ts';
 import { UlidGen, type IdGen } from '../../runtime/ids.ts';
 import { PgTxRunner } from '../../runtime/tx.ts';
@@ -37,6 +38,7 @@ import {
   EventStore,
   InProcessEventBus,
   NatsEventBus,
+  NatsFabricHealthCoordinator,
   OutboxRelay,
   OutboxStore,
   PgDeadLetterSink,
@@ -124,6 +126,7 @@ export interface KernelHandle {
   readonly agency: AgencyIngress;
   readonly cognition: CognitionOrchestrator;
   readonly objectives: ObjectiveEngine;
+  readonly experience: ExperienceProjection;
   /** ATLAS temporal world model — read API (MK.46). */
   readonly atlas: AtlasQueryService;
   /** MNEMOSYNE memory — recall API (MK.46). */
@@ -166,9 +169,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   let reportNatsHealth:(healthy:boolean,detail:string)=>void|Promise<void>=()=>undefined;
   const useInProc = ov.forceInProcessBus || !config.natsEnabled;
+  const natsBus = useInProc ? undefined : new NatsEventBus(config.natsUrl, processed, deadLetter,undefined,(healthy,detail)=>reportNatsHealth(healthy,detail));
   const bus: EventBus = useInProc
     ? new InProcessEventBus(processed, deadLetter)
-    : new NatsEventBus(config.natsUrl, processed, deadLetter,undefined,(healthy,detail)=>reportNatsHealth(healthy,detail));
+    : natsBus!;
 
   const events = new EventManager({
     sql: pg.sql,
@@ -191,7 +195,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   replayBus.registerProjector('state', (e) => stateProjector.apply(e));
 
   const health = new HealthManager({ state, events, clock, ids });
-  reportNatsHealth=(healthy,detail)=>health.heartbeat({subsystem:'nats',status:healthy?'HEALTHY':'OFFLINE',message:detail});
+  let natsFabricHealth: NatsFabricHealthCoordinator | undefined;
+  reportNatsHealth=(healthy,detail)=>healthy
+    ? natsFabricHealth?.transportAvailable(detail)
+    : natsFabricHealth?.transportUnavailable(detail);
 
   let currentPrincipalId = config.bootstrapPrincipalId;
   let presenceIsPresent = false;
@@ -346,7 +353,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       deadLetter,
       events,
       clock,
-      onHealth: (status, detail) => health.heartbeat({ subsystem: 'event-fabric', status: status === 'HEALTHY' ? 'HEALTHY' : 'DEGRADED', message: detail }),
+      onHealth: (status, detail) => natsFabricHealth
+        ? (status === 'HEALTHY' ? natsFabricHealth.relayHealthy(detail) : natsFabricHealth.relayDegraded(detail))
+        : health.heartbeat({ subsystem: 'event-fabric', status: status === 'HEALTHY' ? 'HEALTHY' : 'DEGRADED', message: detail }),
+      onPublish: () => natsFabricHealth?.relayHealthy('JetStream verified and outbox publish succeeded'),
     },
     {
       pollMs: config.outboxPollMs,
@@ -355,6 +365,19 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       baseBackoffMs: 250,
     },
   );
+
+  if (natsBus) {
+    natsFabricHealth = new NatsFabricHealthCoordinator({
+      degradeAfterMs: config.natsDegradeAfterMs,
+      nowMs: () => clock.epochMs(),
+      heartbeat: (subsystem, status, message) => health.heartbeat({ subsystem, status, message }),
+      verifyTransport: () => natsBus.verifyReady(),
+      releaseOutboxForRecovery: () => outbox.releasePendingForRecovery(clock.nowIso()),
+      pendingOutbox: () => outbox.pendingCount(),
+      retryConnect: () => natsBus.start(),
+      reportError: (message, error) => console.error(`kernel: ${message}:`, error),
+    });
+  }
 
   const retentionSweeper = new RetentionSweeper(pg.sql, clock);
 
@@ -375,6 +398,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     pingDb: () => pg.ping(),
     pingRedis: () => ephemeral.ping(),
     busHealthy: () => bus.isHealthy(),
+    eventFabricDiagnostics: () => natsFabricHealth?.diagnostics(),
     modelGatewayHealth: async () => { const models = await modelGateway.health?.() ?? []; return { status: models.some((m) => m.status === 'healthy') ? 'HEALTHY' : models.some((m) => m.status === 'degraded') ? 'DEGRADED' : 'OFFLINE', models: models.length }; },
     countActiveObjectives: async () => { const [row] = await pg.sql<{ count: string }[]>`select count(*)::text as count from projections.objectives where status in ('active','blocked','paused')`; return Number(row?.count ?? 0); },
     visionDiagnostics: () => vision.diagnostics(),
@@ -390,7 +414,9 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   });
 
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, nodeId: config.nodeId });
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId });
+  const experience = new ExperienceProjection({ streamId:ids.ulid(), build:()=>desktop.snapshot(), reportError:(error)=>console.error('experience-projector:',error) });
+  const offExperienceEvents = events.onAppended((event)=>experience.invalidate(channelsForEvent(event.type)));
+  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience });
 
   const scheduler = new Scheduler({
     events,
@@ -401,6 +427,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   let diagnosticsPort: number | null = null;
   let started = false;
+  let modeRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
 
   // --- MK.46 knowledge routine bodies (also exposed on the handle so an
   //     operator / test can trigger a pass explicitly) ----------------------
@@ -455,11 +482,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         status: (await ephemeral.ping()) ? 'HEALTHY' : 'OFFLINE',
         message: ephemeral.connected ? 'ok' : 'down',
       });
-      await health.heartbeat({
-        subsystem: 'nats',
-        status: bus.isHealthy() ? 'HEALTHY' : 'DEGRADED',
-        message: bus.isHealthy() ? 'ok' : 'bus unhealthy',
-      });
+      if (useInProc) await health.heartbeat({ subsystem: 'nats', status: 'HEALTHY', message: 'in-process bus' });
     });
     scheduler.register(ROUTINE_DEFS.stateSnapshot!, async () => {
       await stateStore.takeSnapshot(await state.checkpointEventId());
@@ -492,7 +515,16 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     const criticalHealthy=health.criticalDepsHealthy();
     if (cur === 'DEGRADED' && criticalHealthy) {
       const outcome=await mode.requestTransition('AMBIENT', 'dependency_recovered', 'critical dependencies healthy');
-      if(!outcome.ok&&outcome.code!=='guard_dwell'&&outcome.code!=='same_mode')throw new Error(`health-to-mode recovery failed: ${outcome.code}: ${outcome.detail}`);
+      if (!outcome.ok && outcome.code === 'guard_dwell') {
+        // Recovery can arrive before mode hysteresis expires. No further
+        // subsystem transition is guaranteed, so retry the deterministic
+        // reconciliation itself instead of relying on an arbitrary heartbeat.
+        if (!modeRecoveryTimer && started) modeRecoveryTimer = setTimeout(() => {
+          modeRecoveryTimer = undefined;
+          void reconcileModeWithHealth(health.report().overall).catch((error) =>
+            console.error('kernel: deferred health-to-mode reconciliation failed:', error));
+        }, Math.max(1, config.modeMinDwellMs));
+      } else if(!outcome.ok&&outcome.code!=='same_mode')throw new Error(`health-to-mode recovery failed: ${outcome.code}: ${outcome.detail}`);
     } else if (
       !criticalHealthy &&
       cur !== 'DEGRADED' &&
@@ -530,6 +562,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     agency,
     cognition,
     objectives,
+    experience,
     atlas: atlasQuery,
     memory: memoryRecall,
     knowledge: knowledgeIngestion,
@@ -551,6 +584,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
     async start() {
       if (started) return;
+      // Re-check at the process boundary even when a caller constructed a
+      // KernelConfig without loadConfig(). The composition root must not offer
+      // a bypass around the ingress root-of-trust guard.
+      assertSecureIngressConfig(config);
       started = true;
 
       startTelemetry({
@@ -606,12 +643,14 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       // 4. Bus + outbox relay
       try {
         await bus.start();
-        await health.heartbeat({ subsystem: 'nats', status: bus.isHealthy() ? 'HEALTHY' : 'DEGRADED', message: useInProc ? 'in-process bus' : 'jetstream' });
+        if (useInProc) await health.heartbeat({ subsystem: 'nats', status: 'HEALTHY', message: 'in-process bus' });
       } catch (err) {
-        await health.heartbeat({ subsystem: 'nats', status: 'OFFLINE', message: err instanceof Error ? err.message : String(err) });
+        const detail = err instanceof Error ? err.message : String(err);
+        if (natsFabricHealth) await natsFabricHealth.transportUnavailable(detail, true);
+        else await health.heartbeat({ subsystem: 'nats', status: 'OFFLINE', message: detail });
       }
       outboxRelay.start();
-      await health.heartbeat({ subsystem: 'event-fabric', status: bus.isHealthy() ? 'HEALTHY' : 'DEGRADED', message: bus.isHealthy() ? 'outbox relay running' : 'outbox durable; transport unavailable' });
+      if (useInProc) await health.heartbeat({ subsystem: 'event-fabric', status: 'HEALTHY', message: 'in-process bus and outbox relay running' });
       await agencyRecovery.recoverExpiredLeases();
       await health.heartbeat({ subsystem: 'agency', status: 'HEALTHY', message: `${registeredCapabilities.length} registered capabilities` });
       await health.heartbeat({ subsystem: 'adapter-host', status: 'HEALTHY', message: 'isolated worker host ready' });
@@ -673,6 +712,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     async stop() {
       if (!started) return;
       started = false;
+      if (modeRecoveryTimer) clearTimeout(modeRecoveryTimer);
+      modeRecoveryTimer = undefined;
       agency.stop();
       await events
         .emit({
@@ -690,9 +731,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
       state.beginShutdown();
       await scheduler.stop();
+      await natsFabricHealth?.stop();
       await outboxRelay.stop(); // final flush
       await stateStore.takeSnapshot(await state.checkpointEventId());
       await diagnosticsHttp.close();
+      offExperienceEvents(); experience.stop();
       await bus.close();
       await ephemeral.close();
       await stopTelemetry();

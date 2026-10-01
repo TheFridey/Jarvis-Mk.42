@@ -1,5 +1,10 @@
 # MK.42 Release Candidate Audit
 
+> **Point-in-time RC1 evidence.** The observability and insecure-default items
+> recorded here were addressed in RC1.2. See `ROADMAP.md`, ADR-0036, and the
+> current source/tests for present-tense status; the findings below are retained
+> unchanged as historical audit evidence.
+
 **Auditor:** External Principal Architect + Release Auditor (Claude Opus 5), engaged as a hostile reviewer who did not build this system.
 **Date:** 2026-09-08
 **Audited commit (entry):** `010114f` — `test: validate mk42 realtime hardware integration`

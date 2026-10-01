@@ -1,6 +1,7 @@
 {
   "name": "jarvis",
   "version": "0.43.0",
+  "productRelease": "RC1.2",
   "private": true,
   "description": "JARVIS MK.42 - a persistent, event-driven AI operating layer. MK.43 phase: the Nervous System.",
   "packageManager": "pnpm@9.15.9",

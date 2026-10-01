@@ -1,5 +1,10 @@
 # @jarvis/agents
 
+> **README-ONLY EXTRACTION SEAM — NOT A WORKSPACE PACKAGE.** There is no
+> `package.json` or runtime code here. The implemented agent runtime and roster
+> are in `apps/core/src/kernel/cognition/agent-runtime.ts`. Add Kernel behavior
+> there unless an accepted ADR first authorises extraction.
+
 **Purpose.** The **Agent Runtime** (`docs/architecture/COGNITION_MODEL.md` §6).
 Spawns, leases, supervises, budgets, and reaps agents as **isolated workers**.
 Provides the mediated gateway channel (stamps `onBehalfOf`), the scoped

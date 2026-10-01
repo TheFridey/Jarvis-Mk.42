@@ -6,12 +6,22 @@ semantic resource truth.
 
 ## Live path
 
-`KernelSceneTransport` polls the loopback Kernel desktop gateway for a typed
-`DesktopKernelSnapshot`. The snapshot contains authoritative State Manager
-slices, diagnostics, active sessions, current agency lifecycle rows, policy
-denials, pending approvals, and a semantic scene projected from those values.
-The snapshot `stateVersion` is the optimistic concurrency boundary for every
-desktop command.
+`KernelSceneTransport` obtains one authenticated `JarvisOperatingPicture`
+snapshot for bootstrap, then subscribes to the versioned Experience WebSocket
+stream. The picture contains authoritative State Manager slices, diagnostics,
+active sessions, current cognition and agency lifecycle rows, policy denials,
+pending approvals, and the Semantic Scene projected from those values. The
+snapshot endpoint remains a recovery and diagnostics fallback; it is not the
+normal update loop. `stateVersion` is the optimistic concurrency boundary for
+every desktop command and `sceneVersion` guards the embedded semantic scene.
+
+The read-only Experience Projection is an ephemeral projection inside the
+existing Kernel process, not a Kernel authority component or a durable event
+store. Event Manager append notifications invalidate relevant projection
+channels after persistence. Clients subscribe with a session-bound credential
+and the explicit `experience.read` scope. Each stream instance has an id and a
+bounded sequence history for resume; an unavailable position requires a fresh
+snapshot.
 
 The only effect-producing command is a `CapabilityInvocationProposal`. The
 gateway derives the active principal from Kernel state and submits the proposal
@@ -30,22 +40,26 @@ new Kernel scene. They cannot change authoritative state.
 
 - Commands are rejected while disconnected; they are never queued for later
   side-effecting replay.
-- Polling reconnects with bounded exponential backoff.
+- WebSocket reconnect uses bounded exponential backoff and presents the last
+  applied stream position for replay where it remains available.
+- Heartbeats revalidate the credential and detect dead peers. Revocation and
+  logout disconnect the matching session; slow consumers are disconnected
+  instead of accumulating an unbounded queue.
 - A `409 state_version_conflict` refreshes the snapshot and rejects the stale
   command.
-- The UI remains running but shows `KERNEL OFFLINE` / `DEGRADED` and an empty
-  non-authoritative scene until a valid snapshot arrives.
-- A prior snapshot may remain visible during a short reconnect, but the status
-  is `RECONNECTING`; it is never labelled synchronised.
+- The UI remains running but shows `DISCONNECTED · DATA STALE`, `RECONNECTING ·
+  DATA STALE`, or `DEGRADED`. A prior snapshot may remain visible during a
+  reconnect, but it is frozen and never labelled live.
 
 ## Development configuration
 
-The gateway binds to `127.0.0.1:7420` by default. Development defaults on both
-sides use `dev-desktop-token`. Override both together:
+The gateway binds to `127.0.0.1:7420` by default. Local development may use the
+explicit bootstrap default only on loopback. Override the bootstrap credential
+for any non-loopback ingress:
 
 ```text
-JARVIS_DESKTOP_TOKEN=<local-secret>
-NEXT_PUBLIC_JARVIS_DESKTOP_TOKEN=<same-local-secret>
+JARVIS_BOOTSTRAP_CREDENTIAL=<local-secret>
+NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL=<same-local-secret>
 NEXT_PUBLIC_JARVIS_CORE_URL=http://127.0.0.1:7420
 ```
 

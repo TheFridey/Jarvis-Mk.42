@@ -13,7 +13,7 @@
  *    check that mode never returns to AMBIENT while a critical dependency is
  *    unhealthy.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { startEphemeralNats, startEphemeralPg, type EphemeralNats, type EphemeralPg } from '@jarvis/testkit';
 import { EventNames } from '@jarvis/contracts';
@@ -28,6 +28,7 @@ let container: EphemeralPg | undefined;
 let pg: PgHandle | undefined;
 let natsUrl = '';
 let clock: FakeClock;
+const activeKernels = new Set<KernelHandle>();
 
 async function waitFor(label: string, predicate: () => boolean | Promise<boolean>, ms = 30_000): Promise<void> {
   const deadline = Date.now() + ms;
@@ -69,9 +70,12 @@ function makeKernel(overrides: Parameters<typeof buildKernel>[1] = {}, cfg: Part
     outboxPollMs: 60_000, // ticks are driven manually for determinism
     outboxMaxAttempts: 2,
     modeMinDwellMs: 1,
+    natsDegradeAfterMs: 250,
     ...cfg,
   });
-  return buildKernel(config, { pg: pg!, clock, ids: new UlidGen(), noHttp: true, noScheduler: true, ...overrides });
+  const kernel = buildKernel(config, { pg: pg!, clock, ids: new UlidGen(), noHttp: true, noScheduler: true, ...overrides });
+  activeKernels.add(kernel);
+  return kernel;
 }
 
 async function emitDurable(k: KernelHandle, i: number): Promise<void> {
@@ -110,6 +114,11 @@ describe('RC1.1 audit - Kernel over real NATS', () => {
     await nats!.start();
   }, 120_000);
 
+  afterEach(async () => {
+    await Promise.all([...activeKernels].map((kernel) => kernel.stop().catch(() => undefined)));
+    activeKernels.clear();
+  }, 120_000);
+
   afterAll(async () => {
     await pg?.close().catch(() => undefined);
     await container?.stop().catch(() => undefined);
@@ -124,7 +133,9 @@ describe('RC1.1 audit - Kernel over real NATS', () => {
 
     // Force the transport down and keep it down for the whole test.
     await nats!.stop();
+    clock.advance(10_000);
     await waitFor('bus reports unhealthy', () => !k.bus.isHealthy(), 60_000);
+    await waitFor('sustained outage degrades the Kernel', async () => (await k.mode.current()) === 'DEGRADED');
     // Settle the Kernel's own start-up backlog first, so the measurement below
     // attributes growth to the N injected failures and nothing else.
     const drive = async (passes: number) => {
@@ -214,9 +225,13 @@ describe('RC1.1 audit - Kernel over real NATS', () => {
 
     // 2. stop NATS
     await nats!.stop();
+    clock.advance(10_000);
     await waitFor('bus reports unhealthy', () => !k.bus.isHealthy(), 60_000);
     const natsHealth = () => k.health.report().subsystems.find((s) => s.subsystem === 'nats')?.status;
-    await waitFor('nats subsystem marked down', () => natsHealth() === 'OFFLINE' || natsHealth() === 'DEGRADED', 30_000);
+    await waitFor('nats subsystem marked down', () => natsHealth() === 'OFFLINE', 30_000);
+    await waitFor('event fabric and Kernel degraded', async () =>
+      k.health.report().subsystems.find((s) => s.subsystem === 'event-fabric')?.status === 'DEGRADED'
+      && (await k.mode.current()) === 'DEGRADED');
 
     // 3. generate persistent events while the transport is down
     const N = 10;
@@ -234,11 +249,21 @@ describe('RC1.1 audit - Kernel over real NATS', () => {
     await waitFor('nats subsystem healthy', () => natsHealth() === 'HEALTHY', 60_000);
 
     // 7. outbox drains
-    await waitFor('outbox drained', async () => {
+    let drained = false;
+    for (let attempt = 0; attempt < 50; attempt++) {
       clock.advance(60_000);
-      await k.outboxRelay.tick().catch(() => undefined);
-      return (await counts()).outboxPending === 0;
-    }, 120_000);
+      await k.outboxRelay.tick();
+      if ((await counts()).outboxPending === 0) {
+        drained = true;
+        break;
+      }
+    }
+    if (!drained) {
+      const rows = await pg!.sql<{ attempts: number; last_error: string | null; c: string }[]>`
+        select attempts, last_error, count(*)::text as c
+        from events.outbox where dispatched_at is null group by attempts, last_error order by attempts`;
+      throw new Error(`outbox did not drain after 50 deterministic passes: ${JSON.stringify({ counts: await counts(), rows, diagnostics: (await k.diagnostics.report()).eventFabric })}`);
+    }
 
     // 8. no duplicates and nothing dead-lettered
     await waitFor('all notifications delivered', () => received.length >= N, 60_000);
@@ -246,14 +271,62 @@ describe('RC1.1 audit - Kernel over real NATS', () => {
     expect(new Set(received).size).toBe(received.length);
     expect((await counts()).deadLetter).toBe(0);
 
-    // 9/10. fabric healthy and the Kernel is in a healthy mode
-    await k.health.heartbeat({ subsystem: 'event-fabric', status: 'HEALTHY', message: 'audit: drained' });
+    // 9/10. relay success is the recovery evidence; no test-only health write
+    await waitFor('fabric healthy and Kernel ambient', async () =>
+      k.health.report().subsystems.find((s) => s.subsystem === 'event-fabric')?.status === 'HEALTHY'
+      && (await k.mode.current()) === 'AMBIENT');
     expect(k.health.criticalDepsHealthy()).toBe(true);
     const finalMode = await k.mode.current();
     console.log(`RECOVERY_STATE=${JSON.stringify({ mode: finalMode, overall: k.health.report().overall, received: received.length, unique: new Set(received).size })}`);
     expect(finalMode).toBe('AMBIENT');
 
     await k.stop();
+  }, 300_000);
+
+  it('DEFECT-6: a short real NATS interruption stays inside the grace window', async () => {
+    await truncateEventTables();
+    const k = makeKernel({}, { natsDegradeAfterMs: 20_000, outboxPollMs: 100, outboxMaxAttempts: 50 });
+    await k.start();
+    expect(await k.mode.current()).toBe('AMBIENT');
+
+    await nats!.stop();
+    await waitFor('short-outage disconnect observed', () => !k.bus.isHealthy(), 60_000);
+    expect(k.diagnostics ? (await k.diagnostics.report()).eventFabric?.phase : undefined).toBe('RECONNECTING');
+    expect(await k.mode.current()).toBe('AMBIENT');
+
+    await nats!.start();
+    await waitFor('short-outage reconnect verified', async () =>
+      k.bus.isHealthy() && (await k.diagnostics.report()).eventFabric?.phase === 'HEALTHY', 120_000);
+    expect(await k.mode.current()).toBe('AMBIENT');
+    expect(k.health.report().subsystems.find((s) => s.subsystem === 'event-fabric')?.status).toBe('HEALTHY');
+    await k.stop();
+  }, 300_000);
+
+  it('DEFECT-6: startup and runtime sustained outages converge to DEGRADED and startup reconnects', async () => {
+    await truncateEventTables();
+    await nats!.stop();
+    const startup = makeKernel({}, { natsDegradeAfterMs: 250, outboxPollMs: 100, outboxMaxAttempts: 50 });
+    clock.advance(10_000);
+    await startup.start();
+    await waitFor('startup outage reaches sustained posture', async () =>
+      startup.health.report().subsystems.find((s) => s.subsystem === 'event-fabric')?.status === 'DEGRADED'
+      && (await startup.mode.current()) === 'DEGRADED', 60_000);
+    const startupPosture = {
+      nats: startup.health.report().subsystems.find((s) => s.subsystem === 'nats')?.status,
+      fabric: startup.health.report().subsystems.find((s) => s.subsystem === 'event-fabric')?.status,
+      mode: await startup.mode.current(),
+    };
+    expect(startupPosture).toEqual({ nats: 'OFFLINE', fabric: 'DEGRADED', mode: 'DEGRADED' });
+
+    await nats!.start();
+    clock.advance(10_000);
+    await waitFor('startup connection retry recovers without restarting Kernel', async () => {
+      await startup.outboxRelay.tick().catch(() => undefined);
+      return startup.bus.isHealthy()
+        && startup.health.report().subsystems.find((s) => s.subsystem === 'event-fabric')?.status === 'HEALTHY'
+        && (await startup.mode.current()) === 'AMBIENT';
+    }, 120_000);
+    await startup.stop();
   }, 300_000);
 
   it('AUDIT-4b: the Kernel does not return to AMBIENT while a critical dependency is unhealthy', async () => {

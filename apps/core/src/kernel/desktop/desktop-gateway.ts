@@ -9,6 +9,10 @@ import type {
   DesktopCognitionCommand,
   PresentationState,
   SemanticScene,
+  OperatingModelRun,
+  OperatingObjective,
+  InteractionState,
+  WorkState,
 } from '@jarvis/scene';
 import type { DiagnosticsService } from '../diagnostics/diagnostics-service.ts';
 import type { StateManager } from '../state/state-manager.ts';
@@ -17,6 +21,7 @@ import type { ApprovalManager } from '../permission/approval-manager.ts';
 import type { AgencyIngress } from '../agency-ingress/agency-ingress.ts';
 import type { CognitionOrchestrator } from '../cognition/cognition-orchestrator.ts';
 import type { IdGen } from '../../runtime/ids.ts';
+import { presentationSystemMode } from './presentation-state.ts';
 
 interface InvocationRow {
   invocation_id: string; capability_id: string; action: string; state: DesktopKernelSnapshot['capabilityActivity'][number]['state'];
@@ -24,6 +29,8 @@ interface InvocationRow {
   proposal: CapabilityInvocationProposal | null; final_outcome: string | null; updated_at: string; finished_at: string | null;
   manifest: Capability | null;
 }
+interface CognitionRow { request_id:string; agent_id:string; model_id:string|null; status:'running'|'completed'|'failed'; response:CognitionResponse|null; context_units:number; output_units:number; cost_estimate:number; latency_ms:number; created_at:string; finished_at:string|null; }
+interface ObjectiveRow { objective_id:string; statement:string; status:string; priority:number; updated_at:string; }
 
 export type DesktopCommandResult<T> = { ok: true; value: T } | { ok: false; code: 'state_version_conflict' | 'approval_rejected'; currentStateVersion: number };
 
@@ -37,14 +44,14 @@ export class DesktopGateway {
     const [diagnostics, state, sessions, pending, activity, cognitionRows, objectiveRows] = await Promise.all([
       this.deps.diagnostics.report(), this.deps.state.view(), this.deps.sessions.listActive(), this.deps.approvals.listPending(),
       this.deps.sql<InvocationRow[]>`select i.invocation_id, i.capability_id, i.action, i.state, i.origin_actor, i.risk_class, i.proposal, i.final_outcome, coalesce(i.finished_at, i.started_at, i.created_at) as updated_at, i.finished_at, cv.manifest from agency.invocations i left join agency.capability_versions cv on cv.capability_id=i.capability_id and cv.version=i.capability_version order by i.created_at desc limit 30`,
-      this.deps.sql<Array<{response:CognitionResponse}>>`select response from cognition.runs where status='completed' and response is not null order by created_at desc limit 20`,
-      this.deps.sql<Array<{objective_id:string}>>`select objective_id from projections.objectives where status in ('proposed','active','blocked','paused') order by priority desc,created_at limit 30`,
+      this.deps.sql<CognitionRow[]>`select request_id,agent_id,model_id,status,response,context_units,output_units,cost_estimate,latency_ms,created_at,finished_at from cognition.runs order by created_at desc limit 30`,
+      this.deps.sql<ObjectiveRow[]>`select objective_id,statement,status,priority,updated_at from projections.objectives where status in ('proposed','active','blocked','paused') order by priority desc,created_at limit 30`,
     ]);
-    const principalId = (state.slices.active_principal.value as { principalId: string | null }).principalId;
-    const objectiveId = (state.slices.active_objective.value as { objectiveId: string | null }).objectiveId;
-    const workspaceId = (state.slices.active_workspace.value as { workspaceId: string | null }).workspaceId;
-    const contextId = (state.slices.active_context.value as { contextId: string | null }).contextId;
-    const alertIds = (state.slices.active_alerts.value as { alertIds: string[] }).alertIds;
+    const principalId = (state.slices.active_principal?.value as { principalId?: string | null } | undefined)?.principalId ?? null;
+    const objectiveId = (state.slices.active_objective?.value as { objectiveId?: string | null } | undefined)?.objectiveId ?? null;
+    const workspaceId = (state.slices.active_workspace?.value as { workspaceId?: string | null } | undefined)?.workspaceId ?? null;
+    const contextId = (state.slices.active_context?.value as { contextId?: string | null } | undefined)?.contextId ?? null;
+    const alertIds = (state.slices.active_alerts?.value as { alertIds?: string[] } | undefined)?.alertIds ?? [];
     const byInvocation = new Map(activity.map((row) => [row.invocation_id, row]));
     const approvals: DesktopApproval[] = pending.map((approval) => {
       const row = byInvocation.get(approval.invocationId); const input = row?.proposal?.invocation.input;
@@ -54,7 +61,28 @@ export class DesktopGateway {
     const capabilityActivity = activity.map((row) => ({ invocationId: row.invocation_id, capabilityId: row.capability_id, action: row.action, actor: row.origin_actor?.id ?? 'unknown', risk: row.risk_class, state: row.state, updatedAt: new Date(row.updated_at).toISOString(), ...(row.final_outcome ? { finalOutcome: row.final_outcome } : {}) }));
     const policyDenials = activity.filter((row) => row.state === 'DENIED').map((row) => ({ invocationId: row.invocation_id, capabilityId: row.capability_id, action: row.action, reason: row.final_outcome ?? 'Denied by Kernel policy or permissions', at: new Date(row.updated_at).toISOString() }));
     const scene = this.scene({ stateVersion: state.stateVersion, principalId, objectiveId, workspaceId, contextId, alertIds, diagnostics, activity: capabilityActivity });
-    return { schemaVersion: 1, generatedAt: diagnostics.generatedAt, stateVersion: state.stateVersion, principalId, diagnostics, state, sessions, notifications: alertIds, objectives: objectiveRows.map(r=>r.objective_id), cognitionResponses: cognitionRows.map(r=>r.response), capabilityActivity, policyDenials, approvals, scene, selectedProjectId: workspaceId, contextId };
+    const modelRuns: OperatingModelRun[] = cognitionRows.map((row) => ({ requestId: row.request_id, modelId: row.model_id, agentId: row.agent_id, status: row.status, startedAt: new Date(row.created_at).toISOString(), ...(row.finished_at ? { finishedAt: new Date(row.finished_at).toISOString() } : {}), ...(row.status !== 'running' ? { latencyMs: row.latency_ms, contextUnits: row.context_units, outputUnits: row.output_units, costEstimate: row.cost_estimate } : {}) }));
+    const tasks: OperatingObjective[] = objectiveRows.map((row) => ({ id: row.objective_id, statement: row.statement, status: row.status, priority: row.priority, updatedAt: new Date(row.updated_at).toISOString() }));
+    const interactionState = this.interactionState(diagnostics.mode, modelRuns);
+    const workState = this.workState(capabilityActivity, approvals, tasks, modelRuns);
+    const telemetry = diagnostics.telemetry;
+    const presenceValue = (state.slices.presence?.value as { state?:string; confidence?:number; observedAt?:string } | undefined) ?? {};
+    const activeCapabilities = capabilityActivity.filter((item) => !['COMPLETED','REJECTED','DENIED','ABORTED','FAILED','VERIFICATION_FAILED','ROLLED_BACK','PARTIALLY_COMPLETED'].includes(item.state));
+    return {
+      schemaVersion: 2, operatingPictureVersion: 1, generatedAt: diagnostics.generatedAt,
+      stateVersion: state.stateVersion, sceneVersion: scene.version, systemMode: presentationSystemMode(diagnostics.mode),
+      interactionState, workState, principal: { id: principalId, status: principalId ? 'active' : 'unassigned' },
+      presence: { status: presenceValue.state === 'present' ? 'present' : presenceValue.state === 'away' ? 'away' : 'unknown', ...(typeof presenceValue.confidence === 'number' ? { confidence: presenceValue.confidence } : {}), ...(presenceValue.observedAt ? { observedAt: presenceValue.observedAt } : {}) },
+      ...(tasks.find((task) => task.id === objectiveId) ? { activeObjective: tasks.find((task) => task.id === objectiveId)! } : {}), activeTasks: tasks,
+      activeModels: modelRuns.filter((run) => run.status === 'running'), recentModelRuns: modelRuns,
+      activeAgents: modelRuns.filter((run) => run.status === 'running').map((run) => ({ agentId: run.agentId, requestId: run.requestId, status: 'running', startedAt: run.startedAt })),
+      activeCapabilities, systemHealth: diagnostics.health,
+      telemetrySummary: { availability: telemetry?.enabled ? (telemetry.started ? 'available' : 'partial') : 'unavailable', generatedAt: diagnostics.generatedAt, eventRatePerMinute: diagnostics.events.ratePerMinute, traceExport: telemetry?.lastExportAt ? 'active' : telemetry?.started ? 'unknown' : 'inactive' },
+      pendingApprovals: approvals, conversationActivity: { activeSessionIds: sessions.map((session) => session.id), activeRunIds: modelRuns.filter((run) => run.status === 'running').map((run) => run.requestId), recentResponseIds: cognitionRows.filter((row) => row.response).map((row) => row.request_id) },
+      selectedContext: { contextId, projectId: workspaceId }, principalId, diagnostics, state, sessions,
+      notifications: alertIds, objectives: tasks.map((task) => task.id), cognitionResponses: cognitionRows.flatMap((row) => row.response ? [row.response] : []),
+      capabilityActivity, policyDenials, approvals, scene, selectedProjectId: workspaceId, contextId,
+    };
   }
 
   async cognize(command:DesktopCognitionCommand):Promise<DesktopCommandResult<CognitionResponse>> { const state=await this.deps.state.view(); if(command.expectedStateVersion!==state.stateVersion)return{ok:false,code:'state_version_conflict',currentStateVersion:state.stateVersion}; const principalId=(state.slices.active_principal.value as {principalId:string|null}).principalId;if(!principalId)return{ok:false,code:'approval_rejected',currentStateVersion:state.stateVersion}; const correlationId=this.deps.ids.ulid(); return {ok:true,value:await this.deps.cognition.submit({requestId:command.commandId,principalId,correlationId,input:command.input,agentId:command.agentId??'agents.oracle',task:command.task??'reason',locality:command.locality??'any'})}; }
@@ -111,4 +139,8 @@ export class DesktopGateway {
     if (activity.some((item) => ['EXECUTING', 'VERIFYING', 'ROLLING_BACK'].includes(item.state))) return 'WORKING';
     if (mode === 'ENGAGED') return 'LISTENING'; if (mode === 'FOCUSED') return 'THINKING'; if (mode === 'AUTONOMOUS') return 'WORKING'; return 'DORMANT';
   }
+
+
+  private interactionState(mode: DesktopKernelSnapshot['diagnostics']['mode'], runs: OperatingModelRun[]): InteractionState { if (runs.some((run) => run.status === 'running')) return 'INTERPRETING'; if (mode === 'ENGAGED') return 'LISTENING'; if (mode === 'FOCUSED') return 'AWARE'; return 'DORMANT'; }
+  private workState(activity: DesktopKernelSnapshot['capabilityActivity'], approvals: DesktopApproval[], tasks: OperatingObjective[], runs: OperatingModelRun[]): WorkState { if (activity.some((item) => item.state === 'VERIFYING')) return 'VERIFYING'; if (activity.some((item) => ['EXECUTING','LEASE_ACQUIRED','EXECUTED','SIMULATED'].includes(item.state))) return 'EXECUTING'; if (approvals.length || activity.some((item) => item.state === 'AWAITING_APPROVAL')) return 'WAITING'; if (activity.some((item) => ['FAILED','VERIFICATION_FAILED','PARTIALLY_COMPLETED'].includes(item.state))) return 'ERROR'; if (tasks.some((task) => task.status === 'blocked')) return 'BLOCKED'; if (runs.some((run) => run.status === 'running')) return 'THINKING'; if (tasks.some((task) => task.status === 'active' || task.status === 'proposed')) return 'ROUTING'; return 'IDLE'; }
 }
