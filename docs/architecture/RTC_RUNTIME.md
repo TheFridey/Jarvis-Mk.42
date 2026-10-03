@@ -77,6 +77,7 @@ pnpm exec vitest run --project unit
 pnpm build:desktop
 pnpm exec tsx scripts/qualify-rtc.ts
 pnpm exec tsx scripts/qualify-rtc.ts --cloud
+pnpm exec tsx scripts/qualify-rtc.ts --revoke
 ```
 
 The qualification harness creates an authenticated RTC session, publishes a
@@ -92,3 +93,22 @@ with synthetic input. Cloud RTC media/ASR/cognition/TTS round trip also passed
 with synthetic input. The earlier first desktop build failed on an unused import and
 was corrected before the passing build. An initial weak audio-energy check was
 replaced with the RMS threshold; earlier weak results are not acceptance evidence.
+
+Follow-up qualification: a live authenticated session logout disconnected its
+WebRTC participant in 869 ms. The `--revoke` gate tests this independently of
+speech generation. It does not certify the documented stolen-token limitation.
+Repeat local speech runs exposed an agent completion race: process exit could
+overtake a result awaiting asynchronous heartbeat processing. The worker now
+flushes its result before exit and the parent drains received frames before
+classifying exit. The regression test deliberately delays a heartbeat while the
+worker returns its result. Failures report only the speech mode and pipeline
+stage, without transcripts, audio, provider responses or credentials.
+After the fix, both local and cloud speech gates passed again against the
+restarted Kernel, each receiving at least ten non-silent reply frames. The
+worker completion regression passed (4 worker-host tests); the focused runtime
+and RTC suite passed (10 tests before adding that regression). Fresh typecheck
+and structural lint passed. The earlier 354-test suite and desktop build are
+historical gates, not reruns of the newer desktop visual edits in the workspace.
+The final revocation rerun passed in 1771 ms. Final browser verification showed
+REALTIME LIVE, an enabled Start RTC voice control, both processing options and
+no browser errors. Kernel `/healthz` returned HEALTHY with no critical issues.

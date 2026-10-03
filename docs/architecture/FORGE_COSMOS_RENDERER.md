@@ -17,6 +17,35 @@ The canvas is dynamically loaded on the client and has a truthful non-WebGL
 fallback. WebGL is the baseline. WebGPU is deliberately not enabled until its
 browser/Tauri support and fallback behavior can be proven robust.
 
+## Mark 42 composition
+
+One pure `spatialLayout()` (pixels) is shared by the DOM and the GPU scene, so
+labels, controls and geometry always agree. The Core sits at the centre; the
+model constellation sits on its right, split by a locality boundary (cloud
+above, local below); agents orbit on the left; the execution path leaves the
+Core towards the lower left and carries the approval barrier. Peripheral DOM
+instruments (status edge, cognition matrix, telemetry, health alerts, activity
+ribbon) stay at the edges. `O` (or the edge toggle) opens the dense OPERATIONS
+view; the inspector holds developer detail.
+
+Pure policies interpret projections before anything is drawn:
+`experience-phase-policy` (phase, liveness, request flow),
+`core-visual-policy`, `cognition-router-policy` (nodes and routing observations
+from `activeModels`/`recentModelRuns` only), `session-cognition-stats`
+(presentation-only, resets on restart), `telemetry-instrument-policy`,
+`agent-field-policy` and `spatial-layout-policy`. Semantic colours and motion
+come from `visual-tokens.ts`, mirrored as CSS variables in `globals.css`; a unit
+test rejects colour literals in experience components.
+
+Bloom spreads any non-finite pixel across the frame. Shader code must not call
+`pow` with a possibly negative base, `atan(y, x)` at the origin, or produce
+other undefined results on ANGLE/Direct3D; damped values must stay finite when
+reduced motion snaps them.
+
+Demo scenarios (`?scenario=` with `NEXT_PUBLIC_JARVIS_DEMO_MODE=1`) are loaded
+only in demo mode from `visual-fixtures.ts`, use plainly synthetic names, refuse
+commands and keep the DEMO MODE banner visible.
+
 ## Truth mapping
 
 The visual policy derives `IDLE`, `REASONING`, `ROUTING`, `EXECUTION`,

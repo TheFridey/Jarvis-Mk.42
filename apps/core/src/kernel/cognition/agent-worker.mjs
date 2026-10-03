@@ -7,7 +7,8 @@ for (const key of Object.keys(process.env)) if (key !== 'NODE_ENV') delete proce
 const lines = createInterface({ input: process.stdin });
 let binding;
 let heartbeat;
-function send(type, payload) { process.stdout.write(`${JSON.stringify({ ...binding, type, payload })}\n`); }
+let completing = false;
+function send(type, payload, flushed) { process.stdout.write(`${JSON.stringify({ ...binding, type, payload })}\n`, flushed); }
 lines.on('line', line => {
   if (line.length > 2_000_000) process.exit(2);
   try {
@@ -21,10 +22,13 @@ lines.on('line', line => {
     } else {
       if (message.jobId !== binding.jobId || message.nonce !== binding.nonce || message.type !== 'model_result') process.exit(2);
       clearInterval(heartbeat);
-      send('result', message.payload);
+      // Windows pipe writes can be asynchronous. Exit only after the result
+      // frame is flushed, otherwise the parent observes an empty completion.
+      completing = true;
+      send('result', message.payload, () => process.exit(0));
       lines.close();
     }
   } catch { process.exit(2); }
 });
-lines.on('close', () => { clearInterval(heartbeat); process.exit(0); });
+lines.on('close', () => { clearInterval(heartbeat); if (!completing) process.exit(0); });
 process.stdout.on('error', () => process.exit(2));

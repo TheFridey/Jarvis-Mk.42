@@ -26,7 +26,7 @@ export class RtcService {
       const activated=await this.d.voice.handle({commandId:randomUUID(),principalId:binding.principalId,nodeId:binding.nodeId,event:{type:'activation',activation:'push-to-talk',deviceId:'webrtc-microphone'}});voiceSession=activated.sessionId;
       const {connectRtcAgent}=await import('./rtc-agent.ts');
       await this.client.createRoom({name:room,maxParticipants:2,emptyTimeout:15});
-      const agent=await connectRtcAgent({url:this.d.url,token:await this.token(room,'agent-'+randomUUID(),true),identity,sessionId:activated.sessionId,principalId:binding.principalId,nodeId:binding.nodeId,voice:this.d.voice,speechMode,onFailure:()=>{this.speechFailed=true;this.d.invalidate();}});
+      const agent=await connectRtcAgent({url:this.d.url,token:await this.token(room,'agent-'+randomUUID(),true),identity,sessionId:activated.sessionId,principalId:binding.principalId,nodeId:binding.nodeId,voice:this.d.voice,speechMode,onFailure:(stage)=>{this.speechFailed=true;process.stderr.write(`[rtc] ${speechMode} ${stage??'unknown'} unavailable\n`);this.d.invalidate();}});
       if(!await this.d.validate(binding)){await agent.close();throw new Error('RTC binding revoked during join');}
       this.rooms.set(binding.sessionId,{binding,room,voiceSession:activated.sessionId,agent,identity,expiresAt:Date.now()+20*60000});this.d.invalidate();
       return{url:this.d.url,token:await this.token(room,identity),room,sessionId:activated.sessionId};

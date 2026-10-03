@@ -6,6 +6,10 @@ passed real media round trips using labelled synthetic speech, with a returned
 audio RMS acceptance threshold. Physical microphone/AEC testing remains
 unverified. The earlier integration snapshot below is preserved; RTC deferral
 claims in that snapshot are superseded by [RTC_RUNTIME.md](RTC_RUNTIME.md).
+Follow-up repaired an asynchronous agent-worker completion race exposed by
+repeat local speech tests. Both speech paths then passed again; an independent
+live logout test disconnected media in 869 ms. Exact commands and the hardware
+and media-token limitations are documented in the RTC runtime report.
 
 Qualification date: 3 October 2026. This report describes the working tree, including earlier uncommitted work. It is not an exact-release-SHA certificate, a deployment approval, or a claim that every hardware scenario has passed.
 

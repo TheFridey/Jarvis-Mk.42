@@ -24,4 +24,12 @@ describe('credentialless process boundary', () => {
     const promise = runAgentWorker({ jobId: 'cancel', request, signal: controller.signal, onSpawn: async () => {}, heartbeat: async () => {}, beforeInference: async () => {}, gateway: { generate(_input, signal) { return new Promise((_resolve, reject) => { signal!.addEventListener('abort', () => { aborted = true; reject(new Error('aborted')); }, { once: true }); controller.abort(); }); } } });
     await expect(promise).rejects.toThrow('cancelled'); expect(aborted).toBe(true);
   });
+  it('drains a final result queued behind an asynchronous heartbeat before classifying exit', async () => {
+    let started!:()=>void;
+    const heartbeatStarted=new Promise<void>(resolve=>{started=resolve;});
+    const actual=await runAgentWorker({jobId:'drain',request,signal:AbortSignal.timeout(5000),onSpawn:async()=>{},beforeInference:async()=>{},
+      heartbeat:async()=>{started();await new Promise(resolve=>setTimeout(resolve,300));},
+      gateway:{async generate(){await heartbeatStarted;return response;}}});
+    expect(actual).toEqual(response);
+  });
 });

@@ -1,64 +1,132 @@
 'use client';
-import { RtcControl } from './rtc-control.tsx';
-import { OperatingPicture } from './operating-picture.tsx';
-import { TelemetryRail } from './telemetry-rail.tsx';
-import { useEffect,useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
-import { Activity, Command, Cpu, ShieldCheck, WifiOff } from 'lucide-react';
-import type { DesktopApproval, DesktopApprovalCommand, DesktopKernelSnapshot, SceneIntent, SemanticScene } from '@jarvis/scene';
-import { demoScene } from './demo-scene.ts';
-import { JarvisCore } from './jarvis-core.tsx';
-import { BrowserLayoutCache, createDesktopTransport, LocalSceneTransport,type SceneTransport } from './scene-client.ts';
-import { SpatialPanel } from './spatial-panel.tsx';
-import { useScene } from './use-scene.ts';
+import { Activity, Command } from 'lucide-react';
+import type { SceneIntent, SemanticScene } from '@jarvis/scene';
+import { agentField } from './agent-field-policy.ts';
+import { AgentField, AgentInspector } from './agent-field.tsx';
 import { AirTouchLayer } from './air-touch-layer.tsx';
-import { GpuEnvironment } from './gpu-environment.tsx';
+import { ApprovalBarrier } from './approval-barrier.tsx';
+import { cognitionRouterView } from './cognition-router-policy.ts';
+import { ActivityRibbon, ConversationProjection, ObjectiveAnchor, SpatialInspector } from './context-projections.tsx';
 import { CoreSound } from './core-sound.tsx';
-import { ModelRail } from './model-rail.tsx';
-import { AgentObservatory } from './agent-observatory.tsx';
-import { liveActivityPicture } from './model-observatory-policy.ts';
-import {ReferentFocus} from './referent-focus.tsx';
-import {SelectedCapture} from './selected-capture.tsx';
+import { demoScene } from './demo-scene.ts';
+import { resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
+import { GpuEnvironment } from './gpu-environment.tsx';
+import { CoreReadout } from './jarvis-core.tsx';
+import { ModelConstellation } from './model-constellation.tsx';
+import { ModelMatrix } from './model-matrix.tsx';
+import { OperationsView } from './operations-view.tsx';
+import { PeripheralTelemetry } from './peripheral-telemetry.tsx';
+import { ReferentFocus } from './referent-focus.tsx';
+import { RtcControl } from './rtc-control.tsx';
+import { BrowserLayoutCache, createDesktopTransport, LocalSceneTransport, type SceneTransport } from './scene-client.ts';
+import { SelectedCapture } from './selected-capture.tsx';
+import { emptySessionStats, observeRuns } from './session-cognition-stats.ts';
+import { spatialLayout } from './spatial-layout-policy.ts';
+import { SpatialPanel } from './spatial-panel.tsx';
+import { healthRegions, interpretTelemetry } from './telemetry-instrument-policy.ts';
+import { SystemStatusEdge } from './system-status-edge.tsx';
+import { useNow, useViewport } from './use-viewport.ts';
+import { useScene } from './use-scene.ts';
 
 const offlineScene = (): SemanticScene => ({ id: 'kernel-offline', principalId: 'unavailable', version: 0, presentation: 'DEGRADED', monitors: [{ id: 'primary', label: 'Primary', bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 }, scaleFactor: 1, primary: true, connected: true }], objects: [{ id: 'core', kind: 'jarvis-core', title: 'JARVIS', semanticRole: 'connection-status', monitorId: 'primary', position: { x: 760, y: 300 }, size: { width: 400, height: 400 }, zIndex: 1, state: 'focused', pinned: true, dismissible: false, resourceRefs: [], updatedAt: new Date().toISOString(), data: { activity: [], phrase: 'Kernel unavailable. No authoritative state is being shown.' } }], updatedAt: new Date().toISOString() });
 
+const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
 export function JarvisExperience() {
-  const [conversationId,setConversationId]=useState<string|undefined>();
-  const reducedSensory=Boolean(useReducedMotion());
-  const [currentTime,setCurrentTime]=useState('--:--');
-  useEffect(()=>{const update=()=>setCurrentTime(new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit'}).format(new Date()));update();const timer=setInterval(update,30000);return()=>clearInterval(timer);},[]);
+  const [conversationId, setConversationId] = useState<string | undefined>();
+  const reducedSensory = Boolean(useReducedMotion());
   const demoMode = process.env.NEXT_PUBLIC_JARVIS_DEMO_MODE === '1';
-  const transport = useMemo<SceneTransport>(() => demoMode ? new LocalSceneTransport(demoScene, new BrowserLayoutCache()) : createDesktopTransport(), [demoMode]);
-  const { scene: receivedScene, kernel, connection, submit, submitProposal,submitCognition, decideApproval, reconnect } = useScene(transport);
-  const livePicture=liveActivityPicture(kernel,connection.status==='live');
-  const scene = receivedScene ?? offlineScene(); const presentation = ['offline','reconnecting','stale'].includes(connection.status) ? 'DEGRADED' : scene.presentation;
-  const [selected, setSelected] = useState<string[]>([]); const [diagnostics, setDiagnostics] = useState(false); const [proposalOpen, setProposalOpen] = useState(false); const [proposalText, setProposalText] = useState(''); const [commandResult, setCommandResult] = useState('');
-  const core = scene.objects.find((o) => o.kind === 'jarvis-core'); const panels = scene.objects.filter((o) => o.kind !== 'jarvis-core'); const send = (intent: SceneIntent) => void submit(intent).catch(() => setCommandResult('Presentation update conflicted; live state retained.'));
-  const connectionLabel = connection.status === 'live' ? 'REALTIME LIVE' : connection.status === 'demo' ? 'DEMO MODE' : connection.status === 'connecting' ? 'CONNECTING' : connection.status === 'reconnecting' ? 'RECONNECTING · DATA STALE' : connection.status === 'stale' ? 'DISCONNECTED · DATA STALE' : 'KERNEL OFFLINE';
-  useEffect(()=>transport.subscribeNotifications?.(record=>setCommandResult(`${record.title}: ${record.body}`)),[transport]);
-  const runProposal = async () => { try { if (!kernel) throw new Error('Kernel offline'); if(/^put that on the wall[.!]?$/i.test(proposalText.trim())){const target=selected[0]??kernel.referentFocus?.objectId;if(!target)throw new Error('Select a Scene resource first');if(!('presentOnWall' in transport)||typeof transport.presentOnWall!=='function')throw new Error('Kernel transport unavailable');await transport.presentOnWall(target,kernel.sceneVersion);setCommandResult('Scene resource presented on wall');}else{const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: proposalText,...(conversationId?{conversationId}:{}) });setConversationId(result.conversationId);setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`);} setProposalOpen(false); } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
-  return <main className={`environment presentation-${presentation.toLowerCase()}`} onKeyDown={(e) => { if (e.key === 'Escape' && selected[0]) send({ type: 'dismiss', targetId: selected[0], input: 'keyboard' }); }} tabIndex={-1}>
-    {demoMode&&<div className="demo-banner" role="status">DEMO MODE · SYNTHETIC SCENE · NO LIVE EXECUTION</div>}<GpuEnvironment scene={scene} picture={livePicture} live={connection.status==='live'||demoMode}/><header className="system-bar"><div className="identity"><span className="sigil">J</span><div><small>PRIMARY INTELLIGENCE</small><strong>JARVIS <em>MK.42</em></strong></div></div><div className="mode-selector" role="status" aria-label="Kernel presentation state"><span className="active">{presentation}</span><span>{livePicture?.systemMode ?? 'UNAVAILABLE'}</span><span>{livePicture?.interactionState ?? 'NO INTERACTION'}</span><span>{livePicture?.workState ?? 'NO WORK'}</span></div><div className="system-time"><CoreSound picture={livePicture} reducedSensory={reducedSensory}/><button className="connection-state" onClick={() => void reconnect()} title="Reconnect to Kernel">{connection.status === 'live' || connection.status === 'demo' ? <ShieldCheck size={14}/> : <WifiOff size={14}/>} {connectionLabel}</button><time>{currentTime}</time></div></header>
-    <section className="workspace" aria-label="Semantic workspace">{core&&<div className="core-position" style={{left:((core.position.x+core.size.width/2)/1920*100)+'%',top:((core.position.y+core.size.height/2)/1080*100)+'%'}}><JarvisCore state={presentation} picture={livePicture} activity={connection.status==='live'?core.data.activity as string[]:[]}/><p>{connection.status==='live'||demoMode?String(core.data.phrase):'Live state unavailable. Last observations are stale.'}</p></div>}<AnimatePresence>{panels.map((object)=><SpatialPanel key={object.id} object={object} live={connection.status==='live'||demoMode} selected={selected.includes(object.id)} onSelect={(id)=>setSelected([id])} submit={send}/>)}</AnimatePresence></section>
-    <ReferentFocus focus={connection.status==='live'?kernel?.referentFocus:undefined} objects={scene.objects} developer={diagnostics&&process.env.NODE_ENV==='development'}/>
-    <SelectedCapture kernel={kernel} live={connection.status==='live'} submit={submitProposal}/>
-    <ModelRail active={kernel?.activeModels??[]} recent={kernel?.recentModelRuns??[]} live={connection.status==='live'}/>
-    <AgentObservatory jobs={kernel?.agentJobs??[]} live={connection.status==='live'} generatedAt={kernel?.generatedAt} onCancel={async jobId=>{if(!kernel||connection.status!=='live')throw new Error('Kernel disconnected');const response=await transport.cancelAgentJob({commandId:crypto.randomUUID(),expectedStateVersion:kernel.stateVersion,jobId});if(!response.cancelled)throw new Error('Job already terminal; capability effects require their own Kernel controls');}}/>
-    <OperatingPicture picture={kernel} live={connection.status==='live'}/><TelemetryRail snapshot={kernel?.telemetrySummary.system} live={connection.status==='live'} degraded={presentation==='DEGRADED'}/>
-    <footer className="command-deck"><RtcControl transport={transport} live={connection.status==='live'} available={['HEALTHY','DEGRADED'].includes(kernel?.diagnostics.dependencies.find(item=>item.name==='rtc')?.status??'OFFLINE')}/><button className="command-line" onClick={()=>setProposalOpen(!proposalOpen)} disabled={connection.status!=='live'}><Command size={15}/><span>{connection.status==='live'?'Ask JARVIS or request an action':'Commands unavailable until Kernel reconnects'}</span><kbd>ENTER</kbd></button><button aria-label="Open diagnostics" className={diagnostics?'active':''} onClick={()=>setDiagnostics(!diagnostics)}><Activity size={17}/></button></footer>
-    {proposalOpen&&<section className="proposal-entry"><label htmlFor="proposal-json">JARVIS REQUEST</label><textarea id="proposal-json" value={proposalText} onChange={(event)=>setProposalText(event.target.value)} placeholder="Ask a question or describe the outcome you want."/><div><button onClick={()=>setProposalOpen(false)}>CANCEL</button><button onClick={()=>void runProposal()}>SUBMIT TO JARVIS</button></div></section>}
-    {commandResult&&<div className="command-result" role="status">{commandResult}</div>}
-    <AirTouchLayer objects={panels} submit={send} transport={transport}/><div className="gesture-indicator"><span/><small>AIR TOUCH · {connection.status==='live'?'PRESENTATION READY':'LOCAL ONLY'}</small></div>
-    {diagnostics&&<Diagnostics snapshot={kernel} status={connectionLabel} onClose={()=>setDiagnostics(false)}/>} {kernel?.approvals.map((approval)=><ApprovalCard live={connection.status==='live'} key={approval.id} approval={approval} stateVersion={kernel.stateVersion} decide={decideApproval}/>) }
+  const baseTransport = useMemo<SceneTransport>(() => demoMode ? new LocalSceneTransport(demoScene, new BrowserLayoutCache()) : createDesktopTransport(), [demoMode]);
+  const [fixtureTransport, setFixtureTransport] = useState<SceneTransport>();
+  const [forceFallback, setForceFallback] = useState(false);
+  const [operations, setOperations] = useState(false);
+  const [inspector, setInspector] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<'situation' | 'agents'>('situation');
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setForceFallback(params.get('renderer') === 'fallback');
+    setOperations(params.get('ops') === '1');
+    if (!demoMode) return;
+    const scenario = params.get('scenario');
+    if (!scenario) return;
+    let cancelled = false;
+    void import('./visual-fixtures.ts').then(fixtures => { if (!cancelled && fixtures.isVisualScenario(scenario)) setFixtureTransport(new fixtures.FixtureSceneTransport(scenario)); });
+    return () => { cancelled = true; };
+  }, [demoMode]);
+  const transport = fixtureTransport ?? baseTransport;
+  const { scene: receivedScene, kernel, connection, submit, submitProposal, submitCognition, decideApproval, reconnect } = useScene(transport);
+  const liveness = useMemo(() => resolveLiveness(connection, demoMode), [connection, demoMode]);
+  const current = liveness.current;
+  const phase = resolveExperiencePhase(kernel, liveness);
+  const scene = receivedScene ?? offlineScene();
+  const presentation = current ? scene.presentation : 'DEGRADED';
+  const now = useNow(5000);
+
+  const router = useMemo(() => cognitionRouterView(kernel?.activeModels ?? [], kernel?.recentModelRuns ?? [], current), [kernel?.activeModels, kernel?.recentModelRuns, current]);
+  const agents = useMemo(() => agentField(kernel?.agentJobs ?? [], current), [kernel?.agentJobs, current]);
+  const regions = useMemo(() => healthRegions(kernel, current), [kernel, current]);
+  const instruments = useMemo(() => interpretTelemetry(kernel?.telemetrySummary.system, current, now), [kernel?.telemetrySummary.system, current, now]);
+  const viewport = useViewport();
+  const localitySignature = router.nodes.map(node => node.locality ?? '-').join(',');
+  const layout = useMemo(() => spatialLayout({ width: viewport.width, height: viewport.height, models: localitySignature ? localitySignature.split(',').map(value => value === '-' ? {} : { locality: value as 'local' | 'cloud-ok' }) : [], agentCount: agents.nodes.length }), [viewport.width, viewport.height, localitySignature, agents.nodes.length]);
+  const [stats, setStats] = useState(() => emptySessionStats());
+  useEffect(() => { if (current && kernel) setStats(previous => observeRuns(previous, [...kernel.activeModels, ...kernel.recentModelRuns])); }, [current, kernel]);
+
+  const [selected, setSelected] = useState<string[]>([]);
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [proposalText, setProposalText] = useState('');
+  const [commandResult, setCommandResult] = useState('');
+  const panels = scene.objects.filter(object => object.kind !== 'jarvis-core');
+  const coreObject = scene.objects.find(object => object.kind === 'jarvis-core');
+  const send = (intent: SceneIntent) => void submit(intent).catch(() => setCommandResult('Presentation update conflicted; live state retained.'));
+  const kernelLive = connection.status === 'live';
+  useEffect(() => transport.subscribeNotifications?.(record => setCommandResult(`${record.title}: ${record.body}`)), [transport]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => { if (!typing(event.target) && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'o') setOperations(open => !open); };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
+  const closeOperations = useCallback(() => setOperations(false), []);
+  const runProposal = async () => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(proposalText.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: proposalText, ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } setProposalOpen(false); } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
+  const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
+  const developer = process.env.NODE_ENV === 'development';
+  const approvals = kernel?.pendingApprovals ?? [];
+  const runs = useMemo(() => [...(kernel?.activeModels ?? []), ...(kernel?.recentModelRuns ?? [])], [kernel?.activeModels, kernel?.recentModelRuns]);
+
+  return <main className={`environment presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}`}
+    onKeyDown={event => { if (event.key === 'Escape' && selected[0]) { send({ type: 'dismiss', targetId: selected[0], input: 'keyboard' }); setSelected([]); } }} tabIndex={-1}>
+    {demoMode && <div className="demo-banner" role="status">DEMO MODE · SYNTHETIC DATA · NO LIVE EXECUTION</div>}
+    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={layout} models={router.nodes} {...(router.route ? { route: router.route } : {})} agents={agents.nodes} regions={regions}
+      systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback}/>
+    <SystemStatusEdge {...(kernel ? { picture: kernel } : {})} liveness={liveness} regions={regions} operations={operations} inspector={inspector}
+      onOperations={() => setOperations(open => !open)} onInspector={() => { setInspectorTab('situation'); setInspector(open => !open); }} onReconnect={() => void reconnect()}
+      sound={<CoreSound {...(current && kernel ? { picture: kernel } : {})} reducedSensory={reducedSensory}/>}/>
+    <ObjectiveAnchor {...(kernel ? { picture: kernel } : {})} liveness={liveness}/>
+    <section className="workspace" aria-label="Semantic workspace">
+      <AnimatePresence>{panels.map(object => <SpatialPanel key={object.id} object={object} live={current} compact={!selected.includes(object.id)} selected={selected.includes(object.id)} onSelect={id => setSelected([id])} submit={send}/>)}</AnimatePresence>
+    </section>
+    <AgentField nodes={agents.nodes} layout={layout} liveness={liveness} onInspect={() => { setInspectorTab('agents'); setInspector(true); }}/>
+    <ModelConstellation nodes={router.nodes} layout={layout} {...(router.route ? { route: router.route } : {})} runs={runs} liveness={liveness} phase={phase} developer={developer}/>
+    <CoreReadout phase={phase} {...(kernel ? { picture: kernel } : {})} liveness={liveness} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} regions={regions} layout={layout} {...(coreObject?.data.phrase ? { phrase: String(coreObject.data.phrase) } : {})}/>
+    <ConversationProjection {...(kernel ? { picture: kernel } : {})} liveness={liveness} layout={layout} phase={phase}/>
+    <ModelMatrix nodes={router.nodes} {...(router.route ? { route: router.route } : {})} stats={stats} liveness={liveness} compact/>
+    <PeripheralTelemetry instruments={instruments} {...(kernel?.telemetrySummary.system ? { snapshot: kernel.telemetrySummary.system } : {})} phase={phase} regions={regions} liveness={liveness}/>
+    <ActivityRibbon {...(kernel ? { picture: kernel } : {})} liveness={liveness}/>
+    <ReferentFocus focus={kernelLive ? kernel?.referentFocus : undefined} objects={scene.objects} developer={inspector && developer}/>
+    {kernel && approvals.length ? <ApprovalBarrier approvals={approvals} stateVersion={kernel.stateVersion} decide={decideApproval} liveness={liveness} layout={layout}/> : null}
+    <footer className="command-deck">
+      <RtcControl transport={transport} live={kernelLive} available={['HEALTHY', 'DEGRADED'].includes(kernel?.diagnostics.dependencies.find(item => item.name === 'rtc')?.status ?? 'OFFLINE')}/>
+      <button className="command-line" onClick={() => setProposalOpen(!proposalOpen)} disabled={!kernelLive}><Command size={15}/><span>{kernelLive ? 'Ask JARVIS or request an action' : liveness.synthetic ? 'Demo mode · commands are not sent' : 'Commands unavailable until Kernel reconnects'}</span><kbd>ENTER</kbd></button>
+      <SelectedCapture {...(kernel ? { kernel } : {})} live={kernelLive} submit={submitProposal}/>
+      <button aria-label="Open operations view" className={`deck-icon${operations ? ' active' : ''}`} onClick={() => setOperations(open => !open)}><Activity size={16}/></button>
+      <span className="air-touch-state"><i/>AIR TOUCH · {kernelLive ? 'PRESENTATION READY' : 'LOCAL ONLY'}</span>
+    </footer>
+    {proposalOpen && <section className="proposal-entry"><label htmlFor="proposal-json">JARVIS REQUEST</label><textarea id="proposal-json" value={proposalText} onChange={event => setProposalText(event.target.value)} placeholder="Ask a question or describe the outcome you want."/><div><button onClick={() => setProposalOpen(false)}>CANCEL</button><button onClick={() => void runProposal()}>SUBMIT TO JARVIS</button></div></section>}
+    {commandResult && <div className="command-result" role="status">{commandResult}</div>}
+    <AirTouchLayer objects={panels} submit={send} transport={transport}/>
+    {inspector && <SpatialInspector key={inspectorTab} initialTab={inspectorTab} {...(kernel ? { picture: kernel } : {})} liveness={liveness} onClose={() => setInspector(false)} agents={<AgentInspector jobs={kernel?.agentJobs ?? []} live={kernelLive} {...(kernel?.generatedAt ? { generatedAt: kernel.generatedAt } : {})} onCancel={cancelJob}/>}/>}
+    {operations && <OperationsView instruments={instruments} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} regions={regions} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} stats={stats} agents={agents.nodes} onClose={closeOperations}/>}
   </main>;
-}
-
-function ApprovalCard({ approval, stateVersion, decide, live }: { live:boolean; approval: DesktopApproval; stateVersion: number; decide: (command: DesktopApprovalCommand)=>Promise<void> }) {
-  const [busy,setBusy]=useState(false); const [result,setResult]=useState(''); const [confirmation,setConfirmation]=useState(''); const act=async(decision:'approve'|'deny')=>{if(!live)return;setBusy(true);try{await decide({commandId:crypto.randomUUID(),expectedStateVersion:stateVersion,approvalId:approval.id,invocationId:approval.invocationId,nonce:approval.nonce!,version:approval.version!,decision,...(confirmation?{confirmationPhrase:confirmation}:{})});setResult(decision==='approve'?'Authorisation accepted by Kernel; observe execution in Operating Picture':'Denied by operator');}catch(error){setResult(error instanceof Error?error.message:String(error));}finally{setBusy(false);}};
-  return <aside className="approval" aria-label="Approval required"><header><div><ShieldCheck size={15}/><span>APPROVAL REQUIRED</span></div></header><h2>{approval.action}</h2>{!live&&<p role="status">Disconnected. Approval decisions are unavailable.</p>}<dl><dt>Capability</dt><dd>{approval.capabilityId}</dd><dt>Actor</dt><dd>{approval.actor}</dd><dt>Affected resource</dt><dd>{approval.resource}</dd><dt>Reason</dt><dd>{approval.reason}</dd><dt>Risk</dt><dd>{approval.riskClass}</dd><dt>Scope</dt><dd>{approval.scopes.join(', ')||'No declared scopes'}</dd><dt>Expires</dt><dd>{approval.expiresAt}</dd><dt>Arguments</dt><dd><pre>{JSON.stringify(approval.arguments,null,2)}</pre></dd></dl>{approval.riskClass==='CRITICAL'&&<input className="confirmation" value={confirmation} onChange={(event)=>setConfirmation(event.target.value)} placeholder="Required confirmation phrase"/>}{result?<p>{result}</p>:<div className="approval-actions"><button disabled={busy||!live} onClick={()=>void act('deny')}>DENY</button><button disabled={busy||!live} onClick={()=>void act('approve')}>APPROVE</button></div>}</aside>;
-}
-
-function Diagnostics({ snapshot, status, onClose }: { snapshot?: DesktopKernelSnapshot; status:string; onClose:()=>void }) {
-  const dependency=(name:string)=>snapshot?.diagnostics.dependencies.find((item)=>item.name===name)?.status??'UNAVAILABLE'; const vision=snapshot?.diagnostics.vision; const rows=[['CONNECTION',status],['EVENT RATE',snapshot?`${snapshot.diagnostics.events.ratePerMinute}/MIN`:'UNAVAILABLE'],['EVENT FABRIC',dependency('event-bus')],['NATS',dependency('nats')],['POSTGRES',dependency('postgres')],['REDIS',dependency('redis')],['MODEL GATEWAY',dependency('model-gateway')],['CAMERA',vision?.cameraLabel??vision?.cameraId??'UNAVAILABLE'],['CAMERA FPS',vision?vision.fps.toFixed(1):'UNAVAILABLE'],['HAND INFERENCE',vision?`${vision.inferenceLatencyMs.toFixed(1)}MS`:'UNAVAILABLE'],['AIR TOUCH',vision?`${vision.airTouchLatencyMs.toFixed(1)}MS`:'UNAVAILABLE'],['TRACK CONFIDENCE',vision?`${Math.round(vision.confidence*100)}%`:'UNAVAILABLE'],['CURRENT TARGET',vision?.currentTarget??'NONE'],['DROPPED FRAMES',vision?String(vision.droppedFrames):'UNAVAILABLE'],['CALIBRATION',vision?`${Math.round(vision.calibrationQuality*100)}%`:'UNAVAILABLE'],['VISION MODEL',vision?.model??'UNAVAILABLE'],['SESSIONS',snapshot?String(snapshot.sessions.length):'UNAVAILABLE'],['CAPABILITY ACTIVITY',snapshot?String(snapshot.capabilityActivity.length):'UNAVAILABLE'],['POLICY DENIALS',snapshot?String(snapshot.policyDenials.length):'UNAVAILABLE'],['STATE VERSION',snapshot?String(snapshot.stateVersion):'UNAVAILABLE']];
-  return <aside className="diagnostics" aria-label="Developer diagnostics"><header><div><Cpu size={15}/><span>LIVE KERNEL FIELD</span></div><button onClick={onClose}>CLOSE</button></header><h2>System coherence</h2><p>{snapshot?`Snapshot ${snapshot.generatedAt}`:'No Kernel snapshot. Values are unavailable, not inferred.'}</p><div className="diag-grid">{rows.map(([name,value])=><div key={name}><small>{name}</small><strong>{value}</strong><i className={value==='HEALTHY'||value==='live'?'':'observe'}/></div>)}</div></aside>;
 }

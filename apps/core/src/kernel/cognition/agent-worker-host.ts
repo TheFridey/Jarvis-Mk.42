@@ -39,8 +39,12 @@ export function runAgentWorker(d: {
     // Never forward stderr (may contain untrusted model content).
     child.stderr.resume();
     child.on('close', () => {
-      if (!settled) finish(new Error('agent worker exited without validated completion'));
-      if (outcome.error) reject(outcome.error); else resolve(outcome.response!);
+      // stdout data may already be queued behind an asynchronous heartbeat.
+      // Process every received frame before classifying the process exit.
+      void chain.then(() => {
+        if (!settled) finish(new Error('agent worker exited without validated completion'));
+        if (outcome.error) reject(outcome.error); else resolve(outcome.response!);
+      }).catch(reject);
     });
     child.stdout.on('data', (chunk: Buffer) => {
       buffer += chunk.toString();

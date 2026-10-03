@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { localSpeech, wave } from './local-speech.ts';
 import { cloudSpeech } from './cloud-speech.ts';
 
-/** Local media terminates here. No raw audio files or cloud ASR/TTS. */
-export async function connectRtcAgent(d:{url:string;token:string;identity:string;sessionId:string;principalId:string;nodeId:string;voice:VoiceGateway;speechMode:'local'|'cloud';onFailure:()=>void}) {
+/** Media terminates here; cloud speech requires explicit session selection. */
+export async function connectRtcAgent(d:{url:string;token:string;identity:string;sessionId:string;principalId:string;nodeId:string;voice:VoiceGateway;speechMode:'local'|'cloud';onFailure:(stage?:string)=>void}) {
   const speechAdapter=d.speechMode==='cloud'?cloudSpeech:localSpeech;
   const room=new Room();const controller=new AbortController();const source=new AudioSource(16000,1);let generation=0,sequence=0,busy=false;
   let tts:'idle'|'synthesizing'|'playing'='idle',lastAudio=0,publishingAudio=false;
@@ -26,22 +26,28 @@ export async function connectRtcAgent(d:{url:string;token:string;identity:string
         if(speaking&&(silence>=11200||samples>=192000)){
           const audio=Buffer.concat(chunks);chunks=[];samples=0;silence=0;speaking=false;
           if(busy)continue;busy=true;const turn=generation;
-          void(async()=>{try{
+          void(async()=>{let stage='recognition';try{
             const recognized=await speechAdapter({operation:'recognize',audio:wave(audio).toString('base64')},controller.signal);
-            if(turn!==generation||!recognized.text?.trim())return;
+            if(turn!==generation)return;
+            if(!recognized.text?.trim()){d.onFailure(stage);return;}
+            stage='cognition';
             const result=await voice({type:'asr.final',sessionId:d.sessionId,sequence:++sequence,text:recognized.text});
-            if(turn!==generation||!result.utterance)return;
+            if(turn!==generation)return;
+            if(!result.utterance){d.onFailure(stage);return;}
+            stage='synthesis';
             tts='synthesizing';const synthesized=await speechAdapter({operation:'synthesize',text:result.utterance},controller.signal);
-            if(turn!==generation||!synthesized.audio)return;
+            if(turn!==generation)return;
+            if(!synthesized.audio){d.onFailure(stage);return;}
+            stage='playback';
             const bytes=Buffer.from(synthesized.audio,'base64');
             for(let offset=0;offset<bytes.length&&turn===generation&&!controller.signal.aborted;offset+=640){
               const block=Buffer.alloc(640);bytes.copy(block,0,offset,Math.min(offset+640,bytes.length));const data=new Int16Array(320);for(let i=0;i<320;i++)data[i]=block.readInt16LE(i*2);
               await source.captureFrame(new AudioFrame(data,16000,1,320));tts='playing';
             }
-          }catch{if(!controller.signal.aborted)d.onFailure();}finally{tts='idle';busy=false;}})();
+          }catch{if(!controller.signal.aborted)d.onFailure(stage);}finally{tts='idle';busy=false;}})();
         }
       }}finally{await reader.cancel();reader.releaseLock();}
-    })().catch(d.onFailure);
+    })().catch(()=>d.onFailure('transport'));
   });
   try {await room.connect(d.url,d.token,{autoSubscribe:true,dynacast:false});const track=LocalAudioTrack.createAudioTrack('jarvis-reply',source);const options=new TrackPublishOptions();options.source=TrackSource.SOURCE_MICROPHONE;await room.localParticipant!.publishTrack(track,options);}
   catch(error){controller.abort();await room.disconnect();await source.close();throw error;}
