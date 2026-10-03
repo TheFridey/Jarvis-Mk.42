@@ -54,3 +54,5 @@ export * from './knowledge-ingestion.ts';
 export * from './atlas-query.ts';
 export * from './memory-recall.ts';
 export * from './knowledge-agent.ts';
+export * from './business.ts';
+export * from './companion.ts';

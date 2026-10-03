@@ -1,0 +1,160 @@
+﻿{
+    "phase":  "active",
+    "scope":  "Windows GPU Engine counters for detected headless-browser process tree. Per-process 3D engine percentage, not aggregate GPU utilisation or native Tauri measurement. Active window includes command startup/completion.",
+    "processIds":  [
+                       21028,
+                       19992,
+                       4204,
+                       9536,
+                       6084,
+                       6488,
+                       23520,
+                       1704,
+                       21404,
+                       6140
+                   ],
+    "observations":  [
+                         {
+                             "observedAt":  "2026-10-03T10:54:52.3220497Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  5.3262207762800484
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:53.4134883Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  6.2304100294785254
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:54.4230072Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  6.7064618601989521
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:55.4404514Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  5.9073804735434141
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:56.4532438Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  9.32356917370233
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:57.4659960Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  24.454096470982734
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:58.4783377Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  21.573713697657617
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:54:59.5073658Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  17.81102965021072
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:55:00.5197219Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  14.331913444290997
+                                             }
+                                         ]
+                         },
+                         {
+                             "observedAt":  "2026-10-03T10:55:01.5300243Z",
+                             "engines":  [
+                                             {
+                                                 "instance":  "pid_19992_luid_0x00000000_0x0000fca7_phys_0_eng_0_engtype_3d",
+                                                 "utilisationPercent":  6.0555631660382083
+                                             }
+                                         ]
+                         }
+                     ],
+    "processMemory":  [
+                          {
+                              "Id":  1704,
+                              "WorkingSet64":  133001216,
+                              "PrivateMemorySize64":  60538880
+                          },
+                          {
+                              "Id":  4204,
+                              "WorkingSet64":  14798848,
+                              "PrivateMemorySize64":  3469312
+                          },
+                          {
+                              "Id":  6084,
+                              "WorkingSet64":  24805376,
+                              "PrivateMemorySize64":  10305536
+                          },
+                          {
+                              "Id":  6140,
+                              "WorkingSet64":  37249024,
+                              "PrivateMemorySize64":  17215488
+                          },
+                          {
+                              "Id":  6488,
+                              "WorkingSet64":  80781312,
+                              "PrivateMemorySize64":  33513472
+                          },
+                          {
+                              "Id":  9536,
+                              "WorkingSet64":  48689152,
+                              "PrivateMemorySize64":  14430208
+                          },
+                          {
+                              "Id":  19992,
+                              "WorkingSet64":  318377984,
+                              "PrivateMemorySize64":  276033536
+                          },
+                          {
+                              "Id":  21028,
+                              "WorkingSet64":  180891648,
+                              "PrivateMemorySize64":  54255616
+                          },
+                          {
+                              "Id":  21404,
+                              "WorkingSet64":  61992960,
+                              "PrivateMemorySize64":  23162880
+                          },
+                          {
+                              "Id":  23520,
+                              "WorkingSet64":  90296320,
+                              "PrivateMemorySize64":  39079936
+                          }
+                      ]
+}

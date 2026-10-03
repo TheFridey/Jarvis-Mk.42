@@ -14,7 +14,7 @@
 import { validateEventDraft } from '@jarvis/validation';
 import { EventNames, type Event, type EventActor, type PrivacyClass, type Provenance, type RetentionClass } from '@jarvis/contracts';
 import type { Sql } from '@jarvis/persistence';
-import { currentTraceId, withSpan } from '@jarvis/telemetry';
+import { currentTraceId, withSpan, structuredLog, telemetryNodeId } from '@jarvis/telemetry';
 import type { Clock } from '../../runtime/clock.ts';
 import type { IdGen } from '../../runtime/ids.ts';
 import type { EventBus } from './bus.ts';
@@ -41,6 +41,8 @@ export interface EmitInput {
   expiresAt?: string;
   meta?: Record<string, string>;
   sourceComponent?: string;
+  /** Internal ingress binding, never copied from a wire event envelope. */
+  sourceNodeId?: string;
 }
 
 export class EventRejectedError extends Error {
@@ -79,7 +81,7 @@ export class EventManager {
     return this.appended;
   }
   onAppended(listener:(event:Event)=>void|Promise<void>):()=>void{this.appendListeners.add(listener);return()=>this.appendListeners.delete(listener)}
-  private notifyAppended(event:Event){for(const listener of this.appendListeners)Promise.resolve(listener(event)).catch((error)=>console.error('event-manager: append listener failed:',error))}
+  private notifyAppended(event:Event){for(const listener of this.appendListeners)Promise.resolve(listener(event)).catch(()=>{void structuredLog({component:'event-manager',node:telemetryNodeId(),event:'append.listener.failed',correlationId:event.correlationId,causationId:event.causationId,severity:'ERROR'});})}
 
   private buildEvent(input: EmitInput): Event {
     const now = this.deps.clock.nowIso();
@@ -101,7 +103,7 @@ export class EventManager {
       retentionClass: input.retentionClass,
       time,
       recordedAt: now,
-      source: { node: this.deps.nodeId, component: input.sourceComponent ?? this.deps.component },
+      source: { node: input.sourceNodeId ?? this.deps.nodeId, component: input.sourceComponent ?? this.deps.component },
       subject: input.subject,
       actor: input.actor,
       provenance,
@@ -121,6 +123,9 @@ export class EventManager {
   }
 
   private validateOrThrow(event: Event): void {
+    if (event.type === EventNames.AgentJobTransitioned && event.source.component !== 'agent-runtime') {
+      throw new EventRejectedError(event.type, [{ path: 'source.component', code: 'forbidden_source', message: 'agent job transitions belong to agent-runtime' }]);
+    }
     if (event.type.startsWith('jarvis.agency.invocation.') && event.source.component !== 'capability-executor') {
       throw new EventRejectedError(event.type, [{ path: 'source.component', code: 'forbidden_source', message: 'agency lifecycle events may only be emitted by capability-executor' }]);
     }
@@ -160,6 +165,7 @@ export class EventManager {
 
     await withSpan('postgres.event_append', {
       'jarvis.correlation_id': event.correlationId,
+      'jarvis.causation_id': event.causationId,
       'jarvis.event.type': event.type,
       'db.system': 'postgresql',
       'db.operation.name': 'transaction',
@@ -177,7 +183,7 @@ export class EventManager {
    * commit atomically. The outbox row is enqueued in the same tx; the relay
    * publishes after commit.
    */
-  async emitInTx(tx: Sql, input: EmitInput): Promise<Event> {
+  async emitInTx(tx: Sql, input: EmitInput, notifyOnNextTask = true): Promise<Event> {
     const event = this.buildEvent(input);
     this.validateOrThrow(event);
     if (event.retentionClass === 'TRANSIENT') {
@@ -190,7 +196,10 @@ export class EventManager {
     this.appended++;
     // The caller-owned transaction commits after this method returns. Schedule
     // derived readers on the next task so they cannot observe pre-commit state.
-    setTimeout(() => this.notifyAppended(event), 0);
+    if (notifyOnNextTask) setTimeout(() => this.notifyAppended(event), 0);
     return event;
   }
+
+  /** Call only after the caller-owned transaction has committed successfully. */
+  notifyCommitted(event: Event): void { this.notifyAppended(event); }
 }

@@ -9,6 +9,10 @@
 // passing `verify:full`). Fail loudly instead, matching run-chaos.mjs and
 // backup-restore-drill.mjs.
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+const reportFile='artifacts/mark42/integration-gate.json';
+mkdirSync('artifacts/mark42',{recursive:true});
+writeFileSync(reportFile,'{}'); // Never certify a report left by an earlier run.
 
 const docker = spawnSync('docker', ['ps'], { stdio: 'ignore', shell: process.platform === 'win32' });
 if (docker.status !== 0) {
@@ -18,7 +22,7 @@ if (docker.status !== 0) {
 
 const res = spawnSync(
   'pnpm',
-  ['exec', 'vitest', 'run'],
+  ['exec', 'vitest', 'run', '--reporter=default', '--reporter=json', `--outputFile=${reportFile}`],
   { stdio: 'inherit', env: { ...process.env, JARVIS_IT: '1' }, shell: process.platform === 'win32' },
 );
 if (res.error) console.error(res.error.message);
@@ -42,4 +46,10 @@ if (ids.length > 0) {
   spawnSync('docker', ['rm', '-f', ...ids], { stdio: 'inherit' });
 }
 
-process.exit(res.status ?? 1);
+let qualificationFailed=false;
+try {
+  const report=JSON.parse(readFileSync(reportFile,'utf8'));
+  qualificationFailed=report.numPendingTests>0||report.numFailedTests>0||report.numFailedTestSuites>0||report.success!==true;
+  if(report.numPendingTests>0)console.error(`MANDATORY INTEGRATION GATE FAILED: ${report.numPendingTests} tests skipped, including possible infrastructure loss during the run.`);
+} catch { qualificationFailed=true;console.error('MANDATORY INTEGRATION GATE FAILED: fresh JSON evidence unavailable.'); }
+process.exit(qualificationFailed?1:res.status??1);

@@ -5,4 +5,5 @@ export class CircuitBreaker {
   success() { this.failures = 0; this.openedAt = 0; }
   failure() { this.failures++; if (this.failures >= this.threshold) this.openedAt = this.now(); }
   get open() { return !this.canAttempt(); }
+  get state() { return this.open ? 'open' as const : 'closed' as const; }
 }

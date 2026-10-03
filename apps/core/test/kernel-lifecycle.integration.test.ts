@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { EventNames } from '@jarvis/contracts';
 import { isDockerAvailable } from '@jarvis/testkit';
 import { setupIt, truncateAll, type ItContext } from './it-harness.ts';
+import { AgentJobStore } from '../src/kernel/cognition/agent-job-store.ts';
 
 const dockerOk = await isDockerAvailable();
 
@@ -129,6 +130,22 @@ describe.skipIf(!dockerOk)('kernel lifecycle (integration)', () => {
     const stale = await fetch(`${base}/desktop/proposals`, { method: 'POST', headers, body: JSON.stringify({ commandId: 'stale', expectedStateVersion: snapshot.stateVersion - 1, proposal: {} }) });
     expect(stale.status).toBe(409);
     expect(await stale.json()).toMatchObject({ error: 'state_version_conflict', currentStateVersion: snapshot.stateVersion });
+    const jobs=new AgentJobStore(ctx.pg.sql,k.events);
+    await jobs.enqueue({jobId:'http-cancel',agentId:'agents.oracle',principalId:'principal-operator',correlationId:'http-cancel-correlation',task:'reason',hash:'http-cancel',wallMs:120000,contextUnits:100,costLimit:1});
+    const command={commandId:'cancel-command',expectedStateVersion:snapshot.stateVersion,jobId:'http-cancel'};
+    expect((await fetch(`${base}/desktop/agents/cancel`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(command)})).status).toBe(401);
+    const readExchange=await fetch(`${base}/auth/session`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({credential:k.config.bootstrapCredential,nodeId:k.config.nodeId,scopes:['desktop.read'],surface:'desktop'})});
+    expect(readExchange.status).toBe(201);const readIssued=await readExchange.json() as{accessToken:string;credential:{sessionId:string}};
+    const readHeaders={...headers,authorization:`Bearer ${readIssued.accessToken}`,'x-jarvis-session-id':readIssued.credential.sessionId};
+    expect((await fetch(`${base}/desktop/agents/cancel`,{method:'POST',headers:readHeaders,body:JSON.stringify(command)})).status).toBe(401);
+    expect((await fetch(`${base}/desktop/agents/cancel`,{method:'POST',headers,body:JSON.stringify({...command,principalId:'other'})})).status).toBe(400);
+    expect((await jobs.get('http-cancel'))?.state).toBe('QUEUED');
+    const cancelled=await fetch(`${base}/desktop/agents/cancel`,{method:'POST',headers,body:JSON.stringify(command)});
+    expect(cancelled.status).toBe(200);expect(await cancelled.json()).toEqual({jobId:'http-cancel',cancelled:true});
+    expect((await jobs.get('http-cancel'))?.state).toBe('CANCELLED');
+    expect((await fetch(`${base}/desktop/agents/cancel`,{method:'POST',headers,body:JSON.stringify({...command,jobId:'unknown-job'})})).status).toBe(403);
+    expect((await fetch(`${base}/auth/logout`,{method:'POST',headers})).status).toBe(204);
+    expect((await fetch(`${base}/desktop/agents/cancel`,{method:'POST',headers,body:JSON.stringify(command)})).status).toBe(401);
     await k.stop();
   });
 });

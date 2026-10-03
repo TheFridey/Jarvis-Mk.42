@@ -9,11 +9,12 @@ export function AirTouchLayer({ objects, submit, transport }: { objects: SceneOb
   const activeTarget = useRef<string | undefined>(undefined);
   useEffect(() => {
     const handle = (frame: AirTouchFrame) => {
-      const targets = objects.map((object) => ({ objectId: object.id, centre: { x: object.position.x + object.size.width / 2, y: object.position.y + object.size.height / 2 }, radius: Math.max(object.size.width, object.size.height) * .58, zIndex: object.zIndex }));
+      const targets = objects.map((object) => ({ objectId: object.id,monitorId:object.monitorId, centre: { x: object.position.x + object.size.width / 2, y: object.position.y + object.size.height / 2 }, radius: Math.max(object.size.width, object.size.height) * .58, zIndex: object.zIndex }));
       const result = resolveAirTouch(frame, targets);
       if (result.point) setCursor({ ...result.point, state: result.tracking, acquired: result.acquired || Boolean(activeTarget.current) }); else setCursor(undefined);
       if (frame.phase === 'lost' || frame.phase === 'pinch-end') activeTarget.current = undefined;
       if (frame.phase === 'pinch-start' && result.targetId) activeTarget.current = result.targetId;
+      if(frame.phase==='pinch-move'&&activeTarget.current&&frame.point&&result.tracking!=='lost'){submit({type:'move',targetId:activeTarget.current,monitorId:frame.monitorId,position:frame.point,input:'air-touch'});return;}
       const targetId = frame.phase === 'pinch-move' ? activeTarget.current : result.targetId;
       if (!targetId || !result.action) return;
       if (result.action === 'dismiss') submit({ type: 'dismiss', targetId, input: 'air-touch' });
@@ -26,5 +27,5 @@ export function AirTouchLayer({ objects, submit, transport }: { objects: SceneOb
     const unsubscribe = transport.subscribeAirTouch(handle);
     return () => { window.removeEventListener('jarvis:air-touch', dom); unsubscribe(); };
   }, [objects, submit, transport]);
-  return cursor ? <div className={`air-pointer ${cursor.state} ${cursor.acquired ? 'acquired' : ''}`} style={{ transform: `translate3d(${cursor.x}px,${cursor.y}px,0)` }}><i /></div> : null;
+  return cursor ? <div className={`air-pointer ${cursor.state} ${cursor.acquired ? 'acquired' : ''}`} style={{ left:`${cursor.x/1920*100}%`,top:`${cursor.y/1080*100}%` }}><i /></div> : null;
 }

@@ -32,7 +32,7 @@ export function defineCapability(def: CapabilityDefinition): CapabilityModule {
     if (action.risk === 'CRITICAL' && !action.confirmationPhrase) throw new Error(`${name}: confirmationPhrase is required`);
     if (action.sideEffects.some((effect) => INTRUSION.test(effect))) throw new Error(`${name}: offensive sideEffect is forbidden`);
     return {
-      name, inputSchema: zodToJsonSchema(action.input), outputSchema: zodToJsonSchema(action.output),
+      name, requiredScopes: action.requiredScopes, inputSchema: zodToJsonSchema(action.input), outputSchema: zodToJsonSchema(action.output),
       riskClass: action.risk, reversible: action.reversible, rollback: action.rollback ? 'rollback' : undefined,
       simulate: action.simulate ? 'simulate' : undefined, simulatable: action.simulatable ?? Boolean(action.simulate), verify: 'verify',
       idempotent: action.idempotent, sideEffects: action.sideEffects, approvalPolicy: action.approvalPolicy,

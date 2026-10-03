@@ -1,0 +1,8 @@
+# Use a dedicated Python 3.11/3.12 venv, never the Kernel runtime.
+numpy==2.2.6
+sounddevice==0.5.2
+faster-whisper==1.1.1
+silero-vad==5.1.2
+kokoro==0.9.4
+soundfile==0.13.1
+pvporcupine==3.0.5

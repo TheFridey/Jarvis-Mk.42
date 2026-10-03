@@ -19,9 +19,13 @@ export interface VisionDiagnostics {
 }
 
 export interface ScreenContext {
+  source?:'windows'|'browser';
+  coordinateSpace?:'physical-pixels'|'css-pixels';
   monitors: Array<{ id: string; label: string; x: number; y: number; width: number; height: number; scaleFactor: number; primary: boolean }>;
   activeMonitorId?: string;
-  activeWindow?: { title: string; application: string };
+  activeWindow?: { title: string; application: string;processId?:number;windowId?:string;executable?:string;bounds?:{x:number;y:number;width:number;height:number} };
+  scene?:{focusedId?:string;selectedIds:string[];observedAt:string};
+  workspace?:{rootPath:string;repositoryRoot?:string;source:'explicit-process-binding';processId:number};
   cursor?: { x: number; y: number };
   selection?: { monitorId: string; x: number; y: number; width: number; height: number };
   observedAt: string;

@@ -1,0 +1,437 @@
+{
+  "id": "capabilities.calendar",
+  "version": "2.0.0",
+  "description": "Principal-bound Google Calendar integration",
+  "provider": "calendar",
+  "credentialKind": "wrapped-static",
+  "executionEnvironment": "worker",
+  "auditPolicy": {
+    "hashInput": true,
+    "recordOutput": "none"
+  },
+  "privacyRequirements": {
+    "maxContentPrivacyClass": "RESTRICTED"
+  },
+  "actions": [
+    {
+      "name": "events.read",
+      "requiredScopes": [
+        "calendar.events.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string"
+          },
+          "timeMin": {
+            "type": "string"
+          },
+          "timeMax": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "pageToken": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "timeMin",
+          "timeMax"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "events.read"
+      },
+      "declaredEgress": [
+        "integration://calendar"
+      ]
+    },
+    {
+      "name": "availability.read",
+      "requiredScopes": [
+        "calendar.availability.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string"
+          },
+          "timeMin": {
+            "type": "string"
+          },
+          "timeMax": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "timeMin",
+          "timeMax"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "availability.read"
+      },
+      "declaredEgress": [
+        "integration://calendar"
+      ]
+    },
+    {
+      "name": "event.create",
+      "requiredScopes": [
+        "calendar.event.create"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string"
+          },
+          "event": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "start": {
+                "type": "object",
+                "properties": {
+                  "dateTime": {
+                    "type": "string"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "dateTime"
+                ]
+              },
+              "end": {
+                "type": "object",
+                "properties": {
+                  "dateTime": {
+                    "type": "string"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "dateTime"
+                ]
+              },
+              "attendees": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "email"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "summary",
+              "start",
+              "end"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "event"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "calendar event.create"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "event.create"
+      },
+      "declaredEgress": [
+        "integration://calendar"
+      ]
+    },
+    {
+      "name": "event.update",
+      "requiredScopes": [
+        "calendar.event.update"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "event": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "start": {
+                "type": "object",
+                "properties": {
+                  "dateTime": {
+                    "type": "string"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "dateTime"
+                ]
+              },
+              "end": {
+                "type": "object",
+                "properties": {
+                  "dateTime": {
+                    "type": "string"
+                  },
+                  "timeZone": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "dateTime"
+                ]
+              },
+              "attendees": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "email"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "summary",
+              "start",
+              "end"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "event"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "calendar event.update"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "event.update"
+      },
+      "declaredEgress": [
+        "integration://calendar"
+      ]
+    },
+    {
+      "name": "event.cancel",
+      "requiredScopes": [
+        "calendar.event.cancel"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "eventId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "calendar event.cancel"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "event.cancel"
+      },
+      "declaredEgress": [
+        "integration://calendar"
+      ]
+    },
+    {
+      "name": "RSVP",
+      "requiredScopes": [
+        "calendar.RSVP"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "calendarId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "response": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "declined",
+              "tentative"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "response"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "calendar RSVP"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "RSVP"
+      },
+      "declaredEgress": [
+        "integration://calendar"
+      ]
+    }
+  ],
+  "requiredScopes": [
+    "calendar.events.read",
+    "calendar.availability.read",
+    "calendar.event.create",
+    "calendar.event.update",
+    "calendar.event.cancel",
+    "calendar.RSVP"
+  ],
+  "trustTierMin": "owned-secure"
+}

@@ -29,8 +29,12 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 19 | [`ROADMAP.md`](ROADMAP.md) | Current evidence-bearing status plus historical MK.42 → MK.100 lineage |
 | 19a | [`VERSIONING.md`](VERSIONING.md) | Product release vs architectural MK/component/schema version semantics |
 | 19b | [`MARK42_EXPERIENCE_TARGET.md`](MARK42_EXPERIENCE_TARGET.md) | Authoritative Forge Cosmos Experience target and truthful derived-projection boundary |
+| 19c | [`MARK42_SYSTEM_STATUS.md`](MARK42_SYSTEM_STATUS.md) | Current integration, truth audit, exact gates, measured budgets and hardware limits |
 | 19c | [`DESKTOP_TRANSPORT.md`](DESKTOP_TRANSPORT.md) | Implemented snapshot-bootstrap and authenticated realtime Experience transport, recovery and stale-data behavior |
 | 19d | [`FORGE_COSMOS_RENDERER.md`](FORGE_COSMOS_RENDERER.md) | GPU/DOM boundary, truthful visual-state mapping, quality tiers and explicit performance budgets |
+| 19e | [`COGNITION_OBSERVATORY.md`](COGNITION_OBSERVATORY.md) | Model-routing observability, durability boundary and truthful usage rules |
+| 19f | [`AUDIT_PROMPT5_COGNITION_OBSERVATORY.md`](AUDIT_PROMPT5_COGNITION_OBSERVATORY.md) | Prompt 5 working-tree evidence, exact verification results and deferred boundaries |
+| 19g | [`AUDIT_PROMPT6_AGENT_RUNTIME.md`](AUDIT_PROMPT6_AGENT_RUNTIME.md) | Durable worker lifecycle, cancellation, recovery, Observatory and exact gate evidence |
 | 20 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
 | 21 | [`AUDIT_MK42_ASCENSION.md`](AUDIT_MK42_ASCENSION.md) | Hostile external architecture audit (ASCENSION Stage A): design vs as-built, the hollow-agency-plane finding, scores, required corrections |
 | 22 | [`HARDENING_SPEC_MK42.md`](HARDENING_SPEC_MK42.md) | ASCENSION Stage B implementation direction: task groups H1–H13, chaos/perf/fitness/contract gates, the FOUNDATION_REVIEW template |
@@ -65,6 +69,9 @@ relevant document:
 
 ## The one-paragraph definition
 
+Agent Runtime lease/worker boundary and remaining gaps:
+[ADR 0040](adr/0040-agent-worker-and-lease-boundary.md).
+
 > JARVIS is a persistent, event-driven artificial-intelligence operating layer
 > that maintains a temporal model of the world, coordinates specialised
 > intelligence, perceives through distributed sensors, executes actions through
@@ -72,3 +79,10 @@ relevant document:
 > objectives, understands digital and physical context, and presents one
 > consistent intelligence across all connected devices. The models are not
 > JARVIS; they are replaceable cognitive resources it uses.
+
+- [System telemetry and Operations](SYSTEM_TELEMETRY.md): controlled metrics, private observability backends, trace/log privacy, Sentinel and Argus operations.
+- [Voice V2](VOICE_V2.md): local interchangeable audio adapters, duplex lifecycle, derived Experience state and qualification.
+- [Voice qualification results](VOICE_QUALIFICATION_RESULTS.md): current physical evidence and pending acceptance measurements.
+- [Vision V2](VISION_V2.md): pinned local perception, explicit selected-region OCR, reference resolution and authority boundaries.
+- [Vision qualification results](VISION_QUALIFICATION_RESULTS.md): measured software evidence and pending physical acceptance.
+- [ScaleSmiths intelligence](SCALESMITHS_INTELLIGENCE.md): principal-bound Gmail/Calendar, ScaleSmiths service contract, Nova, durable meeting preparation and source-backed morning briefs.

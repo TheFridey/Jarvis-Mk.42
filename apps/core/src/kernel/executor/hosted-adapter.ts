@@ -1,9 +1,10 @@
 import { AdapterHost } from '@jarvis/adapter-host';
 import type { AdapterContext, Capability } from '@jarvis/contracts';
 import type { AdapterRunner, VerificationContext, VerificationWorld } from './verify-runner.ts';
+export type { AdapterEgress } from '@jarvis/adapter-host';
 
 export type AdapterModuleCatalog = ReadonlyMap<string, string>;
-export function createAdapterHost() { return new AdapterHost(); }
+export function createAdapterHost(egress?: import('@jarvis/adapter-host').AdapterEgress) { return new AdapterHost(undefined, egress); }
 
 export class HostedAdapterRunner implements AdapterRunner {
   constructor(private readonly host: AdapterHost, private readonly capability: Capability, private readonly moduleUrl: string) {}
@@ -25,7 +26,7 @@ export class HostedVerificationWorld implements VerificationWorld {
   private async run(context: VerificationContext, action: string, operation: 'execute' | 'hash-file', input: unknown) {
     const moduleUrl = this.modules.get(context.capability.id); if (!moduleUrl) throw new Error('adapter module unavailable');
     const manifestAction = context.capability.actions.find((candidate) => candidate.name === action) ?? context.capability.actions[0]; if (!manifestAction) throw new Error('verification action unavailable');
-    const result = await this.host.run({ invocationId: context.handle.invocationId, capabilityId: context.capability.id, version: context.capability.version, action: manifestAction.name, operation, input, handle: context.handle, mode: 'dry-run', timeoutMs: manifestAction.timeoutMs, riskClass: manifestAction.riskClass, executionEnvironment: context.capability.executionEnvironment, moduleUrl });
+    const result = await this.host.run({ invocationId: context.handle.invocationId, capabilityId: context.capability.id, version: context.capability.version, action: manifestAction.name, operation, input, output: context.output, handle: context.handle, mode: 'dry-run', timeoutMs: manifestAction.timeoutMs, riskClass: manifestAction.riskClass, executionEnvironment: context.capability.executionEnvironment, moduleUrl });
     return result.output;
   }
 }

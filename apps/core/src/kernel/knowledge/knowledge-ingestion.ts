@@ -130,7 +130,7 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
     }
 
     const resolved = await this.d.resolver.resolve({
-      principalId: item.principalId, ref: f.subjectRef, privacyClass, source: provenance.producedBy,
+      principalId: item.principalId, ref: f.subjectRef, typeHint: f.entityType, privacyClass, source: provenance.producedBy,
     });
     if (resolved.created) {
       emitted.push(await this.emit(EventNames.WorldEntityUpserted, 'entity', resolved.entityId, item.principalId, item.correlationId, privacyClass, {

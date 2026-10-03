@@ -13,7 +13,7 @@ import type { EventStore } from './event-store.ts';
 import type { EventManager } from './event-manager.ts';
 import type { DeadLetterSink } from './bus.ts';
 import type { OutboxStore } from './stores.ts';
-import { withSpan } from '@jarvis/telemetry';
+import { withSpan, structuredLog, telemetryNodeId } from '@jarvis/telemetry';
 
 export interface OutboxRelayOptions {
   pollMs: number;
@@ -87,8 +87,8 @@ export class OutboxRelay {
   private async reportHealth(status: 'HEALTHY' | 'DEGRADED', detail: string): Promise<void> {
     try {
       await this.deps.onHealth(status, detail);
-    } catch (err) {
-      console.error(`outbox-relay: health listener failed (${status}: ${detail}):`, err);
+    } catch {
+      void structuredLog({component:'outbox-relay',node:telemetryNodeId(),event:'health.listener.failed',severity:'ERROR'});
     }
   }
 

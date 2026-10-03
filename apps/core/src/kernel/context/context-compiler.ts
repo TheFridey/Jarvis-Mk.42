@@ -69,6 +69,7 @@ export interface KnowledgeSources {
 }
 
 export interface ContextCompilerDeps {
+  perception?:(ref:string,principalId:string)=>Array<{kind:ContextItemKind;content:unknown;privacyClass:PrivacyClass;observedAt:string;confidence?:number}>;
   state: StateManager;
   eventStore: EventStore;
   events: EventManager;
@@ -107,6 +108,7 @@ export class ContextCompiler {
     const candidates: RankInput[] = [];
     const unknowns: string[] = [];
     const freshness: { atlasAsOf?: string; memoryAsOf?: string } = {};
+    if(req.perceptionRef){if(!req.principalId||!this.deps.perception)throw new Error('perception context binding required');for(const item of this.deps.perception(req.perceptionRef,req.principalId)){candidates.push(this.mkItem(item.kind,`selected perception: ${item.kind}`,item.content,item.privacyClass,{ageMs:now-Date.parse(item.observedAt),sizeUnits:estimateUnits(item.content),sourceType:'derivation',confidence:item.confidence,provenance:{method:'sensor',producedBy:'local-perception',producedOn:'workstation',producedAt:item.observedAt,correlationId:req.correlationId,derivedFromUntrusted:true}}));}}
 
     // 1. authoritative state slices
     const view = await this.deps.state.view();
@@ -148,6 +150,7 @@ export class ContextCompiler {
     // score
     const scored: ContextItem[] = candidates.map((c) => ({ ...c, relevance: scoreItem(c, req) }));
     const result = buildPackage(scored, req);
+    if(req.perceptionRef&&candidates.filter(c=>c.provenance.producedBy==='local-perception').some(c=>!result.kept.some(item=>item.contentHash===c.contentHash)))throw new Error('required perception context exceeds privacy ceiling or budget');
 
     this.version++;
     const pkg: ContextPackage = {

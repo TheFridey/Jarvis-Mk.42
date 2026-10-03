@@ -1,0 +1,8 @@
+{
+  "id": "agents.nova", "version": "1.0.0", "displayName": "Nova",
+  "role": "ScaleSmiths business orchestration and evidence-based briefings",
+  "leasePolicy": { "maxWallTimeMs": 120000, "maxContextUnits": 20000, "maxCostUnits": 50 },
+  "proposalScope": { "kinds": ["answer", "plan", "clarification_request", "draft"], "capabilities": [] },
+  "modelHints": { "tasks": ["reason", "summarize"], "locality": "prefer-local" },
+  "notes": "Presentation and coordination identity only. Coordinates Hermes, Scout, Prometheus, Atlas and Mnemosyne through the existing runtime. No independent grants or write authority. Missing sources must remain unknown."
+}

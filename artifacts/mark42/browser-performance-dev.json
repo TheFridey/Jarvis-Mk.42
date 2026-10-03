@@ -1,0 +1,191 @@
+{
+  "observedAt": "2026-10-03T10:19:25.598Z",
+  "scope": "Headless Chromium dev renderer on Windows ARM, ambient fixture Kernel; rendered frames, not monitor refresh",
+  "viewport": {
+    "width": 1262,
+    "height": 624,
+    "dpr": 1
+  },
+  "samples": [
+    {
+      "fps": 13.731548232071946,
+      "frameTimeMs": 72.82499999995343,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 92706.5
+    },
+    {
+      "fps": 13.513513513513514,
+      "frameTimeMs": 74,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 93224.39999999944
+    },
+    {
+      "fps": 13.586956521734217,
+      "frameTimeMs": 73.60000000002661,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 93739.59999999963
+    },
+    {
+      "fps": 13.977635782752802,
+      "frameTimeMs": 71.54285714283053,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 94240.5
+    },
+    {
+      "fps": 13.576415826207164,
+      "frameTimeMs": 73.65714285722268,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 94756
+    },
+    {
+      "fps": 13.539651837524177,
+      "frameTimeMs": 73.85714285714286,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 95273.09999999963
+    },
+    {
+      "fps": 13.555383423717224,
+      "frameTimeMs": 73.77142857134875,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 95789.39999999944
+    },
+    {
+      "fps": 12.72495909833283,
+      "frameTimeMs": 78.58571428579411,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 96339.5
+    },
+    {
+      "fps": 13.552758954501453,
+      "frameTimeMs": 73.78571428571429,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 96856.09999999963
+    },
+    {
+      "fps": 13.12582036377732,
+      "frameTimeMs": 76.18571428568768,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 97389.39999999944
+    },
+    {
+      "fps": 13.977635782752802,
+      "frameTimeMs": 71.54285714283053,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 97890.09999999963
+    },
+    {
+      "fps": 12.748133309059824,
+      "frameTimeMs": 78.44285714280393,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 98439.19999999925
+    },
+    {
+      "fps": 12.72495909833283,
+      "frameTimeMs": 78.58571428579411,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 98989.29999999981
+    },
+    {
+      "fps": 13.550135501364785,
+      "frameTimeMs": 73.79999999994678,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 99505.89999999944
+    },
+    {
+      "fps": 12.727272727272727,
+      "frameTimeMs": 78.57142857142857,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 100055.89999999944
+    },
+    {
+      "fps": 13.128282070513043,
+      "frameTimeMs": 76.17142857145518,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 100589.19999999925
+    },
+    {
+      "fps": 13.120899718837864,
+      "frameTimeMs": 76.21428571428571,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 101122.59999999963
+    },
+    {
+      "fps": 13.128282070513043,
+      "frameTimeMs": 76.17142857145518,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 101655.79999999981
+    },
+    {
+      "fps": 13.128282070513043,
+      "frameTimeMs": 76.17142857145518,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "at": 102189.09999999963
+    }
+  ],
+  "memory": {
+    "usedJSHeapSize": 112035421,
+    "totalJSHeapSize": 126883989,
+    "jsHeapSizeLimit": 4395630592
+  },
+  "gpuUtilisation": null,
+  "firstToken": null,
+  "speech": null,
+  "airTouch": null
+}

@@ -3,6 +3,10 @@ const rule = (id: string, effect: PolicyVerdict, priority: number, predicate: Po
 const and = (...args: PolicyPredicate[]): PolicyPredicate => ({ op: 'and', args });
 const eq = (path: string, value: unknown): PolicyPredicate => ({ op: 'eq', path, value });
 export const BASE_RULE_PACK: PolicyRule[] = [
+  ...['email','calendar','scalesmiths'].flatMap(provider => [
+    rule(`base.${provider}.read`, 'ALLOW', 20, and(eq('action.capabilityId', `capabilities.${provider}`), eq('action.riskClass', 'LOW'))),
+    rule(`base.${provider}.write`, 'REQUIRE_APPROVAL', 80, and(eq('action.capabilityId', `capabilities.${provider}`), { op:'risk-at-least', class:'MEDIUM' })),
+  ]),
   rule('base.read.ambient', 'ALLOW', 10, eq('action.riskClass', 'AMBIENT')),
   rule('base.github.read', 'ALLOW', 20, and(eq('action.capabilityId', 'capabilities.github'), { op: 'matches', path: 'action.action', pattern: '^(list|get|read)_' })),
   rule('base.github.branch.create', 'ALLOW', 30, and(eq('action.capabilityId', 'capabilities.github'), eq('action.action', 'create_branch'), { op: 'scope-held', scope: 'github.branch.write' })),
@@ -11,6 +15,7 @@ export const BASE_RULE_PACK: PolicyRule[] = [
   rule('base.fs.write.workspace', 'ALLOW', 30, and(eq('action.capabilityId', 'capabilities.filesystem'), eq('action.action', 'write_file'), { op: 'scope-held', scope: 'filesystem.write' })),
   rule('base.fs.write.outside', 'DENY', 100, and(eq('action.capabilityId', 'capabilities.filesystem'), eq('action.action', 'write_outside_workspace'))),
   rule('base.terminal.any', 'REQUIRE_APPROVAL', 70, eq('action.capabilityId', 'capabilities.terminal')),
+  rule('base.windows.selected_capture','REQUIRE_APPROVAL',80,and(eq('action.capabilityId','capabilities.windows'),eq('action.action','capture_region'),eq('actor.kind','principal'),eq('context.operatorReachable',true),{op:'scope-held',scope:'windows.screen.capture'})),
   rule('base.deploy.staging', 'ALLOW', 30, and(eq('action.action', 'deploy_staging'), { op: 'scope-held', scope: 'deploy.staging' }, eq('context.degradation', 'nominal'))),
   rule('base.deploy.production', 'REQUIRE_APPROVAL', 80, eq('action.action', 'deploy_production')),
   rule('base.db.drop.production', 'DENY', 100, { op: 'matches', path: 'action.action', pattern: '^(drop_|truncate_|delete_database)' }),

@@ -89,7 +89,7 @@ export interface AdapterContext {
   mode: 'dry-run' | 'full';
   credential: CredentialHandle;
   log: (level: 'debug' | 'info' | 'warn' | 'error', msg: string, fields?: Record<string, unknown>) => void;
-  http: (req: { method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'; url: string }) => Promise<unknown>;
+  http: (req: { method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'; url: string; body?: unknown }) => Promise<unknown>;
   abortSignal: AbortSignal;
 }
 

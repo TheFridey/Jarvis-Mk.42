@@ -10,11 +10,11 @@ export class AgencyAuthorizer implements ExecutorPermission {
   async authorise(input: Parameters<ExecutorPermission['authorise']>[0]) {
     const grant = await this.grants.findActive(input.principalId, input.scopes, this.now());
     if (!grant) return { ok: false as const };
-    const needsApproval = input.approvalRequired || input.riskClass === 'CRITICAL';
+    const needsApproval = input.approvalRequired || input.forceLiveApproval || input.riskClass === 'CRITICAL';
     let approved = !needsApproval;
     let approvalRequestId: string | undefined;
     if (needsApproval) {
-      const standing = grant.mayProceedWithoutLiveApproval && risks.indexOf(input.riskClass as RiskClass) <= risks.indexOf(grant.maxRiskWithoutLiveApproval);
+      const standing = !input.forceLiveApproval && grant.mayProceedWithoutLiveApproval && risks.indexOf(input.riskClass as RiskClass) <= risks.indexOf(grant.maxRiskWithoutLiveApproval);
       if (standing) approved = true;
       else {
         const request = await this.approvals.request({ invocationId: input.invocationId, principalId: input.principalId, capabilityId: input.capabilityId, capabilityVersion: input.capabilityVersion, action: input.action, inputHash: input.inputHash, riskClass: input.riskClass as RiskClass, summary: input.summary, ...(input.confirmationPhrase ? { confirmationPhrase: input.confirmationPhrase } : {}) });

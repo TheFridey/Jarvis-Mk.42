@@ -1,0 +1,5 @@
+import {describe,expect,it,vi} from 'vitest';
+import {AgencyAuthorizer} from './agency-authorizer.ts';
+describe('always-live action approval',()=>{
+ it('cannot replace a frame-bound live approval with a broad standing grant',async()=>{const request=vi.fn(async()=>({id:'approval',state:'pending'}));const mint=vi.fn();const grants={findActive:async()=>({id:'grant',version:1,mayProceedWithoutLiveApproval:true,maxRiskWithoutLiveApproval:'CRITICAL',resourceConstraints:[]})};const authorizer=new AgencyAuthorizer(grants as never,{mint} as never,{request} as never);const result=await authorizer.authorise({invocationId:'i',principalId:'p',capabilityId:'capabilities.windows',capabilityVersion:'1.2.0',action:'capture_region',inputHash:'hash',scopes:['windows.screen.capture'],riskClass:'HIGH',approvalRequired:true,forceLiveApproval:true,summary:'selected region'});expect(result.approved).toBe(false);expect(request).toHaveBeenCalledWith(expect.objectContaining({inputHash:'hash',action:'capture_region'}));expect(mint).not.toHaveBeenCalled();});
+});

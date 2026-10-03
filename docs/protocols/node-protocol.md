@@ -1,5 +1,15 @@
 # Protocol: Node Protocol (v1 draft)
 
+**Operational update, 2026-10-02:** An opt-in, loopback-only mTLS HTTPS/WebSocket
+implementation is exercised with separate workstation/display runtimes. The
+implemented wire schema/client are under `apps/core/src/kernel/nodes/`, and use
+the existing descriptor/admission/registry contracts. See
+[the operations guide](../architecture/NODE_PROTOCOL_V1_OPERATIONS.md) for the
+actual ENROLL through RECONNECT lifecycle, permitted subscriptions/observations,
+certificate provisioning and executable proof. The broader admission, remote
+adapter hosting, Redis liveness and version-negotiation statements below describe
+the design target; they are not additional runtime verification claims.
+
 How any device attaches to JARVIS. This is the mechanism that makes L34–L38
 ("must support future multi-user / multi-device / AR / robotics") structural
 rather than aspirational: a new device is a new **node type** speaking this

@@ -16,4 +16,8 @@ describe('Experience projection filtering',()=>{
     expect(filtered?.channels).toEqual(['scene']);
     expect(filtered?.patch).toEqual({scene:{version:1}});
   });
+  it('pushes derived agent effect stages on the agency channel without cognition polling',()=>{
+    const update={type:'experience.update',schemaVersion:1,streamId:'s',sequence:2,generatedAt:'2026-10-02T00:00:00Z',stateVersion:1,sceneVersion:1,channels:['agency'],full:false,patch:{agentJobs:[{jobId:'job',state:'COMPLETE',activityStage:'VERIFYING'}]}};
+    expect(filterExperienceUpdate(update as never,['agency'])?.patch.agentJobs).toEqual(update.patch.agentJobs);
+  });
 });

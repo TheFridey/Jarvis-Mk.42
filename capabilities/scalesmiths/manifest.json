@@ -1,32 +1,680 @@
 {
   "id": "capabilities.scalesmiths",
-  "version": "0.42.0",
-  "requiredScopes": ["scalesmiths:ops"],
-  "trustTierMin": "kernel-local",
-  "notes": "ScaleSmiths is modelled as a first-class business entity in the World Model (WORLD_MODEL.md §1). This adapter is how JARVIS acts on its behalf. It crosses a trust boundary to external ScaleSmiths systems with its own scoped credentials, distinct from every other adapter's. Concrete actions are defined as the integration surface is built out (ROADMAP.md MK.50).",
+  "version": "2.0.0",
+  "description": "ScaleSmiths service boundary; no database access",
+  "provider": "scalesmiths",
+  "credentialKind": "wrapped-static",
+  "executionEnvironment": "worker",
+  "auditPolicy": {
+    "hashInput": true,
+    "recordOutput": "none"
+  },
+  "privacyRequirements": {
+    "maxContentPrivacyClass": "RESTRICTED"
+  },
   "actions": [
     {
-      "name": "read_business_state",
-      "inputSchema": { "type": "object", "properties": { "domain": { "type": "string", "enum": ["projects", "infrastructure", "people", "software", "accounts"] } }, "required": ["domain"] },
-      "outputSchema": { "type": "object" },
+      "name": "clients.read",
+      "requiredScopes": [
+        "scalesmiths.clients.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
       "riskClass": "LOW",
       "reversible": false,
-      "simulatable": true,
-      "verify": "verifyResponseShape",
+      "simulatable": false,
+      "verify": "verify",
       "idempotent": true,
-      "sideEffects": ["reads ScaleSmiths operational state via a scoped integration credential"]
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "clients.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
     },
     {
-      "name": "apply_operational_change",
-      "inputSchema": { "type": "object", "properties": { "domain": { "type": "string" }, "change": { "type": "object" } }, "required": ["domain", "change"] },
-      "outputSchema": { "type": "object" },
-      "riskClass": "CRITICAL",
+      "name": "leads.read",
+      "requiredScopes": [
+        "scalesmiths.leads.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
       "reversible": false,
-      "simulate": "simulateBusinessChange",
-      "simulatable": true,
-      "verify": "verifyChangeApplied",
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "leads.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "projects.read",
+      "requiredScopes": [
+        "scalesmiths.projects.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "projects.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "tasks.read",
+      "requiredScopes": [
+        "scalesmiths.tasks.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "tasks.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "invoices.read",
+      "requiredScopes": [
+        "scalesmiths.invoices.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "invoices.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "payments.read",
+      "requiredScopes": [
+        "scalesmiths.payments.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "payments.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "retainers.read",
+      "requiredScopes": [
+        "scalesmiths.retainers.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "retainers.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "proposals.read",
+      "requiredScopes": [
+        "scalesmiths.proposals.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "proposals.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "analytics.read",
+      "requiredScopes": [
+        "scalesmiths.analytics.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "analytics.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "deployments.read",
+      "requiredScopes": [
+        "scalesmiths.deployments.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "deployments.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "infrastructure.read",
+      "requiredScopes": [
+        "scalesmiths.infrastructure.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "infrastructure.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "caseStudies.read",
+      "requiredScopes": [
+        "scalesmiths.caseStudies.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "caseStudies.read"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "leads.update",
+      "requiredScopes": [
+        "scalesmiths.leads.update"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "patch"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "MEDIUM",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
       "idempotent": false,
-      "sideEffects": ["mutates ScaleSmiths business systems; dual control + simulate-first"]
+      "sideEffects": [
+        "scalesmiths leads.update"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "leads.update"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
+    },
+    {
+      "name": "tasks.update",
+      "requiredScopes": [
+        "scalesmiths.tasks.update"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "patch": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "patch"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "MEDIUM",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "scalesmiths tasks.update"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "tasks.update"
+      },
+      "declaredEgress": [
+        "integration://scalesmiths"
+      ]
     }
-  ]
+  ],
+  "requiredScopes": [
+    "scalesmiths.clients.read",
+    "scalesmiths.leads.read",
+    "scalesmiths.projects.read",
+    "scalesmiths.tasks.read",
+    "scalesmiths.invoices.read",
+    "scalesmiths.payments.read",
+    "scalesmiths.retainers.read",
+    "scalesmiths.proposals.read",
+    "scalesmiths.analytics.read",
+    "scalesmiths.deployments.read",
+    "scalesmiths.infrastructure.read",
+    "scalesmiths.caseStudies.read",
+    "scalesmiths.leads.update",
+    "scalesmiths.tasks.update"
+  ],
+  "trustTierMin": "owned-secure"
 }

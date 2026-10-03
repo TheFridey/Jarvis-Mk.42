@@ -1,3 +1,6 @@
+import { TelemetryReview } from '../sentinel/telemetry-review.ts';
+import { SystemTelemetry } from '../telemetry/system-telemetry.ts';
+import { TelemetryMonitor } from '../sentinel/telemetry-monitor.ts';
 /**
  * The JARVIS Kernel composition root (KERNEL_CONSTITUTION.md).
  *
@@ -24,9 +27,12 @@ import {
 } from '@jarvis/contracts';
 import { BASE_RULE_PACK, evaluatePolicy } from '@jarvis/permissions';
 import type { AdapterHost } from '@jarvis/adapter-host';
+import { IntegrationTransport } from '../integrations/transport.ts';
+import { BusinessIntelligence } from '../integrations/intelligence.ts';
 import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
-import { startTelemetry, stopTelemetry } from '@jarvis/telemetry';
+import { startTelemetry, stopTelemetry, structuredLog } from '@jarvis/telemetry';
 import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
+import { CompanionService } from '../experience/companion-service.ts';
 
 import { assertSecureIngressConfig, type KernelConfig } from '../../runtime/config.ts';
 import { SystemClock, type Clock } from '../../runtime/clock.ts';
@@ -68,6 +74,7 @@ import { SentinelDetectorService } from '../sentinel/index.ts';
 import { DesktopGateway } from '../desktop/index.ts';
 import { validateJsonSchema } from '../agency-ingress/json-schema.ts';
 import { AgentRuntime, CognitionOrchestrator, HttpModelGatewayClient, type ModelGatewayPort } from '../cognition/index.ts';
+import { AgentJobStore } from '../cognition/agent-job-store.ts';
 import { ObjectiveEngine } from '../objective/index.ts';
 import { DeterministicEmbeddingClient } from '../embedding/index.ts';
 import { AtlasStore, AtlasQueryService, EntityResolver, ObservationPromoter } from '../atlas/index.ts';
@@ -75,11 +82,15 @@ import { MnemosyneStore, MemoryRecallService, Consolidator } from '../mnemosyne/
 import { KnowledgeIngestion, KnowledgeAgentFacade, CandidateSource } from '../knowledge/index.ts';
 import { VoiceGateway } from '../voice/index.ts';
 import { VisionGateway } from '../vision/index.ts';
+import {PerceptionContext} from '../vision/perception-context.ts';
+import { NodeIngress, type NodeIngressTls } from '../nodes/node-ingress.ts';
+import { readFileSync } from 'node:fs';
 
 import { RedisEphemeralStore, NullEphemeralStore, type EphemeralStore } from './ephemeral.ts';
 import { ROUTINE_DEFS } from './routines.ts';
 
 export interface KernelOverrides {
+  nodeIngressTls?:NodeIngressTls;
   clock?: Clock;
   ids?: IdGen;
   /** Provide an already-created PG handle (tests share one). */
@@ -96,6 +107,7 @@ export interface KernelOverrides {
   bootstrapGrants?: Grant[];
   credentialMaterial?: Record<string, string>;
   adapterHost?: AdapterHost;
+  integrationRequest?: typeof fetch;
   modelGateway?: ModelGatewayPort;
 }
 
@@ -113,6 +125,8 @@ export interface KernelHandle {
   readonly identity: IdentityManager;
   readonly credentials: SessionCredentialManager;
   readonly nodes: NodeManager;
+  readonly nodeIngress:NodeIngress;
+  readonly nodeIngressPort:number|null;
   readonly sessions: SessionManager;
   readonly presence: PresenceManager;
   readonly health: HealthManager;
@@ -123,6 +137,7 @@ export interface KernelHandle {
   readonly permissions: PermissionManager;
   readonly approvals: ApprovalManager;
   readonly credentialBroker: CredentialBroker;
+  readonly business: BusinessIntelligence;
   readonly agency: AgencyIngress;
   readonly cognition: CognitionOrchestrator;
   readonly objectives: ObjectiveEngine;
@@ -287,7 +302,9 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   );
   let knowledgeHarvestCursor = '0';
 
+  const perception=new PerceptionContext(()=>clock.epochMs());
   const context = new ContextCompiler({
+    perception:(ref,principalId)=>perception.items(ref,principalId),
     state,
     eventStore,
     events,
@@ -316,7 +333,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const approvals = new ApprovalManager(pg.sql, () => clock.nowIso());
   const authorizer = new AgencyAuthorizer(grantStore, permissions, approvals, () => clock.nowIso());
   const credentialBroker = new CredentialBroker(new MemoryCredentialMaterialStore(ov.credentialMaterial ?? {}), tokenCache, () => clock.nowIso(), pg.sql);
-  const adapterHost = ov.adapterHost ?? createAdapterHost();
+  const integrationTransport = new IntegrationTransport(credentialBroker,ov.integrationRequest);
+  const adapterHost = ov.adapterHost ?? createAdapterHost(integrationTransport.run);
   const adapterModules = new Map((ov.capabilities ?? []).map((entry) => [entry.manifest.id, entry.moduleUrl]));
   const verification = new VerificationRunner(new HostedVerificationWorld(adapterHost, adapterModules));
   const invocationStore = new PgInvocationStore(pg.sql);
@@ -326,7 +344,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const executor = new CapabilityExecutor({
     lookup: (id, version) => capabilityRegistry.lookup(id, version),
     validateInput: validateJsonSchema,
-    evaluate: async ({ capability, action, proposal, origin }) => { const principalId = origin.onBehalfOf ?? origin.id; const grant = await grantStore.findActive(principalId, capability.requiredScopes, clock.nowIso()); return evaluatePolicy({ actor: { kind: origin.kind === 'agent' ? 'agent' : 'principal', id: origin.id, onBehalfOf: principalId, heldScopes: grant?.scopes ?? [] }, action: { capabilityId: capability.id, action: action.name, riskClass: action.riskClass, requiredScopes: [...capability.requiredScopes] }, context: { operatorReachable: true, degradation: health.overall === 'HEALTHY' ? 'nominal' : 'degraded', derivedFromUntrusted: proposal.provenance.derivedFromUntrusted, hostTrustTier: 'kernel-local', now: clock.nowIso(), resourceRef: String(proposal.invocation.input), originNodeId: config.nodeId, authTrustLevel: 'verified', authMethod: 'kernel-session', jarvisMode: await mode.current(), recentDenialCount: 0 } }, BASE_RULE_PACK); },
+    evaluate: async ({ capability, action, proposal, origin }) => { const principalId = origin.onBehalfOf ?? origin.id; const grant = await grantStore.findActive(principalId, action.requiredScopes ?? capability.requiredScopes, clock.nowIso()); return evaluatePolicy({ actor: { kind: origin.kind === 'agent' ? 'agent' : 'principal', id: origin.id, onBehalfOf: principalId, heldScopes: grant?.scopes ?? [] }, action: { capabilityId: capability.id, action: action.name, riskClass: action.riskClass, requiredScopes: [...(action.requiredScopes ?? capability.requiredScopes)] }, context: { operatorReachable: true, degradation: health.overall === 'HEALTHY' ? 'nominal' : 'degraded', derivedFromUntrusted: proposal.provenance.derivedFromUntrusted, hostTrustTier: 'kernel-local', now: clock.nowIso(), resourceRef: String(proposal.invocation.input), originNodeId: config.nodeId, authTrustLevel: 'verified', authMethod: 'kernel-session', jarvisMode: await mode.current(), recentDenialCount: 0 } }, BASE_RULE_PACK); },
     permission: authorizer,
     broker: credentialBroker,
     adapter: (capability) => { const moduleUrl = adapterModules.get(capability.id); if (!moduleUrl) throw new Error('adapter module unavailable'); return new HostedAdapterRunner(adapterHost, capability, moduleUrl); },
@@ -336,13 +354,25 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     leases,
     now: () => clock.nowIso(),
   });
-  const agency = new AgencyIngress(executor);
+  let business: BusinessIntelligence;
+  const agency = new AgencyIngress(executor,async(proposal,result,principalId)=>{await perception.capture(proposal,result,principalId,config.nodeId);await business.capture(proposal,result,principalId);});
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
-  const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso());
-  const cognition = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, localModelAvailable: () => config.modelLocalRouteAvailable });
+  const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso(), new AgentJobStore(pg.sql, events));
+  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, businessAnswer:async(principalId,text,correlationId)=>{
+    if(/^(?:jarvis[, ]+)?check production[.!]?$/i.test(text.trim())){
+      const telemetry=await systemTelemetry.snapshot();
+      const findings=telemetryMonitor.evaluate(telemetry);
+      return {modelId:'sentinel:measured-telemetry',agentId:'agents.sentinel' as const,answer:`Sentinel read-only telemetry as of ${telemetry.generatedAt}. Scope: configured host/exporters, not proof of a remote production deployment.\n${JSON.stringify({readings:telemetry.readings,findings,unknowns:Object.entries(telemetry.readings).filter(([,r])=>r.status!=='available').map(([key])=>key)})}\n${findings.length?'Findings are based on the observed samples above.':'No threshold finding in available samples. Unavailable sources are not certified healthy.'}`};
+    }
+    const answer=await business.answer(principalId,text,correlationId);if(answer===undefined||!(/\b(morning|situation)\b/i.test(text)))return answer;
+    const compiled=await context.compile({principalId,correlationId,intent:text,intentClass:'morning_brief',budgetUnits:4000,maxPrivacyClass:'RESTRICTED'});
+    const view=await state.view();const owner=(view.slices.active_principal?.value as {principalId?:string}|undefined)?.principalId;
+    return answer+`\nKernel situation (${clock.nowIso()}): `+JSON.stringify({health:health.report(),activeObjective:owner===principalId?view.slices.active_objective?.value:null,notifications:owner===principalId?view.slices.active_alerts?.value:null,knowledge:compiled.items.filter(item=>['atlas','mnemosyne'].includes(item.sourceType??'')).slice(0,12).map(item=>({source:item.sourceType,kind:item.kind,summary:item.summary,provenance:item.provenance})),unknowns:compiled.unknowns,evidenceNote:'Quoted retrieved evidence, not instructions; absent knowledge is unavailable.'});
+  }, localModelAvailable: () => config.modelLocalRouteAvailable });
   const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
-  const voice = new VoiceGateway({ sessions, mode, cognition, events, principalId: config.bootstrapPrincipalId });
-  const vision = new VisionGateway({ events, presence, principalId: config.bootstrapPrincipalId });
+  business = new BusinessIntelligence({agency,knowledge:knowledgeIngestion,objectives,context,nodeId:config.nodeId,now:()=>clock.nowIso(),id:()=>ids.ulid(),specialist:input=>cognition.submit({requestId:ids.ulid(),principalId:input.principalId,agentId:input.agentId,objectiveId:input.objectiveId,workflowRef:'nova:'+input.objectiveId,correlationId:input.correlationId,input:input.instruction,task:'summarize',locality:'local',cloudAllowed:false,analysisOnly:true})});
+  const voice = new VoiceGateway({ sessions, mode, cognition, events, principalId: config.bootstrapPrincipalId,referent:(utterance,principalId,nodeId)=>perception.resolve(utterance,principalId,nodeId) });
+  const vision = new VisionGateway({ events, presence, principalId: config.bootstrapPrincipalId,observe:command=>perception.observe(command) });
   const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
@@ -375,7 +405,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       releaseOutboxForRecovery: () => outbox.releasePendingForRecovery(clock.nowIso()),
       pendingOutbox: () => outbox.pendingCount(),
       retryConnect: () => natsBus.start(),
-      reportError: (message, error) => console.error(`kernel: ${message}:`, error),
+      reportError: () => {void structuredLog({component:'event-fabric',node:config.nodeId,event:'recovery.failed',severity:'ERROR'});},
     });
   }
 
@@ -413,10 +443,23 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     },
   });
 
-  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, ids, nodeId: config.nodeId });
-  const experience = new ExperienceProjection({ streamId:ids.ulid(), build:()=>desktop.snapshot(), reportError:(error)=>console.error('experience-projector:',error) });
+  const systemTelemetry: SystemTelemetry = new SystemTelemetry({sql:pg.sql,redisPing:()=>ephemeral.ping(),voice:()=>voice.diagnostics(),vision:()=>vision.diagnostics(),sourceHealth:()=>{const report=health.report();const nats=report.subsystems.find(s=>s.subsystem==='nats');return{nats:useInProc?null:nats?Number(nats.status==='HEALTHY'):null};},prometheusUrl:process.env.JARVIS_PROMETHEUS_URL??'http://127.0.0.1:9090'});
+  const telemetryMonitor = new TelemetryMonitor();
+  const telemetryReview = new TelemetryReview();
+  const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, business, ids, nodeId: config.nodeId, systemTelemetry, voiceAudio:()=>voice.audioSnapshot(),observeScene:(principalId,nodeId,observation)=>perception.observeScene(principalId,nodeId,observation),referentFocus:()=>perception.focus(config.bootstrapPrincipalId) });
+  perception.setSceneProvider(async principalId=>{const snapshot=await desktop.snapshot();if(snapshot.principalId!==principalId)throw new Error('scene principal mismatch');return snapshot.scene;});
+  const experience = new ExperienceProjection({ streamId:ids.ulid(), build:()=>desktop.snapshot(), reportError:()=>{void structuredLog({component:'experience-projector',node:config.nodeId,event:'projection.failed',severity:'ERROR'});} });
+  const companion=new CompanionService({sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene'])});
+  desktop.setCompanion(companion);
   const offExperienceEvents = events.onAppended((event)=>experience.invalidate(channelsForEvent(event.type)));
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience });
+  const nodeIngress=new NodeIngress({sql:pg.sql,tx,nodes,store:nodeStore,credentials,accessStore,sessions,events,clock,id:()=>ids.ulid(),status:async()=>({mode:await mode.current(),overallHealth:health.report().overall}),health:async(nodeId,online)=>{health.register({subsystem:`node:${nodeId}`,critical:false});await health.heartbeat({subsystem:`node:${nodeId}`,status:online?'HEALTHY':'OFFLINE',message:online?'authenticated heartbeat':'node unavailable'});},reportError:()=>{void structuredLog({component:'node-ingress',node:config.nodeId,event:'transport.failed',severity:'ERROR'});}});
+  nodeIngress.setCompanion(companion);
+  notifications.setSurfaceProvider(()=>nodeIngress.deliverySurfaces());
+  notifications.registerSink(record=>nodeIngress.deliverNotification(record));
+  nodeIngress.onSurfaceConnected(()=>{void notifications.retryQueued().catch(()=>undefined);});
+  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
+  notifications.setSurfaceProvider(async()=>[...await diagnosticsHttp.deliverySurfaces(),...await nodeIngress.deliverySurfaces()]);
+  notifications.registerSink(record=>diagnosticsHttp.deliverNotification(record));
 
   const scheduler = new Scheduler({
     events,
@@ -426,6 +469,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   });
 
   let diagnosticsPort: number | null = null;
+  let nodeIngressPort:number|null=null;
   let started = false;
   let modeRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -477,12 +521,22 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         status: dbOk ? 'HEALTHY' : 'OFFLINE',
         message: dbOk ? 'ok' : 'ping failed',
       });
+      // The health probe must precede database-dependent maintenance. During a
+      // PostgreSQL outage, reap would throw before OFFLINE was ever observed.
+      if (!dbOk) return;
+      await agentRuntime.reap();
       await health.heartbeat({
         subsystem: 'redis',
         status: (await ephemeral.ping()) ? 'HEALTHY' : 'OFFLINE',
         message: ephemeral.connected ? 'ok' : 'down',
       });
       if (useInProc) await health.heartbeat({ subsystem: 'nats', status: 'HEALTHY', message: 'in-process bus' });
+      const snapshot=await systemTelemetry.snapshot();
+      for(const finding of telemetryMonitor.evaluate(snapshot))await notifications.submit({source:'sentinel.telemetry',principalId:currentPrincipalId,severity:'warning',urgency:'normal',title:finding.title,body:finding.body,dedupeKey:finding.key,correlationId:ids.ulid(),data:{reasoningRequired:finding.reasoningRequired??false}});
+      experience.invalidate(['telemetry']);
+      void telemetryReview.review(snapshot,{runtime:agentRuntime,principalId:currentPrincipalId,correlationId:ids.ulid(),localAvailable:config.modelLocalRouteAvailable}).then(async review=>{
+        if(review)await notifications.submit({source:'argus.telemetry',principalId:currentPrincipalId,severity:'warning',urgency:'normal',title:'Unexplained queue growth reviewed',body:`Argus returned ${review.proposalCount} diagnostic answer proposal(s). Review the agent job evidence in Operations. No remediation was executed.`,dedupeKey:'telemetry.queue.review',correlationId:ids.ulid(),data:{reasoningRequired:true}});
+      }).catch(()=>{void structuredLog({component:'argus.telemetry',node:config.nodeId,event:'review.unavailable',severity:'ERROR'});});
     });
     scheduler.register(ROUTINE_DEFS.stateSnapshot!, async () => {
       await stateStore.takeSnapshot(await state.checkpointEventId());
@@ -521,8 +575,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         // reconciliation itself instead of relying on an arbitrary heartbeat.
         if (!modeRecoveryTimer && started) modeRecoveryTimer = setTimeout(() => {
           modeRecoveryTimer = undefined;
-          void reconcileModeWithHealth(health.report().overall).catch((error) =>
-            console.error('kernel: deferred health-to-mode reconciliation failed:', error));
+          void reconcileModeWithHealth(health.report().overall).catch(() =>
+            void structuredLog({component:'kernel',node:config.nodeId,event:'health.reconciliation.failed',severity:'ERROR'}));
         }, Math.max(1, config.modeMinDwellMs));
       } else if(!outcome.ok&&outcome.code!=='same_mode')throw new Error(`health-to-mode recovery failed: ${outcome.code}: ${outcome.detail}`);
     } else if (
@@ -549,6 +603,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     identity,
     credentials,
     nodes,
+    nodeIngress,
+    get nodeIngressPort(){return nodeIngressPort;},
     sessions,
     presence,
     health,
@@ -559,6 +615,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     permissions,
     approvals,
     credentialBroker,
+    business,
     agency,
     cognition,
     objectives,
@@ -622,7 +679,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         registeredCapabilities.push(entry.manifest.id);
         await events.emit({ type: EventNames.CapabilityRegistered, retentionClass: 'AUDIT', privacyClass: 'INTERNAL', subject: { kind: 'capability', id: entry.manifest.id }, actor: { kind: 'system', id: 'capability-registry' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: 'system', payload: { capabilityId: entry.manifest.id, version: entry.manifest.version, registeredBy: 'kernel-bootstrap', artifactHash: entry.artifactHash ?? 'local-module' } });
       }
-      for (const grant of ov.bootstrapGrants ?? []) { await permissions.issueGrant(grant); await events.emit({ type: EventNames.GrantIssued, retentionClass: 'SECURITY', privacyClass: 'SENSITIVE', subject: { kind: 'grant', id: grant.id }, actor: { kind: 'system', id: 'permission-manager' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: grant.principalId, payload: { grantId: grant.id, principalId: grant.principalId, version: grant.version, scopes: grant.scopes } }); }
+      for (const grant of ov.bootstrapGrants ?? []) { if(grant.id.startsWith('integrations:')&&await grantStore.get(grant.id))continue; await permissions.issueGrant(grant); await events.emit({ type: EventNames.GrantIssued, retentionClass: 'SECURITY', privacyClass: 'SENSITIVE', subject: { kind: 'grant', id: grant.id }, actor: { kind: 'system', id: 'permission-manager' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: grant.principalId, payload: { grantId: grant.id, principalId: grant.principalId, version: grant.version, scopes: grant.scopes } }); }
 
       // 2. State
       await state.init();
@@ -674,11 +731,19 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       });
 
       // 6. Scheduler routines
+      await agentRuntime.reap();
       registerRoutines();
       if (!ov.noScheduler) scheduler.start();
       await health.heartbeat({ subsystem: 'scheduler', status: 'HEALTHY', message: `${Object.keys(ROUTINE_DEFS).length} routines` });
 
       // 7. Diagnostics HTTP
+      if(ov.nodeIngressTls)nodeIngressPort=await nodeIngress.listen(ov.nodeIngressTls);
+      else if(process.env.JARVIS_NODE_INGRESS_ENABLED==='1'){
+        const host=process.env.JARVIS_NODE_HOST??'127.0.0.1';if(host!=='127.0.0.1'&&host!=='::1')throw new Error('node ingress is loopback-only');
+        const port=Number(process.env.JARVIS_NODE_PORT??7425);if(!Number.isInteger(port)||port<1||port>65535)throw new Error('invalid node ingress port');
+        const load=(name:string)=>{const path=process.env[name];if(!path)throw new Error(`missing ${name}`);return readFileSync(path,'utf8');};
+        nodeIngressPort=await nodeIngress.listen({host,port,ca:load('JARVIS_NODE_CA_FILE'),cert:load('JARVIS_NODE_CERT_FILE'),key:load('JARVIS_NODE_KEY_FILE')});
+      }
       if (!ov.noHttp) {
         diagnosticsPort = await diagnosticsHttp.listen(config.diagnosticsPort, config.diagnosticsHost);
       }
@@ -712,9 +777,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     async stop() {
       if (!started) return;
       started = false;
+      await nodeIngress.close();nodeIngressPort=null;
       if (modeRecoveryTimer) clearTimeout(modeRecoveryTimer);
       modeRecoveryTimer = undefined;
       agency.stop();
+      await agentRuntime.stop();
       await events
         .emit({
           type: EventNames.KernelStopping,

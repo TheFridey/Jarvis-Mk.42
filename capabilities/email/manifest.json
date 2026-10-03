@@ -1,0 +1,376 @@
+{
+  "id": "capabilities.email",
+  "version": "2.0.0",
+  "description": "Principal-bound Gmail integration",
+  "provider": "email",
+  "credentialKind": "wrapped-static",
+  "executionEnvironment": "worker",
+  "auditPolicy": {
+    "hashInput": true,
+    "recordOutput": "none"
+  },
+  "privacyRequirements": {
+    "maxContentPrivacyClass": "RESTRICTED"
+  },
+  "actions": [
+    {
+      "name": "search",
+      "requiredScopes": [
+        "email.search"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "pageToken": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "search"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    },
+    {
+      "name": "read",
+      "requiredScopes": [
+        "email.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "messageId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "read"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    },
+    {
+      "name": "thread.read",
+      "requiredScopes": [
+        "email.thread.read"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "threadId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "threadId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "LOW",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": true,
+      "sideEffects": [],
+      "approvalPolicy": "default",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "thread.read"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    },
+    {
+      "name": "draft.create",
+      "requiredScopes": [
+        "email.draft.create"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "inReplyTo": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "MEDIUM",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "email draft.create"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "draft.create"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    },
+    {
+      "name": "draft.update",
+      "requiredScopes": [
+        "email.draft.update"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "inReplyTo": {
+            "type": "string"
+          },
+          "draftId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "to",
+          "subject",
+          "body",
+          "draftId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "MEDIUM",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "email draft.update"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "draft.update"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    },
+    {
+      "name": "send",
+      "requiredScopes": [
+        "email.send"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "inReplyTo": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "HIGH",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "email send"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "send"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    },
+    {
+      "name": "archive",
+      "requiredScopes": [
+        "email.archive"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "messageId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {}
+        },
+        "additionalProperties": false
+      },
+      "riskClass": "MEDIUM",
+      "reversible": false,
+      "simulatable": false,
+      "verify": "verify",
+      "idempotent": false,
+      "sideEffects": [
+        "email archive"
+      ],
+      "approvalPolicy": "always",
+      "timeoutMs": 30000,
+      "verificationStrategy": {
+        "kind": "world-read",
+        "adapterRef": "archive"
+      },
+      "declaredEgress": [
+        "integration://email"
+      ]
+    }
+  ],
+  "requiredScopes": [
+    "email.search",
+    "email.read",
+    "email.thread.read",
+    "email.draft.create",
+    "email.draft.update",
+    "email.send",
+    "email.archive"
+  ],
+  "trustTierMin": "owned-secure"
+}

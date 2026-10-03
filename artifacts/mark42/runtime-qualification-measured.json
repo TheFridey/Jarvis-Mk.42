@@ -1,0 +1,77 @@
+{
+  "observedAt": "2026-10-03T10:43:58.830Z",
+  "scope": "Real Kernel + PostgreSQL + HTTP provider adapter + WebSocket. In-process event bus; all model output is a labelled fixture. No cloud access.",
+  "metrics": {
+    "websocketEventToProjectionMs": [
+      29.528699999998935,
+      29.29360000000088,
+      26.220299999999042,
+      29.8208999999988,
+      22.35269999999946
+    ],
+    "operatingPictureHttpMs": [
+      22.222799999999552,
+      23.6200000000008,
+      19.705299999999625,
+      15.612699999999677,
+      15.809299999998984
+    ],
+    "httpCommandToProviderDispatchMs": [
+      258.3127000000004,
+      234.689699999999,
+      223.52070000000094,
+      217.426300000001
+    ],
+    "firstTokenMs": null,
+    "speechMs": null,
+    "airTouchMs": null,
+    "gpuLoad": null,
+    "memory": {
+      "rss": 271065088,
+      "heapTotal": 83607552,
+      "heapUsed": 46281488,
+      "external": 7812090,
+      "arrayBuffers": 842400
+    },
+    "unavailableReason": "Fixture adapter is non-streaming; physical speech, gestures and GPU utilisation were not exercised."
+  },
+  "scenarios": [
+    {
+      "input": "What is 2 + 2?",
+      "modelId": "qualification-small",
+      "agentId": "agents.oracle",
+      "totalMs": 719.1075000000001,
+      "providerAttempts": [
+        "qualification-small"
+      ]
+    },
+    {
+      "input": "Reason deeply about recovery invariants",
+      "modelId": "qualification-primary",
+      "agentId": "agents.oracle",
+      "totalMs": 704.8127999999997,
+      "providerAttempts": [
+        "qualification-primary"
+      ]
+    },
+    {
+      "input": "Review the repository architecture",
+      "modelId": "qualification-engineering",
+      "agentId": "agents.forge",
+      "totalMs": 663.9457000000002,
+      "providerAttempts": [
+        "qualification-engineering"
+      ]
+    },
+    {
+      "input": "Reason deeply about fallback",
+      "modelId": "qualification-fallback",
+      "agentId": "agents.oracle",
+      "totalMs": 706.7751000000007,
+      "providerAttempts": [
+        "qualification-primary",
+        "qualification-fallback"
+      ]
+    }
+  ]
+}

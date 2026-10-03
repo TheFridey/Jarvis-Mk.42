@@ -23,6 +23,7 @@ import {
   type StateSliceKey,
   type StateSnapshot,
   type SystemStateView,
+  type Event,
 } from '@jarvis/contracts';
 import { createHash } from 'node:crypto';
 import type { Sql } from '@jarvis/persistence';
@@ -114,6 +115,7 @@ export class StateManager {
       );
     }
 
+    let committedEvent:Event|undefined;
     try {
       const result = await this.deps.tx.begin(async (tx) => {
         const currentVersion = await this.deps.store.lockSliceVersion(tx, req.key);
@@ -148,7 +150,8 @@ export class StateManager {
             valueHash: hashValue(parsed.data),
             actorKind: req.actor.kind,
           },
-        });
+        },false);
+        committedEvent=event;
         await this.deps.store.writeSliceInTx(tx, {
           key: req.key,
           value: parsed.data,
@@ -166,6 +169,7 @@ export class StateManager {
       });
 
       if (result.ok) {
+        if(committedEvent)this.deps.events.notifyCommitted(committedEvent);
         this.lastMutationAt = new Date().toISOString();
         const slice = await this.deps.store.getSlice(req.key);
         if (slice) {

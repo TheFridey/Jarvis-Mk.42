@@ -2,10 +2,10 @@ import type { ExperienceChannel, ExperienceStreamUpdate, JarvisOperatingPicture 
 
 const CHANNEL_KEYS: Record<ExperienceChannel, ReadonlyArray<keyof JarvisOperatingPicture>> = {
   system: ['generatedAt','stateVersion','sceneVersion','systemMode','interactionState','workState','principal','presence','systemHealth','diagnostics','state','principalId'],
-  objectives: ['activeObjective','activeTasks','objectives'],
-  cognition: ['activeModels','recentModelRuns','activeAgents','conversationActivity','cognitionResponses','sessions'],
-  agency: ['activeCapabilities','pendingApprovals','capabilityActivity','policyDenials','approvals'],
-  notifications: ['notifications'], scene: ['scene','selectedContext','selectedProjectId','contextId'], telemetry: ['telemetrySummary'],
+  objectives: ['activeObjective','activeTasks','objectives','scalesmiths'],
+  cognition: ['activeModels','recentModelRuns','activeAgents','agentJobs','conversationActivity','cognitionResponses','cognitionResponseBodiesTruncated','sessions'],
+  agency: ['activeCapabilities','pendingApprovals','capabilityActivity','policyDenials','approvals','agentJobs'],
+  notifications: ['notifications'], scene: ['scene','selectedContext','selectedProjectId','contextId','referentFocus'], telemetry: ['telemetrySummary','voiceAudio'],
 };
 export const ALL_EXPERIENCE_CHANNELS = Object.freeze(Object.keys(CHANNEL_KEYS) as ExperienceChannel[]);
 

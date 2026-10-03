@@ -34,7 +34,7 @@ Kernel authority component.
 | System | Status | Current repository evidence and boundary |
 |---|---|---|
 | Kernel composition and lifecycle | **VERIFIED** | `apps/core/src/kernel/lifecycle`; restart, health, and lifecycle integration coverage. |
-| PostgreSQL authoritative state and migrations | **VERIFIED** | `packages/persistence`; forward-only migrations `0001`–`0013`; event/state/agency/cognition/ATLAS/MNEMOSYNE schemas. |
+| PostgreSQL authoritative state and migrations | **VERIFIED** | `packages/persistence`; forward-only migrations `0001`–`0015`; event/state/agency/cognition/ATLAS/MNEMOSYNE schemas and Runtime-owned agent jobs. |
 | Event Manager, transactional outbox, JetStream | **VERIFIED** | Durable append/outbox, idempotency, DLQ, topology, outage and recovery audit. PostgreSQL remains authority. |
 | Redis ephemeral state | **VERIFIED** | Optional ephemeral cache/presence behavior; never authority. |
 | Policy, Permission, Approval | **VERIFIED** | Fail-closed policy and grant/approval/token paths with unit, integration, security, and fitness gates. |
@@ -42,6 +42,8 @@ Kernel authority component.
 | Agency Plane | **PARTIAL** | Load-bearing core is wired; the full historical HEPHAESTUS breadth and every external integration are not certified. |
 | Context Compiler | **VERIFIED** | Bounded ranked fusion of Kernel state, events, ATLAS, and MNEMOSYNE with privacy-aware routing. |
 | Model Registry and Model Gateway | **PARTIAL** | Routing, adapters, budgets, circuit breakers, tracing, and tests exist. Live provider credentials, quotas, latency, and availability are environment-dependent and not certified here. |
+| Cognition Observatory / Model Rail | **PARTIAL** | Actual provider-attempt/fallback observations, rejection reasoning, state-driven route diagram, health/circuit metadata, separate usage dimensions and realtime projection exist. Live providers are unverified; first-token streaming, session aggregation, standby catalogue and spatial choreography remain incomplete. Quotas and local GPU/VRAM/queue metrics are unavailable unless genuinely supplied. |
+| Agent Runtime / Agent Observatory | **IMPLEMENTED BUT NOT HARDWARE-VERIFIED** | Runtime-owned PostgreSQL job/lease history (0015), fenced recovery, event-driven bounded queue, credentialless fixed-process workers, eleven manifests, scoped proposals, authenticated cancellation and effect-linked realtime Observatory. Restart recovery uses trusted identity-bound resubmission and fresh Context compilation. No hostile-code/plugin sandbox, live-provider or native UI certification is claimed. Current gate evidence: Prompt 6 audit; authority/recovery decision: ADR 0040. |
 | ATLAS temporal world model | **VERIFIED** | PostgreSQL-backed temporal facts, conflicts, provenance, queries, and ingestion ownership. |
 | MNEMOSYNE memory | **VERIFIED** | Candidate gate, recall, consolidation proposals, and PostgreSQL persistence. It is not authoritative truth. |
 | Objective Engine and Scheduler | **VERIFIED** | Durable objective ownership, scheduling, and restart behavior exist in the Kernel. |

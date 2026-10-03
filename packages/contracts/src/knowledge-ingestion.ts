@@ -36,6 +36,7 @@ export interface IngestionItem {
   /** Present for fact-bearing kinds. */
   fact?: {
     subjectRef: string; // entity id, or a resolvable descriptor
+    entityType?: import('./entity.ts').EntityType;
     attribute: string;
     predicate?: string;
     value: unknown;

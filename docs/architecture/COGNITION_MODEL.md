@@ -1,5 +1,14 @@
 # Cognition Model
 
+Current bounded Agent Runtime implementation: **IMPLEMENTED**, with required
+verification evidence recorded in the Prompt 6 audit. ADR
+[0040](adr/0040-agent-worker-and-lease-boundary.md) documents the fixed process
+worker, PostgreSQL fenced leases, event-driven queue admission, durable history,
+authenticated cancellation and effect-linked presentation. Restart recovery
+requires trusted resubmission and freshly compiled context. Do not infer an
+OS/container hostile-code sandbox or reconstruction of unstored prompts from
+this document's historical target language.
+
 Where intelligence lives — and why it is not JARVIS (L1, L3, L26). Covers the
 Model Gateway, provider replaceability, reasoning/planning, agents, proposals,
 and the context budget that prevents context explosion.

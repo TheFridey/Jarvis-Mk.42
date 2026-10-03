@@ -77,14 +77,35 @@ export interface ModelResponse {
     outputUnits: number;
     costEstimate: number;
     latencyMs: number;
+    inputTokens?: number;
+    cachedTokens?: number;
+    outputTokens?: number;
+    actualCost?: number;
+    tokensPerSecond?: number;
   };
+  routing?: ModelRoutingObservability;
   finishReason: FinishReason;
   provenance: Provenance;
 }
 
+export type ModelRouteState='CANDIDATE'|'SELECTED'|'FAILED'|'FALLBACK'|'UNAVAILABLE';
+export interface ModelRouteCandidate {
+  modelId:string;displayName:string;provider:string;locality:'local'|'cloud-ok';state:ModelRouteState;
+  reason:string;score?:number;estimatedCost?:number;contextLimitUnits:number;
+  toolSupport:boolean;visionSupport:boolean;reasoningMode?:'fast'|'balanced'|'deep';
+  healthState:'healthy'|'degraded'|'offline'|'unknown';circuitBreaker:'closed'|'open';
+}
+export interface ModelRoutingObservability {
+  phase?: 'CANDIDATE' | 'STARTING' | 'FALLBACK' | 'COMPLETE' | 'FAILED';
+  schemaVersion:1;correlationId:CorrelationId;taskClass:ModelTask;privacyClass:PrivacyClass;
+  startedAt:Timestamp;completedAt?:Timestamp;firstTokenAt?:Timestamp;
+  candidates:ModelRouteCandidate[];selectedModelId?:string;fallbackModelIds:string[];
+  selectionReason?:string;fallbackReason?:string;errorClass?:ModelErrorCode;
+}
+
 export type ModelErrorCode = 'NO_ROUTE' | 'UNAVAILABLE' | 'TIMEOUT' | 'CANCELLED' | 'RATE_LIMITED' | 'AUTHENTICATION' | 'INVALID_RESPONSE' | 'PROVIDER_ERROR' | 'BUDGET_EXCEEDED';
 export class ModelGatewayError extends Error { constructor(readonly code: ModelErrorCode, message: string, readonly retryable: boolean, readonly provider?: string) { super(message); this.name = 'ModelGatewayError'; } }
-export interface ModelStreamChunk { type: 'delta' | 'usage' | 'done'; delta?: string; usage?: ModelResponse['usage']; response?: ModelResponse; }
+export interface ModelStreamChunk { type: 'delta' | 'usage' | 'done' | 'routing' | 'error'; delta?: string; usage?: ModelResponse['usage']; response?: ModelResponse; routing?: ModelRoutingObservability; error?: { code: ModelErrorCode; retryable: boolean }; }
 export interface ModelHealth { modelId: string; provider: string; status: 'healthy' | 'degraded' | 'offline' | 'circuit-open'; checkedAt: Timestamp; latencyMs?: number; detail?: string; }
 
 /** A registered model in the Kernel Model Registry (catalogue.models). */

@@ -2,7 +2,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import type { AuthorityToken, CredentialHandle } from '@jarvis/contracts';
 import type { CredentialMaterialStore } from './material-store.ts';
 import type { Sql } from '@jarvis/persistence';
-export interface InternalCredential { readOnly: boolean; signRequest: (body: string) => string; use?: <T>(fn: (secret: string) => T) => T; }
+export interface InternalCredential { principalId?: string; readOnly: boolean; signRequest: (body: string) => string; use?: <T>(fn: (secret: string) => T) => T; }
 interface Entry { handle: CredentialHandle; credential: InternalCredential; used: boolean; }
 export class CredentialUnavailableError extends Error {}
 export interface AuthorityTokenConsumer { consume(value: string, now: string): Promise<AuthorityToken | undefined>; }
@@ -19,7 +19,7 @@ export class CredentialBroker {
     const secret = material ?? '';
     const handle: CredentialHandle = { handleId: randomUUID(), invocationId: input.invocationId, scope: { capabilityId: input.capabilityId, action: input.action, resourceRef: input.resourceRef },
       mode: input.mode, expiresAt: new Date(Date.parse(this.now()) + (input.ttlMs ?? 120_000)).toISOString(), kind };
-    const credential: InternalCredential = { readOnly: input.mode === 'dry-run', signRequest: (body) => createHmac('sha256', secret).update(`${handle.handleId}:${body}`).digest('hex'),
+    const credential: InternalCredential = { principalId: authority.principalId, readOnly: input.mode === 'dry-run', signRequest: (body) => createHmac('sha256', secret).update(`${handle.handleId}:${body}`).digest('hex'),
       ...(handle.kind === 'wrapped-static' ? { use: <T>(fn: (value: string) => T) => fn(secret) } : {}) };
     this.handles.set(handle.handleId, { handle, credential, used: false });
     if (this.sql) await this.sql`insert into agency.credential_grants (id, invocation_id, handle_id, scope, mode, kind, minted_at, expires_at) values (${randomUUID()}, ${handle.invocationId}, ${handle.handleId}, ${JSON.stringify(handle.scope)}, ${handle.mode}, ${handle.kind}, ${this.now()}, ${handle.expiresAt})`;

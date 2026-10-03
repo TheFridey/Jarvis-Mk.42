@@ -6,7 +6,7 @@ import { join } from 'node:path';
 const execFile=promisify(cb), suffix=`${Date.now()}-${process.pid}`, source=`jarvis-dr-source-${suffix}`, restored=`jarvis-dr-restored-${suffix}`;
 const dir=await mkdtemp(join(tmpdir(),'jarvis-dr-')), artifact=join(dir,'jarvis.dump');
 const docker=(args,opts={})=>execFile('docker',args,{timeout:120000,maxBuffer:20*1024*1024,...opts});
-async function ready(name){for(let i=0;i<60;i++){try{await docker(['exec',name,'pg_isready','-U','jarvis','-d','jarvis']);return}catch{}await new Promise(r=>setTimeout(r,500))}throw new Error(`${name} did not become ready`)}
+async function ready(name){const deadline=Date.now()+180000;while(Date.now()<deadline){try{await docker(['exec',name,'pg_isready','-U','jarvis','-d','jarvis']);return}catch{}await new Promise(r=>setTimeout(r,500))}throw new Error(`${name} did not become ready within 180s`)}
 async function start(name){await docker(['run','-d','--name',name,'-e','POSTGRES_USER=jarvis','-e','POSTGRES_PASSWORD=jarvis','-e','POSTGRES_DB=jarvis','-p','127.0.0.1::5432','pgvector/pgvector:pg16']);await ready(name);await new Promise(r=>setTimeout(r,2000));const{stdout}=await docker(['port',name,'5432/tcp']);const port=stdout.trim().match(/:(\d+)$/)?.[1];if(!port)throw new Error('Postgres port unavailable');return`postgres://jarvis:jarvis@127.0.0.1:${port}/jarvis`}
 async function pnpm(args,env){const{stdout,stderr}=await execFile('pnpm',args,{cwd:process.cwd(),env:{...process.env,...env},timeout:180000,maxBuffer:20*1024*1024,shell:process.platform==='win32'});process.stdout.write(stdout);process.stderr.write(stderr)}
 const seed=`

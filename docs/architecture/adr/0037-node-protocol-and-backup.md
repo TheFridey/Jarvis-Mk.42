@@ -1,6 +1,15 @@
 # ADR-0037: Node Protocol v1 design (identity, enrollment, rotation, revocation, attestation, trust-tier store); backup and restore drill design
 
-Status: PARTIAL — Part B (backup/restore) is DELIVERED and drilled. Part A (Node
+Current status (2026-10-02): Part A has a real, opt-in loopback mTLS ingress,
+exercised by separate workstation and display runtime processes. Enrollment,
+admission, scoped status subscription, nonce heartbeats/RTT, bounded observations,
+new-key proof/rotation, revocation, automatic reconnect and restart deduplication
+are operational. Remote capability hosting, public/LAN ingress and hardware
+attestation remain unqualified. See [operations](../NODE_PROTOCOL_V1_OPERATIONS.md)
+and [verification](../NODE_PROTOCOL_V1_VERIFICATION.md). Part B's backup/restore
+status is unchanged. The audit notes and design context below are historical.
+
+Historical status (2026-09-08): PARTIAL — Part B (backup/restore) is DELIVERED and drilled. Part A (Node
 Protocol v1) has a persisted, unit-tested manager (enrollment tokens with a
 trust ceiling, admission, key rotation with overlap, revocation/isolation,
 liveness sweep) but **no network ingress**: no node can enroll or heartbeat over

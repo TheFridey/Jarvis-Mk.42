@@ -1,0 +1,2 @@
+import {describe,expect,it} from 'vitest';import {validateLocalCapturePath} from './index.ts';
+describe('selected capture destinations',()=>{it('accepts explicit local PNG destinations and blocks relative, UNC, remote and non-image paths',()=>{expect(validateLocalCapturePath('D:\\selected-error.png')).toBe('D:\\selected-error.png');for(const path of ['error.png','\\\\server\\share\\error.png','https://example.com/error.png','C:\\project\\source.ts','C:\\bad\0.png'])expect(()=>validateLocalCapturePath(path)).toThrow();});});

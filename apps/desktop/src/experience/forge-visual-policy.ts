@@ -41,8 +41,8 @@ export function resolveQuality(setting: ForgeQuality, measuredTier: ResolvedForg
   return setting === 'AUTO' ? measuredTier : setting;
 }
 
-export function visualPolicy(input: { picture?: JarvisOperatingPicture; scene: SemanticScene; setting: ForgeQuality; measuredTier: ResolvedForgeQuality; reducedMotion: boolean; lowPower: boolean }): ForgeVisualPolicy {
-  const state = resolveVisualState(input.picture, input.scene.presentation);
+export function visualPolicy(input: { picture?: JarvisOperatingPicture; scene: SemanticScene; setting: ForgeQuality; measuredTier: ResolvedForgeQuality; reducedMotion: boolean; lowPower: boolean; disconnected?:boolean }): ForgeVisualPolicy {
+  const state = input.disconnected ? 'DEGRADED' : resolveVisualState(input.picture, input.scene.presentation);
   const quality = resolveQuality(input.setting, input.measuredTier, input.reducedMotion, input.lowPower);
   const base = BUDGETS[quality];
   const motion = input.reducedMotion ? 0 : input.lowPower ? 0.18 : state === 'IDLE' ? 0.12 : state === 'DEGRADED' ? 0.35 : 1;

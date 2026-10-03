@@ -1,0 +1,230 @@
+{
+  "observedAt": "2026-10-03T10:45:30.581Z",
+  "scope": "Headless Chromium production export on Windows ARM, ambient fixture Kernel; rendered frames, not monitor refresh. Core timing is DOM state to next browser animation frame, not GPU scanout.",
+  "viewport": {
+    "width": 1262,
+    "height": 624,
+    "dpr": 1
+  },
+  "samples": [
+    {
+      "fps": 13.715069432521483,
+      "frameTimeMs": 72.91250000009313,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 5215.300000000745
+    },
+    {
+      "fps": 14,
+      "frameTimeMs": 71.42857142857143,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 5715.4000000003725
+    },
+    {
+      "fps": 13.994402239125204,
+      "frameTimeMs": 71.45714285703642,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 6215.700000001118
+    },
+    {
+      "fps": 13.1307447007699,
+      "frameTimeMs": 76.15714285735574,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 6748.700000001118
+    },
+    {
+      "fps": 13.128282070535974,
+      "frameTimeMs": 76.17142857132214,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 7281.800000000745
+    },
+    {
+      "fps": 13.123359580043328,
+      "frameTimeMs": 76.20000000005322,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 7815.200000001118
+    },
+    {
+      "fps": 12.35657546337158,
+      "frameTimeMs": 80.92857142857143,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 8381.700000001118
+    },
+    {
+      "fps": 14.542810398119283,
+      "frameTimeMs": 68.76249999995343,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 8932
+    },
+    {
+      "fps": 13.120899718837864,
+      "frameTimeMs": 76.21428571428571,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 9465.400000000373
+    },
+    {
+      "fps": 13.133208255159476,
+      "frameTimeMs": 76.14285714285714,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 9998.5
+    },
+    {
+      "fps": 12.727272727272727,
+      "frameTimeMs": 78.57142857142857,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 10548.400000000373
+    },
+    {
+      "fps": 12.72958719766368,
+      "frameTimeMs": 78.55714285719607,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 11098.200000001118
+    },
+    {
+      "fps": 13.125820363800242,
+      "frameTimeMs": 76.18571428555462,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 11631.5
+    },
+    {
+      "fps": 13.120899718837864,
+      "frameTimeMs": 76.21428571428571,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 12165
+    },
+    {
+      "fps": 13.128282070490112,
+      "frameTimeMs": 76.17142857158822,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 12698.300000000745
+    },
+    {
+      "fps": 13.125820363800242,
+      "frameTimeMs": 76.18571428555462,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 13231.60000000149
+    },
+    {
+      "fps": 12.35439463463041,
+      "frameTimeMs": 80.94285714307001,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 13798.200000001118
+    },
+    {
+      "fps": 14,
+      "frameTimeMs": 71.42857142857143,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 14298.10000000149
+    },
+    {
+      "fps": 13.547513063692847,
+      "frameTimeMs": 73.81428571417928,
+      "drawCalls": 16,
+      "triangles": 6928,
+      "particleCount": 922,
+      "quality": "MEDIUM",
+      "state": "gpu-environment forge-degraded",
+      "kernelState": "DORMANTAMBIENTDORMANTIDLE",
+      "at": 14814.800000000745
+    }
+  ],
+  "coreResponses": [],
+  "memory": {
+    "usedJSHeapSize": 12966378,
+    "totalJSHeapSize": 19705510,
+    "jsHeapSizeLimit": 4395630592
+  },
+  "gpuUtilisation": null,
+  "firstToken": null,
+  "speech": null,
+  "airTouch": null
+}

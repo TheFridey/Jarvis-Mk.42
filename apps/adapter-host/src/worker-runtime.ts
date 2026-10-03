@@ -9,7 +9,9 @@ const binding=()=>({invocationId:job.invocationId,capabilityId:job.capabilityId,
 try {
   const imported = await import(job.moduleUrl) as { default?: { actions?: Record<string, { execute: (ctx: unknown, input: unknown) => Promise<unknown>; verify?: (ctx: unknown, input: unknown, output: unknown) => Promise<unknown>; rollback?: (ctx: unknown, input: unknown, before: unknown) => Promise<unknown>; simulate?: (ctx: unknown, input: unknown) => Promise<unknown> }> } };
   const action = imported.default?.actions?.[job.action]; if (!action) throw new Error('adapter action not found');
-  const ctx = { input: job.input, mode: job.mode, credential: job.handle, abortSignal: new AbortController().signal, log: (level: string, msg: string, fields?: Record<string, unknown>) => logs.push({ level, msg, fields }), http: async () => { throw new Error('egress unavailable'); } };
+  const pending = new Map<number, { resolve:(value:unknown)=>void; reject:(error:Error)=>void }>(); let sequence = 0;
+  process.on('message', raw => { const reply=raw as {id:number;error?:string;value?:unknown}; const waiter = pending.get(reply.id); pending.delete(reply.id); if(reply.error)waiter?.reject(new Error(reply.error));else waiter?.resolve(reply.value); });
+  const ctx = { input: job.input, mode: job.mode, credential: job.handle, abortSignal: new AbortController().signal, log: (level: string, msg: string, fields?: Record<string, unknown>) => logs.push({ level, msg, fields }), http: async (request: unknown) => new Promise((resolve,reject)=>{const id=++sequence;if(!process.send)return reject(new Error('egress unavailable'));pending.set(id,{resolve,reject});process.send({id,request});}) };
   let output: unknown;
   if (job.operation === 'hash-file') {
     const input = job.input as { root?: string; path?: string }; if (!input.root || !input.path) throw new Error('hash-file requires root and path');
@@ -19,5 +21,6 @@ try {
   else if (job.operation === 'rollback') { if (!action.rollback) throw new Error('adapter rollback unavailable'); output = await action.rollback(ctx, job.input, job.before); }
   else if (job.operation === 'simulate') { if (!action.simulate) throw new Error('adapter simulation unavailable'); output = await action.simulate(ctx, job.input); }
   else output = await action.execute(ctx, job.input);
+  if(process.connected)process.disconnect();
   process.stdout.write(JSON.stringify({ ok: true, output, logs, binding:binding() } satisfies WorkerReply));
-} catch (error) { process.stdout.write(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : 'worker failed', binding:binding() } satisfies WorkerReply)); }
+} catch (error) { process.stdout.write(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : 'worker failed', binding:binding() } satisfies WorkerReply),()=>process.exit(0)); }

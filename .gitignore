@@ -1,4 +1,6 @@
 node_modules/
+/.node-pki/
+/artifacts/node-protocol/
 dist/
 build/
 .next/
@@ -25,3 +27,9 @@ coverage/
 jarvis-*-review.png
 .playwright-mcp/
 artifacts/hardware-validation/
+.voice-venv/
+.voice-models/
+__pycache__/
+
+# Local integration secrets
+*.integrations.local.json

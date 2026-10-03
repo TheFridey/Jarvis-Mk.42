@@ -19,6 +19,7 @@ import {
 import type { Clock } from '../../runtime/clock.ts';
 import type { IdGen } from '../../runtime/ids.ts';
 import { Mutex } from '../../runtime/mutex.ts';
+import { chooseDeliverySurface, type DeliverySurface } from './surface-routing.ts';
 import type { EventManager } from '../event-fabric/event-manager.ts';
 import type { StateManager } from '../state/state-manager.ts';
 import {
@@ -33,8 +34,12 @@ export class NotificationManager {
   private readonly recentDedupe = new Map<string, number>();
   private readonly gate = new Mutex();
   private readonly batch: NotificationRecord[] = [];
+  private readonly queued: NotificationRequest[] = [];
+  retryQueued():Promise<void>{return this.gate.run(async()=>{const pending=this.queued.splice(0);for(const request of pending)await this.process(request,true);});}
   private sinks: NotificationSink[] = [];
   private surfaceCount = 0;
+  private surfaceProvider?:()=>Promise<DeliverySurface[]>;
+  setSurfaceProvider(provider:()=>Promise<DeliverySurface[]>):void{this.surfaceProvider=provider;}
 
   constructor(
     private readonly deps: {
@@ -60,24 +65,26 @@ export class NotificationManager {
     return this.gate.run(() => this.process(req));
   }
 
-  private async process(req: NotificationRequest): Promise<NotificationRecord> {
+  private async process(req: NotificationRequest,retry=false): Promise<NotificationRecord> {
     const nowMs = this.deps.clock.epochMs();
     this.pruneDedupe(nowMs);
 
-    const lastSeen = this.recentDedupe.get(req.dedupeKey);
+    const dedupeKey=JSON.stringify([req.principalId,req.dedupeKey]);
+    const lastSeen = this.recentDedupe.get(dedupeKey);
     const isDuplicate =
-      lastSeen !== undefined && nowMs - lastSeen < DEFAULT_INTERRUPTION_POLICY.dedupeWindowMs;
-    if (!isDuplicate) this.recentDedupe.set(req.dedupeKey, nowMs);
+      !retry && lastSeen !== undefined && nowMs - lastSeen < DEFAULT_INTERRUPTION_POLICY.dedupeWindowMs;
+    if (!isDuplicate) this.recentDedupe.set(dedupeKey, nowMs);
 
     const [mode, presence] = await Promise.all([
       this.deps.currentMode(),
       this.deps.currentPresence(),
     ]);
+    const delivery=this.surfaceProvider?chooseDeliverySurface(req,await this.surfaceProvider(),mode,presence):undefined;
     const ctx: GateContext = {
       mode,
       userFocused: presence === 'FOCUSED',
       isDuplicate,
-      noSurface: this.surfaceCount === 0,
+      noSurface: this.surfaceProvider?!delivery:this.surfaceCount === 0,
     };
 
     const { disposition, rationale } = decideDisposition(req, ctx);
@@ -87,9 +94,11 @@ export class NotificationManager {
       disposition,
       decidedAt: this.deps.clock.nowIso(),
       rationale,
+      ...(delivery?{deliverySurfaceId:delivery.id}:{}),
     };
 
     if (disposition === 'batched') this.batch.push(record);
+    if (disposition === 'queued') this.queued.push(req);
 
     await this.deps.events
       .emit({
@@ -108,6 +117,7 @@ export class NotificationManager {
           urgency: req.urgency,
           disposition,
           rationale,
+          ...(delivery?{deliverySurfaceId:delivery.id}:{}),
         },
       })
       .catch(() => undefined);
@@ -130,19 +140,16 @@ export class NotificationManager {
   async flushBatch(): Promise<NotificationRecord | null> {
     return this.gate.run(async () => {
       if (this.batch.length === 0) return null;
-      const items = this.batch.splice(0);
+      const principalId=this.batch[0]!.request.principalId;
+      const items=this.batch.filter(item=>item.request.principalId===principalId);
+      const request:NotificationRequest={source:'notification-manager',principalId,severity:'notice',urgency:'normal',title:`${items.length} batched notification(s)`,body:items.map(i=>`- ${i.request.title}`).join('\n'),dedupeKey:`digest-${this.deps.clock.epochMs()}`,correlationId:this.deps.ids.ulid(),minimumSurfaceTrust:items.some(i=>i.request.minimumSurfaceTrust==='kernel-local')?'kernel-local':items.some(i=>i.request.minimumSurfaceTrust==='owned-secure')?'owned-secure':'owned-mobile'};
+      const delivery=this.surfaceProvider?chooseDeliverySurface(request,await this.surfaceProvider(),await this.deps.currentMode(),await this.deps.currentPresence()):undefined;
+      if(this.surfaceProvider&&!delivery)return null;
+      for(let i=this.batch.length-1;i>=0;i--)if(this.batch[i]!.request.principalId===principalId)this.batch.splice(i,1);
       const digest: NotificationRecord = {
         id: this.deps.ids.ulid(),
-        request: {
-          source: 'notification-manager',
-          principalId: items[0]!.request.principalId,
-          severity: 'notice',
-          urgency: 'normal',
-          title: `${items.length} batched notification(s)`,
-          body: items.map((i) => `- ${i.request.title}`).join('\n'),
-          dedupeKey: `digest-${this.deps.clock.epochMs()}`,
-          correlationId: this.deps.ids.ulid(),
-        },
+        request,
+        ...(delivery?{deliverySurfaceId:delivery.id}:{}),
         disposition: 'delivered',
         decidedAt: this.deps.clock.nowIso(),
         rationale: 'batched digest flush',

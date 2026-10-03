@@ -8,6 +8,6 @@
     "kinds": ["answer", "plan", "clarification_request", "fact_extraction"],
     "capabilities": []
   },
-  "modelHints": { "tasks": ["reason"], "locality": "any" },
+  "modelHints": { "tasks": ["reason", "extract"], "locality": "any" },
   "notes": "Proposes; never acts. Output is untrusted until the Validator passes it. May emit fact_extraction candidates for World Model ingestion (re-validated there)."
 }

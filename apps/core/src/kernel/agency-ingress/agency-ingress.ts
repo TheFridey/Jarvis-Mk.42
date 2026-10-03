@@ -1,3 +1,4 @@
+import { withSpan } from '@jarvis/telemetry';
 import { z } from 'zod';
 import type { CapabilityInvocationProposal, EventActor, InvocationResult } from '@jarvis/contracts';
 import type { CapabilityExecutor } from '../executor/executor.ts';
@@ -11,13 +12,17 @@ const proposalSchema = z.object({
 export interface AgencyPrincipal { principalId: string; authenticated: boolean; }
 export class AgencyIngress {
   private accepting = true;
-  constructor(private readonly executor: CapabilityExecutor) {}
+  constructor(private readonly executor: CapabilityExecutor,private readonly onVerified?:(proposal:CapabilityInvocationProposal,result:InvocationResult,principalId:string)=>Promise<void>) {}
   stop() { this.accepting = false; }
-  async submit(input: unknown, principal: AgencyPrincipal): Promise<InvocationResult> {
+  /** Cognitive replay may observe an existing effect, never resume approval. */
+  async submitOnce(input: unknown, principal: AgencyPrincipal): Promise<InvocationResult> {
+    return this.submit(input, principal, { approvalResume:false });
+  }
+  async submit(input: unknown, principal: AgencyPrincipal, options?: { approvalResume?: boolean }): Promise<InvocationResult> {
     if (!this.accepting) throw new Error('agency ingress unavailable');
     if (!principal.authenticated || !principal.principalId) throw new Error('authenticated principal required');
     const parsed = proposalSchema.safeParse(input); if (!parsed.success) throw new Error('invalid capability proposal');
     const actor: EventActor = { kind: 'principal', id: principal.principalId };
-    return this.executor.invoke(parsed.data as CapabilityInvocationProposal, actor);
+    return withSpan('agency.proposal', {'jarvis.correlation_id':parsed.data.correlationId,'jarvis.causation_id':parsed.data.proposalId}, async()=>{const proposal=parsed.data as CapabilityInvocationProposal;const result=await this.executor.invoke(proposal,actor,options);if(result.outcome==='verified')await this.onVerified?.(proposal,result,principal.principalId);return result;});
   }
 }

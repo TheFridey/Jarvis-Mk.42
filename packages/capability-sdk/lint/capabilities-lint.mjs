@@ -16,7 +16,8 @@ export function lintCapabilities(files) {
     const provider = source.match(/provider\s*:\s*['"]([^'"]+)/)?.[1];
     const allRules = provider === 'terminal' ? rules : [...rules, ['process-execution', /(?:node:)?(?:child_process|worker_threads)|node:vm/]];
     for (const [rule, re] of allRules) if (re.test(source)) findings.push({ file, rule, message: `capability security rule ${rule} failed` });
-    if (/actions\s*:/.test(source) && !/\bverify\s*\(/.test(source)) findings.push({ file, rule: 'verify-required', message: 'actions require verify' });
+    const integrationFactory = /import\s*\{\s*integrationAction\s*\}\s*from\s*['"]\.\.\/integration-action\.ts['"]/.test(source);
+    if (/actions\s*:/.test(source) && !/\bverify\s*\(/.test(source) && !integrationFactory) findings.push({ file, rule: 'verify-required', message: 'actions require verify' });
     if (/risk\s*:\s*['"]CRITICAL['"]/.test(source) && !/confirmationPhrase\s*:/.test(source)) findings.push({ file, rule: 'critical-confirmation', message: 'CRITICAL requires confirmationPhrase' });
   }
   return findings;

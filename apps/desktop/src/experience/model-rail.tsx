@@ -1,0 +1,23 @@
+'use client';
+import { memo, useState } from 'react';
+import type { OperatingModelRun } from '@jarvis/scene';
+import { modelRunState } from './model-observatory-policy.ts';
+import { ModelRoutingDiagram } from './model-routing-diagram.tsx';
+
+const runState=modelRunState;
+const value=(input:number|undefined,suffix='')=>input===undefined?'UNAVAILABLE':`${input.toLocaleString()}${suffix}`;
+
+export const ModelRail=memo(function ModelRail({active,recent,live=false}:{active:OperatingModelRun[];recent:OperatingModelRun[];live?:boolean}){
+  const[selected,setSelected]=useState<string>();const[open,setOpen]=useState(false);const runs=active.length?active:recent.slice(0,3);
+  return <aside className={`model-rail ${open?'rail-expanded':''}`} aria-label="Cognition Observatory"><header><small>COGNITION OBSERVATORY</small><strong className="rail-title">MODEL RAIL</strong><button className="rail-toggle" aria-expanded={open} onClick={()=>setOpen(!open)}>MODEL RAIL</button><span>{live?'LIVE':'DATA STALE — ACTIVITY UNCONFIRMED'}</span><span>{active.length?`${active.length} ${live?'ACTIVE REQUESTS':'LAST OBSERVED ACTIVE REQUESTS'}`:`${recent.length} RECENT REQUESTS`}</span></header>
+    {runs.length===0?<p className="rail-empty">{live?'No model run is active.':'No live model activity is available.'} No activity is inferred.</p>:runs.map(run=>{const expanded=selected===run.requestId;const chosen=run.routing?.candidates.find(candidate=>candidate.modelId===run.modelId);const used=run.usage?.contextUnits??run.contextUnits;return <article key={run.requestId} className={`model-run state-${runState(run,live).toLowerCase()}`}>
+      <button onClick={()=>setSelected(expanded?undefined:run.requestId)} aria-expanded={expanded}><span>{runState(run,live)}</span><strong>{chosen?.displayName??run.modelId??'AWAITING ROUTE'}</strong><small>{run.agentId} · {run.taskClass??'task unavailable'}</small></button>
+      {run.routing?.fallbackReason&&<p className="fallback-transition" role="status">PRIMARY UNAVAILABLE → FALLBACK SELECTED{!live?' · LAST OBSERVED':''}</p>}
+      <p className="rail-pending">{run.routing?.selectionReason??'Selection not yet observed'}{run.routing?.fallbackReason?` — ${run.routing.fallbackReason}`:''}</p>
+      <ModelRoutingDiagram run={run} live={live}/>
+      {run.routing?<div className="route-map" aria-label="Routing candidates">{run.routing.candidates.map(candidate=><div key={candidate.modelId} className={`route-candidate route-${candidate.state.toLowerCase()}`}><i/><div><strong>{candidate.displayName}</strong><small>{candidate.provider} · {candidate.locality}</small></div><span>{candidate.state}</span>{expanded?<p>{candidate.reason}</p>:null}</div>)}</div>:<p className="rail-pending">Awaiting Gateway routing observation</p>}
+      <dl className="model-usage"><div><dt>CONTEXT</dt><dd>{used===undefined?'UNAVAILABLE':`${used.toLocaleString()} / ${chosen?.contextLimitUnits.toLocaleString()??'LIMIT UNKNOWN'} UNITS`}</dd></div><div><dt>INPUT TOKENS</dt><dd>{value(run.usage?.inputTokens)}</dd></div><div><dt>CACHED TOKENS</dt><dd>{value(run.usage?.cachedTokens)}</dd></div><div><dt>OUTPUT TOKENS</dt><dd>{value(run.usage?.outputTokens)}</dd></div><div><dt>LATENCY</dt><dd>{value(run.usage?.latencyMs??run.latencyMs,' MS')}</dd></div><div><dt>EST. COST</dt><dd>{run.usage?.costEstimate===undefined&&run.costEstimate===undefined?'UNAVAILABLE':`${(run.usage?.costEstimate??run.costEstimate)!.toFixed(5)} COST UNITS`}</dd></div><div><dt>ACTUAL COST</dt><dd>{value(run.usage?.actualCost)}</dd></div><div><dt>SESSION TOKENS</dt><dd>UNAVAILABLE</dd></div></dl>
+      {expanded?<div className="model-inspector"><p><b>Correlation</b>{run.correlationId}</p><p><b>Privacy</b>{run.privacyClass??run.routing?.privacyClass??'UNAVAILABLE'}</p><p><b>Objective</b>{run.objectiveRef??'UNAVAILABLE'}</p><p><b>Selected because</b>{run.routing?.selectionReason??'UNAVAILABLE'}</p><p><b>Workflow</b>{run.workflowRef??'UNAVAILABLE'}</p><p><b>Health / circuit</b>{chosen?`${chosen.healthState} / ${chosen.circuitBreaker}`:'UNAVAILABLE'}</p><p><b>Reasoning mode</b>{chosen?.reasoningMode??'UNAVAILABLE'}</p><p><b>Provider quota</b>UNAVAILABLE</p><p><b>First token</b>{run.firstTokenAt??'UNAVAILABLE'}</p><p><b>Tools / vision</b>{chosen?`${chosen.toolSupport?'TOOLS':'NO TOOLS'} · ${chosen.visionSupport?'VISION':'NO VISION'}`:'UNAVAILABLE'}</p>{chosen?.locality==='local'?<><p><b>Local endpoint</b>{chosen.healthState}</p><p><b>Tokens/sec</b>{value(run.usage?.tokensPerSecond)}</p><p><b>Queue</b>UNAVAILABLE</p><p><b>GPU / VRAM</b>UNAVAILABLE</p></>:null}</div>:null}
+    </article>})}
+  </aside>;
+});

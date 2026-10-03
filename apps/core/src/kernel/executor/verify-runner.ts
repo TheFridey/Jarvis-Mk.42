@@ -8,7 +8,7 @@ export interface VerificationWorld {
   readPath(path: string, input: unknown, context?: VerificationContext): Promise<unknown>;
   awaitEvent(eventType: string, matchPath: string, timeoutMs: number): Promise<boolean>;
 }
-export interface VerificationContext { capability: import('@jarvis/contracts').Capability; handle: import('@jarvis/contracts').CredentialHandle; }
+export interface VerificationContext { capability: import('@jarvis/contracts').Capability; handle: import('@jarvis/contracts').CredentialHandle; output?: unknown; }
 
 /** Executor-owned strategy interpreter. Adapter self-reports never decide completion. */
 export class VerificationRunner {
@@ -24,7 +24,7 @@ export class VerificationRunner {
       const ok = typeof actual === 'string' && actual === expected;
       return { verified: ok, checks: [{ name: 'hash-match', ok, detail: strategy.ofPath }] };
     }
-    const actual = await this.world.read(strategy.adapterRef, input, context);
+    const actual = await this.world.read(strategy.adapterRef, input, context ? { ...context, output } : undefined);
     const expected = output;
     const ok = canonicalJson(actual) === canonicalJson(expected);
     return { verified: ok, checks: [{ name: strategy.kind, ok, detail: strategy.adapterRef }] };

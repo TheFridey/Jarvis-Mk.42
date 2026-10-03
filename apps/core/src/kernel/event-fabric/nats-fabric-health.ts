@@ -1,3 +1,4 @@
+import { structuredLog, telemetryNodeId } from '@jarvis/telemetry';
 import type { HealthStatus } from '@jarvis/contracts';
 
 export type NatsFabricPhase = 'HEALTHY' | 'RECONNECTING' | 'SUSTAINED_OUTAGE' | 'RECOVERING';
@@ -212,7 +213,7 @@ export class NatsFabricHealthCoordinator {
 
   private reportError(message: string, error: unknown): void {
     this.deps.reportError?.(message, error);
-    if (!this.deps.reportError) console.error(`nats-fabric-health: ${message}:`, error);
+    if (!this.deps.reportError) void structuredLog({component:'nats-fabric-health',node:telemetryNodeId(),event:'recovery.failed',severity:'ERROR'});
   }
 
   private clearGrace(): void {

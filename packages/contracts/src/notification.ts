@@ -21,6 +21,7 @@ export type NotificationDisposition =
   | 'queued'; // no surface available; will retry
 
 export interface NotificationRequest {
+  minimumSurfaceTrust?: import('./capability.ts').NodeTrustTier;
   /** Emitting subsystem id. */
   source: string;
   principalId: PrincipalId;
@@ -37,6 +38,7 @@ export interface NotificationRequest {
 }
 
 export interface NotificationRecord {
+  deliverySurfaceId?:string;
   id: Ulid;
   request: NotificationRequest;
   disposition: NotificationDisposition;
@@ -63,6 +65,7 @@ export interface InterruptionPolicy {
 
 /** Payload of `jarvis.kernel.notification.raised`. */
 export interface NotificationRaisedPayload {
+  deliverySurfaceId?:string;
   notificationId: string;
   source: string;
   severity: NotificationSeverity;

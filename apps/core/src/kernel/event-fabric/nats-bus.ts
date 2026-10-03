@@ -1,3 +1,4 @@
+import { structuredLog, telemetryNodeId } from '@jarvis/telemetry';
 /**
  * NATS JetStream EventBus (ADR-0005). Streams:
  * Each canonical event subject is owned by exactly one stream. The explicit
@@ -114,8 +115,8 @@ export class NatsEventBus implements EventBus {
   private async reportTransport(healthy: boolean, detail: string): Promise<void> {
     try {
       await this.onTransportHealth?.(healthy, detail);
-    } catch (err) {
-      console.error(`nats-bus: transport health listener failed (${detail}):`, err);
+    } catch {
+      void structuredLog({component:'nats-bus',node:telemetryNodeId(),event:'health.listener.failed',severity:'ERROR'});
     }
   }
 
@@ -126,8 +127,8 @@ export class NatsEventBus implements EventBus {
         if (status.type === 'disconnect' || status.type === 'error') { this.healthy = false; await this.reportTransport(false, `jetstream ${status.type}`); }
         if (status.type === 'reconnect') { this.healthy = true; await this.reportTransport(true, 'jetstream reconnected'); }
       }
-    } catch (err) {
-      if (!connection.isClosed()) console.error('nats-bus: status watcher stopped unexpectedly:', err);
+    } catch {
+      if (!connection.isClosed()) void structuredLog({component:'nats-bus',node:telemetryNodeId(),event:'watcher.stopped',severity:'ERROR'});
     }
   }
 

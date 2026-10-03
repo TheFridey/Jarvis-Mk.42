@@ -34,7 +34,10 @@ authoritative copy lives. "Consistency" = the guarantee the owner provides.
 | **Policy decisions** (the audit of each decision) | Policy Engine → Audit Manager | `events` → PG `audit.*` | Strong, append-only | — |
 | **Capabilities** (manifests, versions) | Capability Registry | PG `catalogue.capabilities` | Strong | in-process |
 | **Model registrations** | Model Registry | PG `catalogue.models` | Strong | in-process + gateway pull |
-| **Agents** (roster manifests) | source-controlled in `agents/*`; **agent lease/run records** | Agent Runtime | PG `projections.agent_runs` + Redis leases | Redis |
+| **Agents** (roster manifests) | source-controlled in `agents/*`, loaded by Agent Runtime | repository `manifest.json` files | Versioned source | in-process catalogue |
+| **Agent jobs, budgets and fenced execution leases** | Agent Runtime (existing frozen component 12) | PG `cognition.agent_jobs` (migration 0015) + Event Manager events/outbox | Strong; database clock and attempt/owner fencing | Reconstructible presence only; no Redis authority |
+| **Cognition request/result and routing observations** | Kernel Cognition orchestrator, mediated by Agent Runtime | PG `cognition.runs` | Durable request identity/result; provider observations remain observations, not authority | Read-only Experience views |
+| **Experience Operating Picture** | Read-only Experience Projection (not a Kernel authority component) | Derived from existing owner state; no new business store | Versioned presentation; stale/disconnected state explicit | Ephemeral replay/subscription/connection state only |
 | **Entities** (ATLAS) | Knowledge Ingestion (writer); ATLAS service (owner/reader) | PG `atlas.entities` (+ `entity_aliases`) | Strong for identity/type; eventual for attributes | — |
 | **Entity relationships** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.entity_relationships` | Strong | — |
 | **Facts** (ATLAS) | Knowledge Ingestion (writer); ATLAS service | PG `atlas.facts` (+ `facts_archive`) | Eventual; conflicts recorded not resolved-by-write | — |
@@ -147,3 +150,13 @@ If two components appear to need to write the same thing:
    **command** to that owner.
 4. Record the resolution here. This document is the registry of such
    decisions.
+
+## Companion continuity
+
+The Kernel Experience service owns `experience.conversation_turns` and
+`experience.wall_presentations`. The former stores canonical cross-device turns
+and immutable inference inputs; the latter stores expiring Scene references.
+Mobile and display nodes receive filtered disposable projections. They never
+write State Manager slices, approve privileged actions, or own workflow state.
+Notification Manager owns delivery disposition and surface selection. See
+`COMPANION_NODES.md` for trust, privacy and verification boundaries.

@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 5s
+scrape_configs:
+  - job_name: collector
+    static_configs:
+      - targets: [otel-collector:8889]
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+  - job_name: redis
+    static_configs:
+      - targets: [redis-exporter:9121]
+  - job_name: nats
+    static_configs:
+      - targets: [nats-exporter:7777]
+  # Install windows_exporter on the physical Windows host for disk/network.
+  # Missing exporter reports unavailable; Docker VM metrics are not host metrics.
+  - job_name: windows-host
+    static_configs:
+      - targets: [host.docker.internal:9182]
+  # Optional NVIDIA DCGM exporter; absence never blocks Kernel startup.
+  - job_name: gpu
+    static_configs:
+      - targets: [host.docker.internal:9400]

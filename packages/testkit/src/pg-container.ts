@@ -56,6 +56,10 @@ export async function startEphemeralPg(): Promise<EphemeralPg> {
   await execFile('docker', [
     'run', '-d', '--rm',
     '--name', name,
+    // Disposable logical-transaction tests do not certify physical disk crash
+    // durability. tmpfs avoids Docker Desktop VHD fsync stalls during initdb;
+    // server fsync/commit settings remain unchanged. Container removal loses it.
+    '--tmpfs', '/var/lib/postgresql/data:rw,size=512m',
     '-e', 'POSTGRES_USER=jarvis',
     '-e', 'POSTGRES_PASSWORD=jarvis',
     '-e', 'POSTGRES_DB=jarvis',

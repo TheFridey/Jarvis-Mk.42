@@ -5,6 +5,14 @@ folder holds a manifest describing a class of effects. Selected capabilities,
 including filesystem operations, have out-of-process implementations; other
 folders remain contract-only until their providers are implemented and tested.
 
+Email, Calendar and ScaleSmiths have operational adapter implementations registered
+through `JARVIS_INTEGRATIONS_CONFIG`. See
+[configuration and upstream contract](../docs/architecture/SCALESMITHS_INTELLIGENCE.md).
+ScaleSmiths requires a general operations service implementing the documented
+boundary; its existing Venture Lab MCP is not that boundary. Writes require
+per-action grants and live approval; unsupported ScaleSmiths updates remain absent
+from the runtime registry.
+
 **Registering a manifest touches only the Capability Registry. The Kernel
 binary does not change** (L28, L29).
 

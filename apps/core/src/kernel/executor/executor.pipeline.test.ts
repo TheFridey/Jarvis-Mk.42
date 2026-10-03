@@ -60,5 +60,20 @@ describe('CapabilityExecutor load-bearing controls', () => {
     expect(first.invocationId).toBe(second.invocationId);
     expect(subject.execute).toHaveBeenCalledTimes(1);
   });
+  it('observes a pending proposal replay without implicitly resuming or denying approval',async()=>{
+    const subject=executor('REQUIRE_APPROVAL',false,{content:'expected'});
+    const first=await subject.instance.invoke(proposal('pending-replay'),actor,{approvalResume:false});
+    const count=subject.events.length;
+    const replay=await subject.instance.invoke(proposal('pending-replay'),actor,{approvalResume:false});
+    expect(replay).toMatchObject({invocationId:first.invocationId,outcome:'awaiting_approval'});
+    expect(subject.events).toHaveLength(count);expect(subject.execute).not.toHaveBeenCalled();
+  });
+  it('rejects a submit-once proposal identity bound to another principal or input',async()=>{
+    const subject=executor('ALLOW',true,{content:'expected'});const value=proposal('sealed-proposal');
+    await subject.instance.invoke(value,actor,{approvalResume:false});
+    await expect(subject.instance.invoke(value,{kind:'principal',id:'other'},{approvalResume:false})).rejects.toThrow('different authority');
+    await expect(subject.instance.invoke({...value,invocation:{...value.invocation,input:{path:'elsewhere'}}},actor,{approvalResume:false})).rejects.toThrow('different authority');
+    expect(subject.execute).toHaveBeenCalledTimes(1);
+  });
   it('forbids high-risk completion when verification is adapter self-report only',async()=>{const high:Capability={...capability,actions:[{...capability.actions[0]!,riskClass:'HIGH',verificationAssurance:'ADAPTER_SELF_REPORT'}]};const subject=executor('ALLOW',true,{content:'expected'},high);const result=await subject.instance.invoke(proposal('proposal-high-self-report'),actor);expect(result.outcome).toBe('aborted');expect(subject.execute).not.toHaveBeenCalled()});
 });

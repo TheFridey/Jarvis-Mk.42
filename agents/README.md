@@ -1,10 +1,16 @@
 # agents/
 
 The named roster of **disposable cognitive workers** (L9, L10). Each folder
-holds a `manifest.json` — data the Agent Runtime (`@jarvis/agents`) reads to
-spawn a leased, sandboxed worker. **No agent code or state lives here**; the
-machinery is `@jarvis/agents`, and an agent that has finished its lease leaves
-nothing behind.
+holds a `manifest.json` read by the existing Kernel Agent Runtime at
+`apps/core/src/kernel/cognition`. `packages/agents` is an extraction seam,
+not the runtime implementation. All eleven manifests remain registered.
+Durable job history lives in PostgreSQL `cognition.agent_jobs` (Runtime-owned);
+bounded context is passed transiently to a fixed child process. Node permissions
+are defense in depth, not an OS/container sandbox or network firewall.
+Admitted jobs drain through commit notifications and the existing Scheduler's
+lease sweep. Restart recovery recompiles context when a trusted caller
+resubmits the original identity-bound request; prompts are not duplicated in
+durable job history. Unknown inference outcomes block rather than retry.
 
 ## Manifest schema
 

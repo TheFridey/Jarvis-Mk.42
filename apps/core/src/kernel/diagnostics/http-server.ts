@@ -18,13 +18,21 @@ import type { HealthManager } from '../health/health-manager.ts';
 import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand } from '@jarvis/scene';
 import type { DesktopGateway } from '../desktop/desktop-gateway.ts';
 import type { VoiceGateway } from '../voice/voice-gateway.ts';
-import type { VisionEventCommand, VoiceEventCommand } from '@jarvis/contracts';
+import { AgentJobAccessError, ModelGatewayError, type VisionEventCommand, type VoiceEventCommand } from '@jarvis/contracts';
 import type { VisionGateway } from '../vision/vision-gateway.ts';
 import type { IdentityManager, SessionCredentialManager } from '../identity/index.ts';import type{SessionManager}from'../session/index.ts';import type{NodeStore}from'../nodes/index.ts';import type{IdGen}from'../../runtime/ids.ts';
-import { extractTraceContext, withSpan, withTraceContext } from '@jarvis/telemetry';
+import { extractTraceContext, withSpan, withTraceContext, structuredLog } from '@jarvis/telemetry';
 import { ExperienceProjection, ExperienceStreamServer } from '../experience/index.ts';
+import { z } from 'zod';
+import type { NodeManager } from '../nodes/node-manager.ts';
+import type { BusinessIntelligence } from '../integrations/intelligence.ts';
+import type { CompanionService } from '../experience/companion-service.ts';
+import type { DeliverySurface } from '../notification/surface-routing.ts';
 
 export interface DiagnosticsHttpDeps {
+  surfaceConnected?:()=>void;
+  companion?:CompanionService;
+  business?: BusinessIntelligence;
   diagnostics: DiagnosticsService;
   state: StateManager;
   health: HealthManager;
@@ -33,6 +41,7 @@ export interface DiagnosticsHttpDeps {
   vision: VisionGateway;
   identity:IdentityManager;sessions:SessionManager;credentials:SessionCredentialManager;nodeStore:NodeStore;ids:IdGen;nodeId:string;principalId:string;
   experience:ExperienceProjection;
+  nodes:NodeManager;
 }
 
 export class DiagnosticsHttp {
@@ -40,12 +49,14 @@ export class DiagnosticsHttp {
   private stream: ExperienceStreamServer | undefined;
 
   constructor(private readonly deps: DiagnosticsHttpDeps) {}
+  deliverNotification(record:import('@jarvis/contracts').NotificationRecord){void this.stream?.deliverNotification(record).catch(()=>undefined);}
+  async deliverySurfaces():Promise<DeliverySurface[]>{const result:DeliverySurface[]=[];for(const binding of this.stream?.activeBindings()??[]){const auth=await this.deps.credentials.authenticate('Bearer '+binding.accessToken,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:['experience.read']});const node=auth?await this.deps.nodeStore.get(binding.nodeId):null;if(auth&&node&&!['mobile','display'].includes(node.nodeType))result.push({id:node.nodeId,principalId:auth.principalId,kind:'desktop',trust:node.trustTier,available:true,presence:'UNKNOWN'});}return result;}
 
   listen(port: number, host = '127.0.0.1'): Promise<number> {
     this.server = createServer((req, res) => {
       void this.handle(req, res);
     });
-    this.stream = new ExperienceStreamServer({ projection:this.deps.experience, authenticate:async(binding,scopes)=>this.deps.credentials.authenticate(`Bearer ${binding.accessToken}`,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes}), allowedOrigin:(origin)=>this.allowedOrigin(origin), reportError:(error)=>console.error('experience-stream:',error) });
+    this.stream = new ExperienceStreamServer({ projection:this.deps.experience,surfaceConnected:this.deps.surfaceConnected, authenticate:async(binding,scopes)=>this.deps.credentials.authenticate(`Bearer ${binding.accessToken}`,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes}), allowedOrigin:(origin)=>this.allowedOrigin(origin), reportError:()=>{void structuredLog({component:'experience-stream',node:this.deps.nodeId,event:'stream.failed',severity:'ERROR'});} });
     this.stream.attach(this.server);
     return new Promise((resolve) => {
       this.server!.listen(port, host, () => {
@@ -85,7 +96,21 @@ export class DiagnosticsHttp {
 
     try {
       const path = url.split('?')[0] ?? '/';
-      if(path==='/auth/session'){if(method!=='POST')return send(405,{error:'method not allowed'});const body=await this.body<{credential:string;nodeId:string;scopes:string[];surface?:string}>(req);const node=await this.deps.nodeStore.get(body.nodeId);if(!node||['revoked','isolated','disconnected'].includes(node.status))return send(403,{error:'node not admitted'});const auth=await this.deps.identity.authenticate({method:'bootstrap',credential:body.credential,nodeId:body.nodeId,claimedPrincipalId:this.deps.principalId});if(!auth.ok)return send(401,{error:auth.code});const allowed=['desktop.read','desktop.write','voice.write','vision.write','vision.read','experience.read'];if(!Array.isArray(body.scopes)||body.scopes.some(s=>!allowed.includes(s)))return send(403,{error:'scope not issuable'});let session=await this.deps.sessions.open({type:body.surface==='voice'?'rtc':'user_interaction',principalId:auth.context.principalId,nodeId:body.nodeId,correlationId:this.deps.ids.ulid(),contextRef:body.surface??'desktop'});const active=await this.deps.sessions.transition({sessionId:session.id,to:'active',reason:'authenticated',expectedVersion:session.version});if(!active.ok)return send(500,{error:'session activation failed'});session=active.session;const issued=await this.deps.credentials.issue({identityId:auth.context.identityId,principalId:auth.context.principalId,sessionId:session.id,nodeId:body.nodeId,scopes:body.scopes,authStrength:'strong'});return send(201,{accessToken:issued.accessToken,credential:issued.credential})}
+      if(path==='/nodes/enrollments'||path==='/nodes/revoke'){
+        if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress??''))return send(403,{error:'loopback operator required'});
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['nodes.manage'],'strong');
+        const node=auth?await this.deps.nodeStore.get(auth.nodeId):null;
+        if(!auth||node?.trustTier!=='kernel-local'||auth.principalId!==this.deps.principalId)return send(403,{error:'local operator required'});
+        if(path==='/nodes/enrollments'){
+          const input=z.object({trustCeiling:z.enum(['guest','owned-mobile','owned-secure']),ttlMs:z.number().int().min(1).max(300000).default(300000)}).strict().parse(await this.body<unknown>(req));
+          return send(201,{token:await this.deps.nodes.createEnrollment(auth.principalId,input.trustCeiling,input.ttlMs)});
+        }
+        const input=z.object({nodeId:z.string().regex(/^[A-Za-z0-9._:-]{3,128}$/)}).strict().parse(await this.body<unknown>(req));
+        const target=await this.deps.nodeStore.get(input.nodeId);if(!target||target.trustTier==='kernel-local')return send(403,{error:'invalid remote node'});
+        await this.deps.nodes.revoke(input.nodeId);return send(200,{nodeId:input.nodeId,status:'revoked'});
+      }
+      if(path==='/auth/session'){if(method!=='POST')return send(405,{error:'method not allowed'});const body=await this.body<{credential:string;nodeId:string;scopes:string[];surface?:string}>(req);const node=await this.deps.nodeStore.get(body.nodeId);if(!node||['revoked','isolated','disconnected'].includes(node.status))return send(403,{error:'node not admitted'});const auth=await this.deps.identity.authenticate({method:'bootstrap',credential:body.credential,nodeId:body.nodeId,claimedPrincipalId:this.deps.principalId});if(!auth.ok)return send(401,{error:auth.code});if(node.trustTier!=='owned-secure'&&node.trustTier!=='kernel-local')return send(403,{error:'trusted workstation required'});if(node.nodeType==='mobile'||node.nodeType==='display')return send(403,{error:'use restricted node ingress'});const allowed=['desktop.read','desktop.write','voice.write','vision.write','vision.read','experience.read','nodes.manage'];if(!Array.isArray(body.scopes)||body.scopes.some(s=>!allowed.includes(s)))return send(403,{error:'scope not issuable'});let session=await this.deps.sessions.open({type:body.surface==='voice'?'rtc':'user_interaction',principalId:auth.context.principalId,nodeId:body.nodeId,correlationId:this.deps.ids.ulid(),contextRef:body.surface??'desktop'});const active=await this.deps.sessions.transition({sessionId:session.id,to:'active',reason:'authenticated',expectedVersion:session.version});if(!active.ok)return send(500,{error:'session activation failed'});session=active.session;const issued=await this.deps.credentials.issue({identityId:auth.context.identityId,principalId:auth.context.principalId,sessionId:session.id,nodeId:body.nodeId,scopes:body.scopes,authStrength:'strong'});return send(201,{accessToken:issued.accessToken,credential:issued.credential})}
       if(path==='/auth/rotate'){if(method!=='POST')return send(405,{error:'method not allowed'});const binding=this.binding(req);if(!binding.sessionId)return send(401,{error:'session required'});const next=await this.deps.credentials.rotate(req.headers.authorization??'',{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:[]});return next?send(200,{accessToken:next.accessToken,credential:next.credential}):send(401,{error:'unauthorised'})}
       if(path==='/auth/logout'){if(method!=='POST')return send(405,{error:'method not allowed'});const binding=this.binding(req);const auth=await this.deps.credentials.authenticate(req.headers.authorization,{...binding,scopes:[]});if(!auth?.sessionId)return send(401,{error:'unauthorised'});const session=await this.deps.sessions.get(auth.sessionId);if(!session)return send(401,{error:'session unavailable'});const ended=await this.deps.sessions.transition({sessionId:session.id,to:'ended',reason:'logout',expectedVersion:-1});if(ended.ok)this.stream?.disconnectSession(session.id);return ended.ok?send(204,null):send(409,{error:ended.code})}
       if (path === '/healthz') {
@@ -105,20 +130,60 @@ export class DiagnosticsHttp {
         return send(200, await this.deps.state.view());
       }
       if (path.startsWith('/desktop/')) {
-        const scope=path==='/desktop/snapshot'?'desktop.read':'desktop.write';const auth=await this.authorise(req,[scope],path==='/desktop/approvals'?'strong':undefined);if(!auth) return send(401, { error: 'unauthorised' });
-        if (path === '/desktop/snapshot' && method === 'GET') return send(200, await this.deps.desktop.snapshot());
+        const scope=path==='/desktop/snapshot'||path==='/desktop/nova/picture'||path==='/desktop/conversations'?'desktop.read':'desktop.write';const auth=await this.authorise(req,[scope],path==='/desktop/approvals'?'strong':undefined);if(!auth) return send(401, { error: 'unauthorised' });
+        if(path==='/desktop/wall'&&method==='POST'){const input=z.object({displayNodeId:z.string().min(3).max(128),objectId:z.string().min(1).max(200),expectedSceneVersion:z.number().int().nonnegative()}).strict().parse(await this.body<unknown>(req));if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,await this.deps.companion.present({principalId:auth.principalId},input));}
+        if(path==='/desktop/conversations'&&method==='GET'){if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,await this.deps.companion.turns(auth.principalId));}
+        if(path==='/desktop/displays'&&method==='GET'){if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,await this.deps.companion.displays(auth.principalId));}
+        if(path==='/desktop/perception'&&method==='POST'){const parsed=z.object({focusedId:z.string().min(1).max(200).optional(),selectedIds:z.array(z.string().min(1).max(200)).max(32)}).strict().safeParse(await this.body<unknown>(req));if(!parsed.success)return send(400,{error:'invalid scene observation'});await this.deps.desktop.observeSelection(auth.principalId,auth.nodeId,parsed.data);return send(200,{accepted:true});}
+          if (path === '/desktop/snapshot' && method === 'GET') {const picture=await this.deps.desktop.snapshot();return picture.principalId===auth.principalId?send(200,picture):send(403,{error:'principal mismatch'});}
+          if (path.startsWith('/desktop/nova/')) {
+            if(!this.deps.business)return send(503,{error:'business integration unavailable'});
+            if(path==='/desktop/nova/picture'&&method==='GET')return send(200,this.deps.business.picture(auth.principalId));
+            if(path==='/desktop/nova/refresh'&&method==='POST'){const result=await this.deps.business.refresh(auth.principalId,this.deps.ids.ulid());this.deps.experience.invalidate(['objectives']);return send(200,result);}
+            if(path==='/desktop/nova/meeting'&&method==='POST'){
+              const parsed=z.object({calendarId:z.string().min(1).max(300).default('primary'),eventId:z.string().min(1).max(300),clientId:z.string().min(1).max(200).optional(),contactEmail:z.string().email().optional(),threadId:z.string().regex(/^[a-zA-Z0-9_-]+$/).optional()}).strict().safeParse(await this.body<unknown>(req));
+              if(!parsed.success)return send(400,{error:'invalid meeting request'});
+              return send(200,await this.deps.business.createMeeting(auth.principalId,parsed.data,this.deps.ids.ulid()));
+            }
+            if(path==='/desktop/nova/resume'&&method==='POST'){
+              const parsed=z.object({objectiveId:z.string().min(1).max(200)}).strict().safeParse(await this.body<unknown>(req));if(!parsed.success)return send(400,{error:'invalid objective request'});
+              return send(200,await this.deps.business.resumeMeeting(auth.principalId,parsed.data.objectiveId));
+            }
+            if(path==='/desktop/nova/client'&&method==='POST'){
+              const parsed=z.object({clientId:z.string().min(1).max(200)}).strict().safeParse(await this.body<unknown>(req));if(!parsed.success)return send(400,{error:'invalid client request'});
+              return send(200,await this.deps.business.clientHistory(auth.principalId,parsed.data.clientId,this.deps.ids.ulid()));
+            }
+            if(path==='/desktop/nova/specialists'&&method==='POST'){
+              const parsed=z.object({objectiveId:z.string().min(1).max(200),agentId:z.enum(['agents.hermes','agents.scout','agents.prometheus','agents.atlas','agents.mnemosyne']),instruction:z.string().min(1).max(10000)}).strict().safeParse(await this.body<unknown>(req));if(!parsed.success)return send(400,{error:'invalid specialist request'});
+              return send(200,await this.deps.business.coordinate(auth.principalId,parsed.data.objectiveId,parsed.data.agentId,parsed.data.instruction,this.deps.ids.ulid()));
+            }
+          }
         if (path === '/desktop/proposals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.submit(await this.body<DesktopProposalCommand>(req)));
-        if (path === '/desktop/cognition' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.cognize(await this.body<DesktopCognitionCommand>(req)));
+        if (path === '/desktop/cognition' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.cognize(await this.body<DesktopCognitionCommand>(req),auth.nodeId));
+        if (path === '/desktop/agents/cancel' && method === 'POST') {
+          const parsed = z.object({ commandId:z.string().min(1).max(200), expectedStateVersion:z.number().int().nonnegative(), jobId:z.string().min(1).max(200) }).strict().safeParse(await this.body<unknown>(req));
+          if (!parsed.success) return send(400, { error:'invalid agent cancellation command' });
+          return this.sendCommand(send, await this.deps.desktop.cancelAgentJob(parsed.data, auth.principalId));
+        }
         if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req), { authTrustLevel: auth.trust === 'verified' ? 'verified' : 'trusted' }));
         return send(405, { error: 'method not allowed' });
       }
-      if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['voice.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});return send(200,await this.deps.voice.handle(command))}
+      if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['voice.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});const result=await this.deps.voice.handle(command);this.deps.experience.invalidate(['telemetry','system','scene']);return send(200,result)}
       if(path==='/vision/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['vision.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VisionEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});return send(200,await this.deps.vision.handle(command))}
       if(path==='/vision/stream'){if(method!=='GET')return send(405,{error:'method not allowed'});if(!await this.authorise(req,['vision.read']))return send(401,{error:'unauthorised'});res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-cache','connection':'keep-alive'});const unsubscribe=this.deps.vision.subscribe(frame=>res.write(`${JSON.stringify(frame)}\n`));const heartbeat=setInterval(()=>res.write('\n'),15000);req.once('close',()=>{clearInterval(heartbeat);unsubscribe()});return}
       if (method !== 'GET') return send(405, { error: 'method not allowed' });
       return send(404, { error: 'not found', routes: ['/healthz', '/diagnostics', '/state', '/desktop/snapshot', '/desktop/proposals', '/desktop/approvals'] });
     } catch (err) {
-      return send(500, { error: err instanceof Error ? err.message : String(err) });
+      if (err instanceof AgentJobAccessError) return send(403, { error:err.code });
+      if (err instanceof ModelGatewayError) {
+        const unavailable=['NO_ROUTE','UNAVAILABLE','TIMEOUT','RATE_LIMITED','AUTHENTICATION','PROVIDER_ERROR'].includes(err.code);
+        return send(unavailable?503:err.code==='CANCELLED'?409:422,{
+          code:err.code,
+          error:unavailable?'Model inference is unavailable; no permitted provider completed this request. Kernel state and permission checks remain available while storage is healthy.':`Model request could not complete (${err.code}).`,
+        });
+      }
+      void structuredLog({component:'diagnostics',node:this.deps.nodeId,event:'request.failed',severity:'ERROR'});
+      return send(500, { error: 'internal_error' });
     }
   }
 

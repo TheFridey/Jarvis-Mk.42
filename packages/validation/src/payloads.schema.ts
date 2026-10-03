@@ -132,6 +132,7 @@ export const payloadSchemas: Record<string, Record<number, z.ZodTypeAny>> = {
   },
   [EventNames.NotificationRaised]: {
     1: z.object({
+      deliverySurfaceId:z.string().optional(),
       notificationId: z.string(),
       source: z.string(),
       severity: z.string(),
@@ -153,6 +154,7 @@ export const payloadSchemas: Record<string, Record<number, z.ZodTypeAny>> = {
   [EventNames.NodeConnected]: {
     1: z.object({ nodeId: z.string(), nodeType: z.string(), trustTier: z.string() }),
   },
+  [EventNames.NodeRuntimeHealth]: {1:z.object({sensor:z.literal('runtime-health'),healthy:z.boolean()}).strict()},
   [EventNames.NodeHeartbeat]: { 1: z.object({ nodeId:z.string(), status:z.string(), version:z.number().int() }) },
   [EventNames.NodeDegraded]: { 1: z.object({ nodeId:z.string(), reason:z.string() }) },
   [EventNames.NodeDisconnected]: {
@@ -170,6 +172,9 @@ export const payloadSchemas: Record<string, Record<number, z.ZodTypeAny>> = {
   },
   [EventNames.EventRejected]: {
     1: z.object({ attemptedType: z.string(), reason: z.string() }),
+  },
+  [EventNames.CognitionModelSelected]: {
+    1: z.object({ modelId: z.string(), phase: z.enum(['STARTING','FALLBACK','COMPLETE','FAILED']).optional(), candidates: z.array(z.object({ modelId: z.string(), state: z.enum(['CANDIDATE','SELECTED','FAILED','FALLBACK','UNAVAILABLE']), reason: z.string() })).optional(), selectionReason: z.string().optional(), fallbackReason: z.string().optional() }),
   },
   [EventNames.EventDeadLettered]: {
     1: z.object({ eventId: z.string(), consumer: z.string(), attempts: z.number(), lastError: z.string() }),
@@ -217,10 +222,16 @@ export const payloadSchemas: Record<string, Record<number, z.ZodTypeAny>> = {
 
 /** Returns the schema for a type+version, or a permissive fallback. */
 export function payloadSchemaFor(type: string, schemaVersion: number): z.ZodTypeAny {
+  if (type === EventNames.AgentJobTransitioned && schemaVersion === 1) return agentJobTransition;
   return payloadSchemas[type]?.[schemaVersion] ?? z.unknown();
 }
 
 /** True when we have an explicit schema (used to distinguish "unknown type"). */
 export function hasPayloadSchema(type: string, schemaVersion: number): boolean {
+  if (type === EventNames.AgentJobTransitioned && schemaVersion === 1) return true;
   return Boolean(payloadSchemas[type]?.[schemaVersion]);
 }
+
+const agentJobTransition = z.object({ jobId: z.string(), agentId: z.string(),
+  state: z.enum(['QUEUED','LEASED','RUNNING','WAITING','COMPLETE','BLOCKED','FAILED','CANCELLED']),
+  attempt: z.number().int().nonnegative(), errorCode: z.string().optional() });

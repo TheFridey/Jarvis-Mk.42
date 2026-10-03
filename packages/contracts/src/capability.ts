@@ -49,6 +49,7 @@ export interface CapabilityStep {
 
 export interface CapabilityAction {
   name: string;
+  requiredScopes?: string[];
   /** JSON Schema documents. */
   inputSchema: unknown;
   outputSchema: unknown;

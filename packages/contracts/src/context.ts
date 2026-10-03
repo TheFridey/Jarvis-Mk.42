@@ -70,6 +70,8 @@ export interface ContextItem {
 }
 
 export interface ContextRequest {
+  principalId?:string;
+  perceptionRef?:string;
   correlationId: CorrelationId;
   /** What the context is being compiled for. */
   intent: string;

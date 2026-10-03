@@ -25,6 +25,8 @@ describe.skipIf(!dockerOk)('authoritative state manager (integration)', () => {
 
   it('a client mutation bumps the slice version and the global stateVersion and emits state.mutated', async () => {
     const k = await freshKernel();
+    const observed:Promise<unknown>[]=[];
+    const off=k.events.onAppended(event=>{if(event.type===EventNames.StateMutated)observed.push(k.state.getSlice('active_workspace').then(slice=>slice?.value));});
     const before = (await k.state.view()).stateVersion;
     const r = await k.state.mutate({
       key: 'active_workspace',
@@ -43,6 +45,7 @@ describe.skipIf(!dockerOk)('authoritative state manager (integration)', () => {
     expect(slice?.value).toEqual({ workspaceId: 'repo-1' });
     const events = await k.eventStore.readFrom('0', 50);
     expect(events.some((e) => e.type === EventNames.StateMutated)).toBe(true);
+    expect(await Promise.all(observed)).toEqual([{workspaceId:'repo-1'}]);off();
   });
 
   it('INVARIANT: two mutations against the same base version - exactly one is accepted', async () => {

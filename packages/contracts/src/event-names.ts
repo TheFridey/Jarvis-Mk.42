@@ -42,6 +42,7 @@ export const EventNames = {
   CognitionCompleted: 'jarvis.cognition.run.completed',
   CognitionRejected: 'jarvis.cognition.run.rejected',
   CognitionAgentInvoked: 'jarvis.cognition.agent.invoked',
+  AgentJobTransitioned: 'jarvis.cognition.agent.job.transitioned',
   CognitionModelSelected: 'jarvis.cognition.model.selected',
   CognitionProposalCreated: 'jarvis.cognition.proposal.created',
   CognitionEvidenceReturned: 'jarvis.cognition.evidence.returned',
@@ -70,6 +71,7 @@ export const EventNames = {
 
   // --- Infra: nodes ---
   NodeConnected: 'jarvis.infra.node.connected',
+  NodeRuntimeHealth: 'jarvis.perception.node.runtime_health',
   NodeHeartbeat: 'jarvis.infra.node.heartbeat',
   NodeDegraded: 'jarvis.infra.node.degraded',
   NodeDisconnected: 'jarvis.infra.node.disconnected',
