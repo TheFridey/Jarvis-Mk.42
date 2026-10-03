@@ -1,6 +1,10 @@
 # ADR-0012: LiveKit / WebRTC direction (deferred)
 
 Status: Accepted (direction ratified; deployment deferred)
+Update 2026-10-03: the user's explicit RTC implementation request supersedes the
+local desktop deployment deferral. See [RTC_RUNTIME.md](../RTC_RUNTIME.md) for
+the implemented scope, privacy controls and qualification limits. Historical
+reasoning below remains a record of the earlier decision.
 Date: 2026-08-31
 Deciders: Principal Architect
 

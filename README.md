@@ -8,6 +8,11 @@ The desktop exposes observed model selection, agent jobs, telemetry, conversatio
 
 Start with [MARK42_SYSTEM_STATUS.md](docs/architecture/MARK42_SYSTEM_STATUS.md) for the current architecture, scenario matrix, truth audit, security limits, performance evidence and exact gate results. [COMPANION_NODES.md](docs/architecture/COMPANION_NODES.md) describes restricted mobile/wall setup. Older RC audit documents are point-in-time evidence, not current certification.
 
+The trusted desktop now has local LiveKit/WebRTC voice transport with local
+Windows speech and explicitly selected cloud speech. See [RTC_RUNTIME.md](docs/architecture/RTC_RUNTIME.md)
+for setup, privacy boundaries and the distinction between synthetic media tests
+and physical microphone qualification.
+
 ## Read in this order
 
 1. [`docs/architecture/PRINCIPLES.md`](docs/architecture/PRINCIPLES.md) — the 40 laws

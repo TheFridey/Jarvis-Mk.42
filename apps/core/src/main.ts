@@ -4,6 +4,7 @@
  * Expects the dev stack up (`pnpm stack:up`) and migrations applied
  * (`pnpm db:migrate`). Handles SIGINT/SIGTERM for graceful shutdown.
  */
+import '../../../scripts/local-env.ts';
 import { buildKernel } from './kernel/lifecycle/kernel.ts';
 import { loadConfig } from './runtime/config.ts';
 import { loadIntegrations } from './kernel/integrations/config.ts';

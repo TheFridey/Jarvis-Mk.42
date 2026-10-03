@@ -1,4 +1,5 @@
 import { TelemetryReview } from '../sentinel/telemetry-review.ts';
+import { RtcService } from '../rtc/rtc-service.ts';
 import { SystemTelemetry } from '../telemetry/system-telemetry.ts';
 import { TelemetryMonitor } from '../sentinel/telemetry-monitor.ts';
 /**
@@ -411,7 +412,9 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   const retentionSweeper = new RetentionSweeper(pg.sql, clock);
 
+  let rtc:RtcService|undefined;
   const diagnostics = new DiagnosticsService({
+    rtcHealth:()=>rtc?.health()??Promise.resolve({status:'OFFLINE' as const,placeholder:true}),
     clock,
     startedAtMs,
     instanceId: config.instanceId,
@@ -457,7 +460,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   notifications.setSurfaceProvider(()=>nodeIngress.deliverySurfaces());
   notifications.registerSink(record=>nodeIngress.deliverNotification(record));
   nodeIngress.onSurfaceConnected(()=>{void notifications.retryQueued().catch(()=>undefined);});
-  const diagnosticsHttp = new DiagnosticsHttp({ diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
+  if(process.env.JARVIS_RTC_ENABLED==='1'){
+    const apiKey=process.env.JARVIS_LIVEKIT_API_KEY,apiSecret=process.env.JARVIS_LIVEKIT_API_SECRET;if(!apiKey||!apiSecret)throw new Error('RTC requires local LiveKit credentials');
+    rtc=new RtcService({url:process.env.JARVIS_LIVEKIT_URL??'ws://127.0.0.1:7880',apiKey,apiSecret,voice,invalidate:()=>experience.invalidate(['system','telemetry','scene']),validate:async binding=>{const auth=await credentials.authenticate('Bearer '+binding.accessToken,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:['voice.write']});const node=auth?await nodeStore.get(binding.nodeId):null;return Boolean(auth&&auth.principalId===binding.principalId&&node&&!['revoked','isolated','disconnected'].includes(node.status)&&['kernel-local','owned-secure'].includes(node.trustTier)&&!['mobile','display'].includes(node.nodeType));}});
+  }
+  const diagnosticsHttp = new DiagnosticsHttp({ rtc,diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
   notifications.setSurfaceProvider(async()=>[...await diagnosticsHttp.deliverySurfaces(),...await nodeIngress.deliverySurfaces()]);
   notifications.registerSink(record=>diagnosticsHttp.deliverNotification(record));
 
@@ -797,6 +804,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         .catch(() => undefined);
 
       state.beginShutdown();
+      await rtc?.close();
       await scheduler.stop();
       await natsFabricHealth?.stop();
       await outboxRelay.stop(); // final flush

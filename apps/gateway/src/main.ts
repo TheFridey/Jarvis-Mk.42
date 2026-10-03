@@ -1,3 +1,4 @@
+import '../../../scripts/local-env.ts';
 import { createServer, type IncomingMessage } from 'node:http';
 import { ModelGatewayError, type ModelRegistration, type ModelRequest, type ModelStreamChunk } from '@jarvis/contracts';
 import { once } from 'node:events';
@@ -11,6 +12,11 @@ const registry=new ModelRegistry(),now=new Date().toISOString();
 function register(id:string,provider:string,adapter:Parameters<ModelRegistry['register']>[1],locality:ModelRegistration['locality'],cost=0){registry.register({id,provider,displayName:id,tasks:['reason','plan','summarize','extract','classify','code'],capabilities:['json','streaming','long_context'],contextLimitUnits:128_000,costPerContextUnit:cost,costPerOutputUnit:cost*3,locality,enabled:true,registeredAt:now},adapter)}
 if(process.env.OPENAI_API_KEY)register(process.env.JARVIS_OPENAI_MODEL??'gpt-5','openai',new OpenAIAdapter(process.env.OPENAI_API_KEY),'cloud-ok',.00001);
 if(process.env.ANTHROPIC_API_KEY)register(process.env.JARVIS_ANTHROPIC_MODEL??'claude-sonnet-4-5','anthropic',new AnthropicAdapter(process.env.ANTHROPIC_API_KEY),'cloud-ok',.00001);
+if(process.env.OPENROUTER_API_KEY){
+ const model=process.env.JARVIS_OPENROUTER_MODEL?.trim();
+ if(!model)throw new Error('JARVIS_OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured');
+ register(model,'openrouter',new OpenAICompatibleAdapter('openrouter','https://openrouter.ai/api/v1',process.env.OPENROUTER_API_KEY),'cloud-ok');
+}
 if(process.env.JARVIS_LOCAL_MODEL_URL)register(process.env.JARVIS_LOCAL_MODEL??'local-model','local-openai-compatible',new OpenAICompatibleAdapter('local-openai-compatible',process.env.JARVIS_LOCAL_MODEL_URL,process.env.JARVIS_LOCAL_MODEL_KEY),'local');
 const gateway=new ModelGateway(registry),token=process.env.JARVIS_GATEWAY_TOKEN??DEVELOPMENT_GATEWAY_TOKEN;
 const host=process.env.JARVIS_GATEWAY_HOST??'127.0.0.1';

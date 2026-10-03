@@ -1,6 +1,7 @@
 node_modules/
 /.node-pki/
 /artifacts/node-protocol/
+/artifacts/local-runtime/pki/
 dist/
 build/
 .next/

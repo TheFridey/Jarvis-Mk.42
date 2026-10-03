@@ -28,8 +28,10 @@ import type { NodeManager } from '../nodes/node-manager.ts';
 import type { BusinessIntelligence } from '../integrations/intelligence.ts';
 import type { CompanionService } from '../experience/companion-service.ts';
 import type { DeliverySurface } from '../notification/surface-routing.ts';
+import type { RtcService } from '../rtc/rtc-service.ts';
 
 export interface DiagnosticsHttpDeps {
+  rtc?:RtcService;
   surfaceConnected?:()=>void;
   companion?:CompanionService;
   business?: BusinessIntelligence;
@@ -96,6 +98,16 @@ export class DiagnosticsHttp {
 
     try {
       const path = url.split('?')[0] ?? '/';
+      if(path==='/rtc/join'||path==='/rtc/leave'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['voice.write'],'strong');const node=auth?await this.deps.nodeStore.get(auth.nodeId):null;
+        if(!auth?.sessionId||!node||!['kernel-local','owned-secure'].includes(node.trustTier)||['mobile','display'].includes(node.nodeType))return send(403,{error:'trusted RTC surface required'});
+        if(!this.deps.rtc)return send(503,{error:'RTC unavailable'});
+        const binding={principalId:auth.principalId,nodeId:auth.nodeId,sessionId:auth.sessionId,accessToken:(req.headers.authorization??'').replace(/^Bearer /,'')};
+        if(path==='/rtc/leave'){await this.deps.rtc.leave(binding);return send(200,{closed:true});}
+        const input=z.object({speechMode:z.enum(['local','cloud']).default('local')}).strict().safeParse(await this.body<unknown>(req));if(!input.success)return send(400,{error:'invalid RTC request'});
+        return send(201,await this.deps.rtc.join(binding,input.data.speechMode));
+      }
       if(path==='/nodes/enrollments'||path==='/nodes/revoke'){
         if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress??''))return send(403,{error:'loopback operator required'});
         if(method!=='POST')return send(405,{error:'method not allowed'});

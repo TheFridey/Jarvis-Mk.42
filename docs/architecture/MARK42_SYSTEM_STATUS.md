@@ -1,5 +1,12 @@
 # Mark 42 system status
 
+RTC follow-up on 3 October 2026: trusted desktop LiveKit/WebRTC is implemented
+and running. Both local Windows speech and explicitly selected cloud speech
+passed real media round trips using labelled synthetic speech, with a returned
+audio RMS acceptance threshold. Physical microphone/AEC testing remains
+unverified. The earlier integration snapshot below is preserved; RTC deferral
+claims in that snapshot are superseded by [RTC_RUNTIME.md](RTC_RUNTIME.md).
+
 Qualification date: 3 October 2026. This report describes the working tree, including earlier uncommitted work. It is not an exact-release-SHA certificate, a deployment approval, or a claim that every hardware scenario has passed.
 
 Mark 42 has a persistent, event-driven Kernel with temporal knowledge, memory, provider-neutral cognition, isolated cognitive workers, permissioned capability execution, and realtime desktop/mobile/display projections. The integration phase makes the observed operating picture visible and removes misleading presentation values. The complete aspirational product statement is **not yet hardware-qualified**.

@@ -21,6 +21,7 @@ import type { StateManager } from '../state/state-manager.ts';
 import { telemetryDiagnostics } from '@jarvis/telemetry';
 
 export interface DiagnosticsDeps {
+  rtcHealth?:()=>Promise<{status:HealthStatus;placeholder:boolean}>;
   clock: Clock;
   startedAtMs: number;
   instanceId: string;
@@ -109,7 +110,7 @@ export class DiagnosticsService {
         placeholder: false,
       },
       { name: 'model-gateway', status: modelGateway.status, placeholder: false, detail: { models: modelGateway.models } },
-      { name: 'rtc', status: 'OFFLINE' as HealthStatus, placeholder: true },
+      { name: 'rtc', ...(await this.deps.rtcHealth?.()??{status:'OFFLINE' as HealthStatus,placeholder:true}) },
       knowledgeStats
         ? { name: 'world-model', status: 'HEALTHY' as HealthStatus, placeholder: false, detail: { ...knowledgeStats.atlas } }
         : { name: 'world-model', status: 'OFFLINE' as HealthStatus, placeholder: true },

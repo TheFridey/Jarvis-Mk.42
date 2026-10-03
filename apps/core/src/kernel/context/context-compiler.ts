@@ -16,6 +16,7 @@
  * It NEVER calls a model and NEVER causes an effect.
  */
 import { createHash } from 'node:crypto';
+import { recentEventRelevant } from './event-relevance.ts';
 import {
   EventNames,
   type AtlasQuery,
@@ -125,6 +126,7 @@ export class ContextCompiler {
 
     // 2. recent events (bounded)
     for (const e of await this.deps.eventStore.readRecent(20)) {
+      if(!recentEventRelevant(e.type,req.intent))continue;
       candidates.push(this.mkItem('recent_event', `${e.type} @ ${e.time}`, { type: e.type, subject: e.subject }, e.privacyClass, {
         ageMs: now - Date.parse(e.time), sizeUnits: 8, sourceType: 'event_log',
       }));

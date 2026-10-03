@@ -3,6 +3,11 @@ const req=(over:Partial<ModelRequest>={}):ModelRequest=>({task:'reason',capabili
 const model=(id:string,locality:ModelRegistration['locality'],provider='test'):ModelRegistration=>({id,provider,displayName:id,tasks:['reason'],capabilities:['json','streaming'],contextLimitUnits:100,costPerContextUnit:0.001,costPerOutputUnit:0.001,locality,enabled:true,registeredAt:new Date().toISOString()});
 const adapter:ProviderAdapter={provider:'test',async generate(m,r){return{modelId:m.id,output:{ok:true},usage:{contextUnits:1,outputUnits:1,costEstimate:.002,latencyMs:2},finishReason:'stop',provenance:{method:'model',producedBy:m.id,producedOn:'test',producedAt:new Date().toISOString(),correlationId:r.correlationId,derivedFromUntrusted:true}}},async health(m){return{modelId:m.id,provider:'test',status:'healthy',checkedAt:new Date().toISOString()}}};
 describe('routing observability boundaries',()=>{
+ it('gives the first explicit model preference priority over an equally capable alternative',()=>{
+  const registry=new ModelRegistry();registry.register(model('other','local'),adapter);registry.register(model('preferred','local'),adapter);
+  registry.get('preferred')!.observedLatencyMs=120000;
+  expect(registry.route(req({preferredModels:['preferred']}))?.model.id).toBe('preferred');
+ });
  it('reports actual attempt and fallback transitions before completion',async()=>{
   const registry=new ModelRegistry();const phases:string[]=[];
   registry.register(model('first','local'),{...adapter,async generate(){phases.push('provider:first');throw new Error('secret provider response')}});

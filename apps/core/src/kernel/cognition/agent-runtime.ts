@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { runAgentWorker } from './agent-worker-host.ts';
 import type { AgentJobStore } from './agent-job-store.ts';
+import { proposalInstructions } from './proposal-instructions.ts';
 export function agentJobIdentity(request: ModelRequest, manifest: AgentManifest, identityHash?: string): string {
   return createHash('sha256').update(JSON.stringify([identityHash??request,manifest.version,manifest.proposalScope,manifest.leasePolicy])).digest('hex');
 }
@@ -50,12 +51,14 @@ export class AgentRuntime {
       if (request.budget.maxOutput <= 0 || request.budget.maxLatencyMs === 0) throw new Error('invalid agent budget');
       if (request.budget.contextUnits > manifest.leasePolicy.maxContextUnits) throw new Error('agent context budget exceeded');
       if (Buffer.byteLength(JSON.stringify(request.input)) > 1_000_000) throw new Error('agent input exceeds transport budget');
+      const outputInstructions = proposalInstructions(manifest, request.correlationId, this.now());
       const bounded: ModelRequest = { ...request,
         input:{...request.input,constraints:[...request.input.constraints,`Specialist ${manifest.id}: ${manifest.role}`,`Allowed proposal kinds: ${JSON.stringify(manifest.proposalScope.kinds)}. Allowed capability proposal IDs: ${JSON.stringify(manifest.proposalScope.capabilities)}. Propose only; never execute.`,`Every proposal and provenance correlationId must equal ${JSON.stringify(request.correlationId)}.`]},
         budget: { ...request.budget,
         maxCost: Math.min(request.budget.maxCost ?? manifest.leasePolicy.maxCostUnits, manifest.leasePolicy.maxCostUnits),
         maxLatencyMs: Math.min(request.budget.maxLatencyMs ?? manifest.leasePolicy.maxWallTimeMs, manifest.leasePolicy.maxWallTimeMs),
       } };
+      bounded.input.constraints.push(outputInstructions);
       let contextCeiling = bounded.budget.contextUnits;
       if (request.input.context && 'budget' in request.input.context) {
         const compiled = z.object({limitUnits:z.number().int().nonnegative(),usedUnits:z.number().int().nonnegative()}).parse(request.input.context.budget);

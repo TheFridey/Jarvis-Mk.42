@@ -1,9 +1,10 @@
 'use client';
+import { RtcControl } from './rtc-control.tsx';
 import { OperatingPicture } from './operating-picture.tsx';
 import { TelemetryRail } from './telemetry-rail.tsx';
 import { useEffect,useMemo, useState } from 'react';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
-import { Activity, AudioLines, Command, Cpu, ShieldCheck, WifiOff } from 'lucide-react';
+import { Activity, Command, Cpu, ShieldCheck, WifiOff } from 'lucide-react';
 import type { DesktopApproval, DesktopApprovalCommand, DesktopKernelSnapshot, SceneIntent, SemanticScene } from '@jarvis/scene';
 import { demoScene } from './demo-scene.ts';
 import { JarvisCore } from './jarvis-core.tsx';
@@ -43,8 +44,8 @@ export function JarvisExperience() {
     <SelectedCapture kernel={kernel} live={connection.status==='live'} submit={submitProposal}/>
     <ModelRail active={kernel?.activeModels??[]} recent={kernel?.recentModelRuns??[]} live={connection.status==='live'}/>
     <AgentObservatory jobs={kernel?.agentJobs??[]} live={connection.status==='live'} generatedAt={kernel?.generatedAt} onCancel={async jobId=>{if(!kernel||connection.status!=='live')throw new Error('Kernel disconnected');const response=await transport.cancelAgentJob({commandId:crypto.randomUUID(),expectedStateVersion:kernel.stateVersion,jobId});if(!response.cancelled)throw new Error('Job already terminal; capability effects require their own Kernel controls');}}/>
-    <OperatingPicture picture={kernel} live={connection.status==='live'}/><TelemetryRail snapshot={kernel?.telemetrySummary.system} live={connection.status==='live'}/>
-    <footer className="command-deck"><button aria-label="RTC listening unavailable" disabled title="Listening is enabled only by live RTC state"><AudioLines size={17}/></button><button className="command-line" onClick={()=>setProposalOpen(!proposalOpen)} disabled={connection.status!=='live'}><Command size={15}/><span>{connection.status==='live'?'Ask JARVIS or request an action':'Commands unavailable until Kernel reconnects'}</span><kbd>ENTER</kbd></button><button aria-label="Open diagnostics" className={diagnostics?'active':''} onClick={()=>setDiagnostics(!diagnostics)}><Activity size={17}/></button></footer>
+    <OperatingPicture picture={kernel} live={connection.status==='live'}/><TelemetryRail snapshot={kernel?.telemetrySummary.system} live={connection.status==='live'} degraded={presentation==='DEGRADED'}/>
+    <footer className="command-deck"><RtcControl transport={transport} live={connection.status==='live'} available={['HEALTHY','DEGRADED'].includes(kernel?.diagnostics.dependencies.find(item=>item.name==='rtc')?.status??'OFFLINE')}/><button className="command-line" onClick={()=>setProposalOpen(!proposalOpen)} disabled={connection.status!=='live'}><Command size={15}/><span>{connection.status==='live'?'Ask JARVIS or request an action':'Commands unavailable until Kernel reconnects'}</span><kbd>ENTER</kbd></button><button aria-label="Open diagnostics" className={diagnostics?'active':''} onClick={()=>setDiagnostics(!diagnostics)}><Activity size={17}/></button></footer>
     {proposalOpen&&<section className="proposal-entry"><label htmlFor="proposal-json">JARVIS REQUEST</label><textarea id="proposal-json" value={proposalText} onChange={(event)=>setProposalText(event.target.value)} placeholder="Ask a question or describe the outcome you want."/><div><button onClick={()=>setProposalOpen(false)}>CANCEL</button><button onClick={()=>void runProposal()}>SUBMIT TO JARVIS</button></div></section>}
     {commandResult&&<div className="command-result" role="status">{commandResult}</div>}
     <AirTouchLayer objects={panels} submit={send} transport={transport}/><div className="gesture-indicator"><span/><small>AIR TOUCH · {connection.status==='live'?'PRESENTATION READY':'LOCAL ONLY'}</small></div>
