@@ -30,6 +30,12 @@ it('bounds projected references while retaining the real durable evidence count'
  const picture=await projection({jobs:[{...observedJob,evidence_refs:['x'.repeat(300),...Array.from({length:20},(_,n)=>`ref-${n}`)]}]}).snapshot();
  expect(picture.agentJobs?.[0]).toMatchObject({evidenceCount:21,evidenceRefsTruncated:true});expect(picture.agentJobs?.[0]?.evidenceRefs).toHaveLength(8);
 });
+it('projects gateway routing rejections for a failed job that never selected a model',async()=>{
+ const unavailable=(modelId:string)=>({modelId,state:'UNAVAILABLE',reason:'privacy/locality requires local execution'});
+ const picture=await projection({jobs:[{...observedJob,state:'FAILED',error_code:'NO_ROUTE',model_route:{phase:'CANDIDATE',candidates:[unavailable('gpt-5'),unavailable('claude-sonnet-4-5')]}}]}).snapshot();
+ expect(picture.agentJobs?.[0]).toMatchObject({errorCode:'NO_ROUTE',routeRejections:['gpt-5: privacy/locality requires local execution','claude-sonnet-4-5: privacy/locality requires local execution']});
+ expect(picture.agentJobs?.[0]?.selectedModelId).toBeUndefined();
+});
 it('binds cancellation to the authenticated principal, not a client-supplied principal field',async()=>{
  const cancelAgentJob=vi.fn(async()=>true);
  const gateway=new DesktopGateway({state:{view:async()=>({stateVersion:1})},cognition:{cancelAgentJob}} as never);

@@ -90,6 +90,8 @@ export interface OperatingAgentJob {
   attempt: number; startedAt?: string; finishedAt?: string; lastHeartbeat?: string; deadline: string;
   budget: { wallMs: number; contextUnits: number; costLimit: number };
   selectedModelId?: string; proposalCount: number; proposedCapabilities: string[]; evidenceRefs: string[]; errorCode?: string;
+  /** Gateway routing-policy rejections for a failed job that never selected a model. */
+  routeRejections?: string[];
   activityStage?: OperatingAgentJob['state'] | 'WAITING_APPROVAL' | 'VERIFYING';
   activityConfirmed?: boolean;
   evidenceCount?: number; evidenceRefsTruncated?: boolean;

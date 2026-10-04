@@ -1,21 +1,23 @@
 {
   "id": "capabilities.web",
-  "version": "0.42.0",
-  "requiredScopes": ["web:fetch"],
-  "trustTierMin": "kernel-local",
+  "version": "1.1.0",
+  "requiredScopes": ["web.fetch"],
+  "trustTierMin": "owned-secure",
   "actions": [
     {
       "name": "fetch",
-      "inputSchema": { "type": "object", "properties": { "url": { "type": "string" }, "method": { "type": "string" } }, "required": ["url"] },
-      "outputSchema": { "type": "object", "properties": { "status": { "type": "number" }, "body": { "type": "string" }, "contentType": { "type": "string" } } },
+      "inputSchema": { "type": "object", "properties": { "url": { "type": "string", "minLength": 1, "maxLength": 2048, "pattern": "^https?:\\/\\/" }, "maxChars": { "type": "integer", "minimum": 500, "maximum": 12000 } }, "required": ["url"], "additionalProperties": false },
+      "outputSchema": { "type": "object", "properties": { "finalUrl": { "type": "string" }, "status": { "type": "number" }, "contentType": { "type": "string" }, "title": { "type": "string" }, "text": { "type": "string" }, "contentSha256": { "type": "string" }, "fetchedAt": { "type": "string" }, "trust": { "const": "untrusted" } } },
       "riskClass": "LOW",
       "reversible": false,
-      "simulatable": true,
-      "verify": "verifyResponseReceived",
+      "simulatable": false,
+      "verify": "verify",
       "idempotent": true,
-      "sideEffects": [
-        "retrieves an external resource",
-        "response body is tagged trust:untrusted, origin:<url>; any Proposal derived from it is derivedFromUntrusted (ADR-0018)"
+      "sideEffects": [],
+      "notes": [
+        "GET only; Kernel egress enforces http(s), ports 80/443, public addresses after DNS and on every redirect, size/time/content-type limits, no cookies or credentials",
+        "policy base.web.fetch = REQUIRE_APPROVAL; the bootstrap grant never proceeds without live operator approval",
+        "response is tagged trust:untrusted; any Proposal derived from it is derivedFromUntrusted (ADR-0018)"
       ]
     }
   ]

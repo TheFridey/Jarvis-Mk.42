@@ -430,6 +430,7 @@ button:disabled{cursor:not-allowed}
 .agent-inspector dl{display:grid;grid-template-columns:140px 1fr;gap:4px 10px;font:var(--t-micro) var(--f-data)}
 .agent-inspector dt{color:var(--c-inkFaint)}.agent-inspector dd{margin:0;overflow-wrap:anywhere}
 .agent-inspector .job-effects li{font:var(--t-micro) var(--f-data);color:var(--c-execution)}
+.agent-inspector .job-route-rejections li{font:var(--t-micro) var(--f-data);color:var(--c-inkMuted);overflow-wrap:anywhere}
 .agent-inspector button{margin-top:8px;border:1px solid var(--line-strong);background:transparent;padding:7px 10px;font:var(--t-micro) var(--f-data);letter-spacing:.2em}
 
 /* ---------- operations view ---------- */

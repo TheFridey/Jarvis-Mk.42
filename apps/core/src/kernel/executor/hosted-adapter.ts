@@ -1,7 +1,8 @@
 import { AdapterHost } from '@jarvis/adapter-host';
 import type { AdapterContext, Capability } from '@jarvis/contracts';
 import type { AdapterRunner, VerificationContext, VerificationWorld } from './verify-runner.ts';
-export type { AdapterEgress } from '@jarvis/adapter-host';
+export type { AdapterEgress, AdapterJob } from '@jarvis/adapter-host';
+export { EgressRefusal } from '@jarvis/adapter-host';
 
 export type AdapterModuleCatalog = ReadonlyMap<string, string>;
 export function createAdapterHost(egress?: import('@jarvis/adapter-host').AdapterEgress) { return new AdapterHost(undefined, egress); }

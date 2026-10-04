@@ -4,6 +4,8 @@ import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import type { AdapterJob, WorkerReply } from './ipc.ts';
 import type { AdapterContext } from '@jarvis/contracts';
 export type AdapterEgress = (job: AdapterJob, request: Parameters<AdapterContext['http']>[0]) => Promise<unknown>;
+/** Egress failure whose message carries no secret and may be shown to the worker and operator. */
+export class EgressRefusal extends Error { constructor(message: string) { super(message.slice(0, 200)); this.name = 'EgressRefusal'; } }
 const runtime = fileURLToPath(new URL('./worker-runtime.ts', import.meta.url));
 export class AdapterHost {
   constructor(private readonly runtimePath=runtime, private readonly egress?: AdapterEgress){}
@@ -19,7 +21,7 @@ export class AdapterHost {
           if (++calls > 2 || JSON.stringify(raw).length > 1_000_000 || !this.egress) throw new Error('adapter egress unavailable');
           const value = await this.egress(boundJob, message.request);
           if(child.connected)child.send({ id, value });
-        } catch { if(child.connected)child.send({ id, error: 'integration request failed' }); }
+        } catch (error) { if(child.connected)child.send({ id, error: error instanceof EgressRefusal ? error.message : 'integration request failed' }); }
       })(); });
       const timer = setTimeout(() => { child.kill(); reject(new Error('adapter timeout')); }, job.timeoutMs);
       let output = ''; child.stdout!.on('data', (data) => { output += String(data); if(output.length>2_000_000)child.kill(); }); child.stderr!.on('data', () => undefined);

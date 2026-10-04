@@ -15,6 +15,8 @@ export const BASE_RULE_PACK: PolicyRule[] = [
   rule('base.fs.write.workspace', 'ALLOW', 30, and(eq('action.capabilityId', 'capabilities.filesystem'), eq('action.action', 'write_file'), { op: 'scope-held', scope: 'filesystem.write' })),
   rule('base.fs.write.outside', 'DENY', 100, and(eq('action.capabilityId', 'capabilities.filesystem'), eq('action.action', 'write_outside_workspace'))),
   rule('base.terminal.any', 'REQUIRE_APPROVAL', 70, eq('action.capabilityId', 'capabilities.terminal')),
+  // A model-chosen URL is an outbound channel (its path/query can carry context), so every fetch is operator-approved.
+  rule('base.web.fetch', 'REQUIRE_APPROVAL', 60, eq('action.capabilityId', 'capabilities.web')),
   rule('base.windows.selected_capture','REQUIRE_APPROVAL',80,and(eq('action.capabilityId','capabilities.windows'),eq('action.action','capture_region'),eq('actor.kind','principal'),eq('context.operatorReachable',true),{op:'scope-held',scope:'windows.screen.capture'})),
   rule('base.deploy.staging', 'ALLOW', 30, and(eq('action.action', 'deploy_staging'), { op: 'scope-held', scope: 'deploy.staging' }, eq('context.degradation', 'nominal'))),
   rule('base.deploy.production', 'REQUIRE_APPROVAL', 80, eq('action.action', 'deploy_production')),

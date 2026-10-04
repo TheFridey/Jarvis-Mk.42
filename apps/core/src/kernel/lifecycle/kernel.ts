@@ -29,6 +29,10 @@ import {
 import { BASE_RULE_PACK, evaluatePolicy } from '@jarvis/permissions';
 import type { AdapterHost } from '@jarvis/adapter-host';
 import { IntegrationTransport } from '../integrations/transport.ts';
+import { WebFetchEgress, type WebFetchPolicy } from '../integrations/web-fetch.ts';
+import { WebResearch } from '../cognition/web-research.ts';
+import { AGENTS } from '../cognition/agent-runtime.ts';
+import { capabilityContract } from '../cognition/proposal-instructions.ts';
 import { BusinessIntelligence } from '../integrations/intelligence.ts';
 import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { startTelemetry, stopTelemetry, structuredLog } from '@jarvis/telemetry';
@@ -109,6 +113,8 @@ export interface KernelOverrides {
   credentialMaterial?: Record<string, string>;
   adapterHost?: AdapterHost;
   integrationRequest?: typeof fetch;
+  /** Restrict-only overrides for the capabilities.web egress (tests, operator allowlist). */
+  webFetch?: Partial<WebFetchPolicy>;
   modelGateway?: ModelGatewayPort;
 }
 
@@ -304,8 +310,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   let knowledgeHarvestCursor = '0';
 
   const perception=new PerceptionContext(()=>clock.epochMs());
+  const research = new WebResearch({ submit: (request) => cognition.submit(request), allowedAgent: (agentId) => AGENTS[agentId]?.proposalScope.capabilities.includes('capabilities.web') ?? false, now: () => clock.epochMs(), onError: () => { void structuredLog({ component: 'cognition.web-research', node: config.nodeId, event: 'continuation.failed', severity: 'ERROR' }); } });
   const context = new ContextCompiler({
     perception:(ref,principalId)=>perception.items(ref,principalId),
+    evidence:(ref,principalId)=>research.items(ref,principalId),
     state,
     eventStore,
     events,
@@ -335,7 +343,8 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const authorizer = new AgencyAuthorizer(grantStore, permissions, approvals, () => clock.nowIso());
   const credentialBroker = new CredentialBroker(new MemoryCredentialMaterialStore(ov.credentialMaterial ?? {}), tokenCache, () => clock.nowIso(), pg.sql);
   const integrationTransport = new IntegrationTransport(credentialBroker,ov.integrationRequest);
-  const adapterHost = ov.adapterHost ?? createAdapterHost(integrationTransport.run);
+  const webEgress = new WebFetchEgress(credentialBroker, ov.webFetch);
+  const adapterHost = ov.adapterHost ?? createAdapterHost((job, request) => job.capabilityId === 'capabilities.web' ? webEgress.run(job, request) : integrationTransport.run(job, request));
   const adapterModules = new Map((ov.capabilities ?? []).map((entry) => [entry.manifest.id, entry.moduleUrl]));
   const verification = new VerificationRunner(new HostedVerificationWorld(adapterHost, adapterModules));
   const invocationStore = new PgInvocationStore(pg.sql);
@@ -356,10 +365,11 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     now: () => clock.nowIso(),
   });
   let business: BusinessIntelligence;
-  const agency = new AgencyIngress(executor,async(proposal,result,principalId)=>{await perception.capture(proposal,result,principalId,config.nodeId);await business.capture(proposal,result,principalId);});
+  const agency = new AgencyIngress(executor,async(proposal,result,principalId)=>{await perception.capture(proposal,result,principalId,config.nodeId);await business.capture(proposal,result,principalId);research.capture(proposal,result,principalId);});
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
-  const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso(), new AgentJobStore(pg.sql, events));
-  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, businessAnswer:async(principalId,text,correlationId)=>{
+  const capabilityContracts = (ov.capabilities ?? []).map((entry) => capabilityContract(entry.manifest));
+  const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso(), new AgentJobStore(pg.sql, events), () => capabilityContracts);
+  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research, businessAnswer:async(principalId,text,correlationId)=>{
     if(/^(?:jarvis[, ]+)?check production[.!]?$/i.test(text.trim())){
       const telemetry=await systemTelemetry.snapshot();
       const findings=telemetryMonitor.evaluate(telemetry);

@@ -17,6 +17,16 @@ describe('deterministic policy evaluation', () => {
     expect(evaluatePolicy(query(), BASE_RULE_PACK).verdict).toBe('ALLOW');
     expect(evaluatePolicy(query(), []).verdict).toBe('DENY');
   });
+  it('requires operator approval for every web fetch, including untrusted-derived ones, and denies it without the scope', () => {
+    const web = (): PolicyQuery => { const q = query(); q.actor.heldScopes = ['web.fetch']; q.action = { capabilityId: 'capabilities.web', action: 'fetch', riskClass: 'LOW', requiredScopes: ['web.fetch'] }; return q; };
+    expect(evaluatePolicy(web(), BASE_RULE_PACK)).toMatchObject({ verdict: 'REQUIRE_APPROVAL', firedRuleIds: ['base.web.fetch'] });
+    const tainted = web(); tainted.context.derivedFromUntrusted = true;
+    expect(evaluatePolicy(tainted, BASE_RULE_PACK).verdict).toBe('REQUIRE_APPROVAL');
+    const unscoped = web(); unscoped.actor.heldScopes = [];
+    expect(evaluatePolicy(unscoped, BASE_RULE_PACK)).toMatchObject({ verdict: 'DENY', firedRuleIds: ['hardcap.missing_scope'] });
+    const escalated = web(); escalated.action.riskClass = 'HIGH'; escalated.context.derivedFromUntrusted = true;
+    expect(evaluatePolicy(escalated, BASE_RULE_PACK).verdict).toBe('DENY');
+  });
   it('is stable for cloned inputs', () => {
     for (let i = 0; i < 1000; i++) expect(evaluatePolicy(query(), BASE_RULE_PACK)).toEqual(evaluatePolicy(structuredClone(query()), BASE_RULE_PACK));
   });

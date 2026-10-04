@@ -71,6 +71,7 @@ export interface KnowledgeSources {
 
 export interface ContextCompilerDeps {
   perception?:(ref:string,principalId:string)=>Array<{kind:ContextItemKind;content:unknown;privacyClass:PrivacyClass;observedAt:string;confidence?:number}>;
+  evidence?:(ref:string,principalId:string)=>Array<{summary:string;content:unknown;privacyClass:PrivacyClass;provenance:ContextItem['provenance']}>;
   state: StateManager;
   eventStore: EventStore;
   events: EventManager;
@@ -149,9 +150,22 @@ export class ContextCompiler {
       freshness.memoryAsOf = nowIso;
     }
 
+    // Required evidence is kept outside ranking; its budget is reserved before the greedy fill.
+    const required: ContextItem[] = [];
+    if (req.evidenceRef) {
+      if (!req.principalId || !this.deps.evidence) throw new Error('evidence context binding required');
+      for (const item of this.deps.evidence(req.evidenceRef, req.principalId)) {
+        if (PRIVACY_ORDER.indexOf(item.privacyClass) > PRIVACY_ORDER.indexOf(req.maxPrivacyClass)) throw new Error('required evidence exceeds privacy ceiling');
+        required.push({ ...this.mkItem('evidence', item.summary, item.content, item.privacyClass, { sizeUnits: estimateUnits(item.content), sourceType: 'derivation', provenance: item.provenance }), relevance: 1 });
+      }
+    }
+    const requiredUnits = required.reduce((sum, item) => sum + item.sizeUnits, 0);
+    if (requiredUnits > req.budgetUnits) throw new Error('required evidence exceeds context budget');
+
     // score
     const scored: ContextItem[] = candidates.map((c) => ({ ...c, relevance: scoreItem(c, req) }));
-    const result = buildPackage(scored, req);
+    const ranked = buildPackage(scored, { ...req, budgetUnits: req.budgetUnits - requiredUnits });
+    const result = { ...ranked, kept: [...required, ...ranked.kept], usedUnits: ranked.usedUnits + requiredUnits };
     if(req.perceptionRef&&candidates.filter(c=>c.provenance.producedBy==='local-perception').some(c=>!result.kept.some(item=>item.contentHash===c.contentHash)))throw new Error('required perception context exceeds privacy ceiling or budget');
 
     this.version++;

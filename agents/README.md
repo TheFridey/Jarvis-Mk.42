@@ -38,7 +38,7 @@ durable job history. Unknown inference outcomes block rather than retry.
 
 | Folder | Agent | Job |
 |---|---|---|
-| `oracle` | Oracle | General reasoning / Q&A over compiled context |
+| `oracle` | Oracle | General reasoning / Q&A over compiled context; may propose operator-approved `capabilities.web` fetches |
 | `forge` | Forge | Software implementation (proposes fs/terminal/github/docker) |
 | `scout` | Scout | Research / retrieval (web content tagged untrusted) |
 | `argus` | Argus | Monitoring / watch tasks / anomaly surfacing |

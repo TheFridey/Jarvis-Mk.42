@@ -192,6 +192,30 @@ degradation in a system like this.
   as `Proposal`s; anything they assert about the world goes through World Model
   ingestion with `epistemicStatus` and evidence.
 
+### Web research continuation (`cognition/web-research.ts`)
+
+A cognition run is single-shot, so a proposed `capabilities.web/fetch` cannot
+return its result in the same response. The orchestrator therefore appends a
+Kernel-authored status line instead (for example "awaiting your approval…
+nothing has run yet"). When the Executor reports the fetch as **verified**,
+whether inline or after approval resume, the `AgencyIngress` hook hands the
+output to `WebResearch`. Before doing anything, `WebResearch` checks three things:
+the proposal came from an agent scoped for `capabilities.web`, the principal
+matches the original request, and the output passes the strict schema.
+
+`WebResearch` then holds the page as principal-bound evidence with a 30-minute
+expiry and submits one **analysis-only** continuation (`evidenceRef:
+invocation:<id>`, same correlation, inherited locality and cloud settings; it
+falls back to local-only if the origin is unknown).
+
+The Context Compiler reserves budget for the evidence item, which has
+`method: 'retrieval'`, `derivedFromUntrusted: true`, and `sourceRefs` set to
+the invocation and the final URL. The instruction frames the page as untrusted
+data, never as instructions, and the page text never enters the instruction
+itself. The resulting proposals are tainted, so they cannot authorise MEDIUM+
+effects, and they carry the Kernel-attested evidence refs. The report appears
+as its own `web-evidence:*` cognition run in the same conversation stream.
+
 ### Malformed / rejected output (review §16.9, FAILURE_MODEL)
 
 Validator rejects a `Proposal` (bad schema, unsafe content, evidence chain

@@ -1,6 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { AGENTS, AgentRuntime } from './agent-runtime.ts';
-import type { ModelRequest } from '@jarvis/contracts';
+import { ModelGatewayError, type ModelRequest } from '@jarvis/contracts';
+import type { AgentJobStore } from './agent-job-store.ts';
 const request: ModelRequest = { task:'reason',capabilities:['json'],input:{instruction:'test',context:{} as never,constraints:[]},budget:{contextUnits:10,maxOutput:10},locality:'local',principalId:'p',correlationId:'c' };
 const proposal = () => ({ proposalId:'p1',kind:'answer',correlationId:'c',confidence:1,text:'answer',citations:[],provenance:{method:'model',producedBy:'fixture',producedOn:'test',producedAt:new Date().toISOString(),correlationId:'c',derivedFromUntrusted:true} });
 const runtime = (output: unknown) => new AgentRuntime({ async generate() { return { modelId:'fixture',output,usage:{contextUnits:1,outputUnits:1,costEstimate:0,latencyMs:1},finishReason:'stop',provenance:proposal().provenance as never }; } },()=>new Date().toISOString());
@@ -28,6 +29,13 @@ it('retains context taint even when both adapter and model claim trusted output'
 it('enforces the declared cost ceiling rather than accepting excessive observed usage',async()=>{
   const worker=new AgentRuntime({async generate(){return{modelId:'fixture',output:{proposals:[]},usage:{contextUnits:1,outputUnits:1,costEstimate:2,latencyMs:1},finishReason:'stop',provenance:proposal().provenance as never}}},()=>new Date().toISOString());
   await expect(worker.invoke('agents.oracle',{...request,budget:{...request.budget,maxCost:1}})).rejects.toThrow('cost budget exceeded');
+});
+it('records the gateway routing error on the durable job instead of a generic worker failure',async()=>{
+  const finishFailure=vi.fn(async()=>{});
+  const jobs={enqueue:async()=>({context_units:10,cost_limit:50,state:'QUEUED'}),watchChanges:()=>({promise:Promise.resolve(),dispose:()=>{}}),claim:async()=>({attempt:1,remaining_wall_ms:120000}),heartbeat:async()=>{},update:async()=>{},route:async()=>{},finishFailure} as unknown as AgentJobStore;
+  const worker=new AgentRuntime({async generate(){throw new ModelGatewayError('NO_ROUTE','gateway model request failed',false)}},()=>new Date().toISOString(),jobs);
+  await expect(worker.invoke('agents.oracle',request,undefined,{jobId:'no-route'})).rejects.toThrow('gateway model request failed');
+  expect(finishFailure).toHaveBeenCalledWith('no-route','p',expect.any(String),1,'FAILED','NO_ROUTE');
 });
 it('aborts mediated inference at the wall budget without using sleep-based test synchronisation',async()=>{
   vi.useFakeTimers();let entered!:()=>void,aborted=false;

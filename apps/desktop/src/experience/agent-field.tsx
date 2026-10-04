@@ -46,7 +46,7 @@ export function AgentInspector({ jobs, live, generatedAt, onCancel }: { jobs: Op
       return <li key={job.jobId} className={`job-${job.state.toLowerCase()}`}>
         <header><strong>{job.agentId.replace('agents.', '').toUpperCase()}</strong><span>{live ? job.state : 'LAST OBSERVED'}{job.activityConfirmed === false ? ' · UNCONFIRMED' : ''}</span></header>
         <p className="path">JARVIS → {groups.join(' / ') || 'SPECIALIST'} → {job.agentId.replace('agents.', '')} → {job.selectedModelId ?? 'MODEL NOT OBSERVED'}</p>
-        <p>STAGE {job.activityStage ?? job.state} · {job.taskClass}</p>
+        <p>STAGE {job.activityStage ?? job.state} · TASK {job.taskClass.toUpperCase()}</p>
         {['RUNNING', 'WAITING'].includes(job.state) && job.activityConfirmed === false && <p className="signal">Worker lease unconfirmed. No live activity is implied.</p>}
         <dl>
           <dt>Job / attempt</dt><dd>{job.jobId} / {job.attempt}</dd>
@@ -60,6 +60,7 @@ export function AgentInspector({ jobs, live, generatedAt, onCancel }: { jobs: Op
         {job.capabilityActivity?.length ? <ul className="job-effects">{job.capabilityActivity.map(effect => <li key={effect.invocationId}>→ {effect.capabilityId} · {effect.state} · {effect.invocationId}</li>)}</ul> : null}
         {onCancel && ['QUEUED', 'LEASED', 'RUNNING', 'WAITING', 'BLOCKED'].includes(job.state) && <button disabled={!live || Boolean(pending)} onClick={() => void cancel(job.jobId)}>{pending === job.jobId ? 'CANCELLING' : 'CANCEL COGNITIVE JOB'}</button>}
         {job.errorCode && <p role="status" className="degraded">{job.errorCode}</p>}
+        {job.routeRejections?.length ? <ul className="job-route-rejections" aria-label="Model routing rejections">{job.routeRejections.map(rejection => <li key={rejection}>{rejection}</li>)}</ul> : null}
       </li>;
     })}</ul>
   </div>;

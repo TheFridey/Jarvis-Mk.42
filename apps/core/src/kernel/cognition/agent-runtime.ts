@@ -1,9 +1,9 @@
-import { z } from 'zod'; import type { AgentManifest, AgentResult, ModelRequest, ModelResponse, Proposal } from '@jarvis/contracts'; import type { ModelGatewayPort } from './model-client.ts'; import { withSpan } from '@jarvis/telemetry';
+import { z } from 'zod'; import { ModelGatewayError, type AgentManifest, type AgentResult, type ModelRequest, type ModelResponse, type Proposal } from '@jarvis/contracts'; import type { ModelGatewayPort } from './model-client.ts'; import { withSpan } from '@jarvis/telemetry';
 import { readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { runAgentWorker } from './agent-worker-host.ts';
 import type { AgentJobStore } from './agent-job-store.ts';
-import { proposalInstructions } from './proposal-instructions.ts';
+import { proposalInstructions, type CapabilityContract } from './proposal-instructions.ts';
 export function agentJobIdentity(request: ModelRequest, manifest: AgentManifest, identityHash?: string): string {
   return createHash('sha256').update(JSON.stringify([identityHash??request,manifest.version,manifest.proposalScope,manifest.leasePolicy])).digest('hex');
 }
@@ -20,7 +20,7 @@ export class AgentRuntime {
   private readonly active = new Map<string, AbortController>();
   private readonly drains = new Set<Promise<void>>();
   private readonly owner = randomUUID();
-  constructor(private readonly gateway: ModelGatewayPort, private readonly now: () => string, private readonly jobs?: AgentJobStore) {}
+  constructor(private readonly gateway: ModelGatewayPort, private readonly now: () => string, private readonly jobs?: AgentJobStore, private readonly capabilityContracts: () => CapabilityContract[] = () => []) {}
   async reap(): Promise<void> { await this.jobs?.reap(); }
   async canRecover(jobId: string, principalId: string, agentId: string): Promise<boolean> {
     if (!this.jobs || this.active.has(jobId)) return false;
@@ -51,7 +51,7 @@ export class AgentRuntime {
       if (request.budget.maxOutput <= 0 || request.budget.maxLatencyMs === 0) throw new Error('invalid agent budget');
       if (request.budget.contextUnits > manifest.leasePolicy.maxContextUnits) throw new Error('agent context budget exceeded');
       if (Buffer.byteLength(JSON.stringify(request.input)) > 1_000_000) throw new Error('agent input exceeds transport budget');
-      const outputInstructions = proposalInstructions(manifest, request.correlationId, this.now());
+      const outputInstructions = proposalInstructions(manifest, request.correlationId, this.now(), this.capabilityContracts());
       const bounded: ModelRequest = { ...request,
         input:{...request.input,constraints:[...request.input.constraints,`Specialist ${manifest.id}: ${manifest.role}`,`Allowed proposal kinds: ${JSON.stringify(manifest.proposalScope.kinds)}. Allowed capability proposal IDs: ${JSON.stringify(manifest.proposalScope.capabilities)}. Propose only; never execute.`,`Every proposal and provenance correlationId must equal ${JSON.stringify(request.correlationId)}.`]},
         budget: { ...request.budget,
@@ -117,7 +117,10 @@ export class AgentRuntime {
         if (p.kind === 'capability_invocation' && !manifest.proposalScope.capabilities.includes(p.invocation.capabilityId)) throw new Error('capability outside agent scope');
       }
       if (new Set(parsed.data.map(p => p.proposalId)).size !== parsed.data.length) throw new Error('duplicate proposal identity');
-      const evidence = z.array(z.string().max(4096)).max(64).parse(envelope?.evidence ?? []);
+      const contextItems = request.input.context && 'items' in request.input.context ? request.input.context.items : [];
+      // Retrieval evidence the Kernel actually supplied is attested here, whatever the model chose to cite.
+      const supplied = contextItems.filter(item => item.kind === 'evidence' && item.provenance.method === 'retrieval').flatMap(item => item.provenance.sourceRefs ?? []);
+      const evidence = [...new Set([...supplied, ...z.array(z.string().max(4096)).max(64).parse(envelope?.evidence ?? [])])].filter(ref => ref.length <= 4096).slice(0, 64);
       // Model identifiers are local to this job, not global effect identities.
       // Seal them in the Kernel so an agent cannot collide with another job.
       const contextTainted = request.input.context && 'items' in request.input.context
@@ -138,7 +141,7 @@ export class AgentRuntime {
       return output;
       } catch (error) {
         if (this.jobs && enqueued) {
-          try { await this.jobs.finishFailure(jobId, request.principalId, this.owner, attempt, controller.signal.aborted && controller.signal.reason !== 'WALL_BUDGET_EXCEEDED' ? 'CANCELLED' : 'FAILED', controller.signal.aborted ? String(controller.signal.reason) : 'WORKER_FAILED'); }
+          try { await this.jobs.finishFailure(jobId, request.principalId, this.owner, attempt, controller.signal.aborted && controller.signal.reason !== 'WALL_BUDGET_EXCEEDED' ? 'CANCELLED' : 'FAILED', controller.signal.aborted ? String(controller.signal.reason) : error instanceof ModelGatewayError ? error.code : 'WORKER_FAILED'); }
           catch (persistenceError) { throw new AggregateError([error, persistenceError], 'agent failure could not be durably recorded'); }
         }
         throw error;

@@ -13,6 +13,13 @@ boundary; its existing Venture Lab MCP is not that boundary. Writes require
 per-action grants and live approval; unsupported ScaleSmiths updates remain absent
 from the runtime registry.
 
+`web` (`capabilities.web@1.1.0`, action `fetch`) is operational and registered by
+default (`JARVIS_ENABLE_WEB_FETCH=0` disables it; `JARVIS_WEB_FETCH_ALLOWED_DOMAINS`
+narrows it). The worker holds no network authority: its single GET is mediated by
+the Kernel's `WebFetchEgress` (`apps/core/src/kernel/integrations/web-fetch.ts`),
+which enforces SSRF and size limits. Every fetch needs live approval. See
+`AGENCY_MODEL.md` §9.
+
 **Registering a manifest touches only the Capability Registry. The Kernel
 binary does not change** (L28, L29).
 

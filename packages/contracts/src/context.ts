@@ -72,6 +72,8 @@ export interface ContextItem {
 export interface ContextRequest {
   principalId?:string;
   perceptionRef?:string;
+  /** Verified capability evidence that must be kept in the package (budget reserved for it). */
+  evidenceRef?:string;
   correlationId: CorrelationId;
   /** What the context is being compiled for. */
   intent: string;

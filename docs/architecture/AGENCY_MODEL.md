@@ -226,6 +226,52 @@ fine-grained token; command-allowlisted Docker socket proxy; **argv-array-only**
 terminal with no shell; fixed Windows API surface; isolated ephemeral browser
 profile; GET-only domain-allowlisted web; read-only telemetry).
 
+### `web.fetch` — operational (`capabilities.web@1.1.0`)
+
+- **Authority chain.** Nothing new is added. ORACLE (or SCOUT) emits a
+  `capability_invocation` proposal, and `AgencyIngress` hands it to the Executor.
+  The proposal then goes through validate → policy → permission/approval →
+  lease (keyed by `url`) → credential (`none`) → Adapter Host worker → `world-read`
+  verification. The model never executes anything itself.
+- **Risk/approval.** The action is `LOW` (read-only, `sideEffects: []`). The
+  base rule `base.web.fetch` is set to `REQUIRE_APPROVAL`, and the bootstrap grant
+  `web-fetch:<principal>:<node>` sets `mayProceedWithoutLiveApproval: false`.
+  So every fetch waits for live operator approval. The reason is that a URL the
+  model chooses is an outbound channel: the request can carry data out in its
+  path or query, and the page can carry prompt injection back in. Hard caps still
+  apply: no scope means `DENY`, and untrusted-derived proposals at `MEDIUM` or
+  above are denied.
+- **Egress.** The worker's one `ctx.http` GET goes to the Kernel's
+  `WebFetchEgress`, which checks the handle binding, invocation, action and
+  input. `WebFetcher` then enforces these limits:
+  - http/https only, with no credentials in the URL;
+  - ports 80/443 only;
+  - localhost, single-label and local suffixes are refused, along with private,
+    loopback, link-local, CGNAT, metadata and other special-purpose IPv4/IPv6
+    ranges. This applies to literals and to *every* DNS answer, and the
+    connection is pinned to the vetted address;
+  - every redirect hop is re-validated (at most 5), and https→http downgrades
+    are refused;
+  - 15 s timeout and a 1.5 MB cap on the decoded body (decompression-bomb safe);
+  - only html, xhtml, plain-text and JSON content types, with a 2xx status;
+  - no cookies, no auth headers, no connection reuse, and an identifiable
+    `JARVIS-WebFetch/1.1` User-Agent;
+  - `JARVIS_WEB_FETCH_ALLOWED_DOMAINS` acts as both a grant `domain-allow`
+    constraint and an egress host allowlist.
+
+  Refusals reach the worker as a bounded `EgressRefusal` message.
+- **Output and evidence.** The output is sanitised text (≤12k chars), title,
+  description, ≤25 links, final URL, status, content type, `fetchedAt`,
+  `truncated`, `contentSha256`, redirects and `trust: 'untrusted'`.
+  Verification re-fetches in dry-run mode and only reproduces the record when
+  the final URL, status and content hash match.
+- **Contract bounds.** The SDK's `zodToJsonSchema` carries numeric, length,
+  pattern (flag-free), item-count and literal bounds into manifests, and
+  `validateJsonSchema` enforces them. So out-of-contract input, for example
+  `maxChars` above 12000 or a non-http URL, is rejected at proposal validation,
+  before any approval is requested. The specialist also sees those bounds in its
+  capability contract.
+
 ### Future interfaces — manifest only
 
 `email`, `calendar`, `scalesmiths`, `smart-home`, `mobile`, `robotics`:
