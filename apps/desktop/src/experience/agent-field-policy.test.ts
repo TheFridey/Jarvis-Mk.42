@@ -13,6 +13,10 @@ describe('agent field policy', () => {
     expect(agentField([job({ activityConfirmed: false })], true).nodes[0]).toMatchObject({ state: 'UNCONFIRMED', animated: false });
     expect(agentField([job({})], false).nodes[0]!.animated).toBe(false);
   });
+  it('keeps orbit order stable when an agent changes state', () => {
+    const order = (state: 'RUNNING' | 'QUEUED') => agentField([job({ jobId: 'a', agentId: 'agents.nova', state: 'QUEUED' }), job({ jobId: 'b', agentId: 'agents.forge', state })], true).nodes.map(node => node.agentId);
+    expect(order('QUEUED')).toEqual(order('RUNNING'));
+  });
   it('links orchestration parents and prefers the active job per agent', () => {
     const field = agentField([job({ jobId: 'p', agentId: 'agents.nova' }), job({ jobId: 'old', state: 'COMPLETE' }), job({ jobId: 'c', parentJobId: 'p' })], true);
     const forge = field.nodes.find(node => node.agentId === 'agents.forge')!;

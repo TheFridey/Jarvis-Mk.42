@@ -2,7 +2,7 @@
 import { useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, ShaderMaterial, Vector2, Vector3 } from 'three';
-import type { HealthRegion, RegionHealth } from '../telemetry-instrument-policy.ts';
+import { REGION_ANCHOR, type HealthRegion, type RegionHealth } from '../telemetry-instrument-policy.ts';
 import type { Point, SpatialLayout } from '../spatial-layout-policy.ts';
 import { COLOUR, MOTION } from '../visual-tokens.ts';
 import { damp } from './damp.ts';
@@ -42,15 +42,9 @@ const toUv = (point: Point, layout: SpatialLayout) => new Vector2(point.x / layo
 
 /** Region anchors for localised degradation: the subsystem's place in the composition. */
 export function regionAnchor(region: HealthRegion, layout: SpatialLayout): Point {
-  const { core, coreRadius, modelRadius, width, height } = layout;
-  switch (region) {
-    case 'gateway': return { x: core.x + modelRadius, y: core.y };
-    case 'fabric': return { x: width * .5, y: height * .92 };
-    case 'storage': return { x: width * .86, y: height * .9 };
-    case 'cache': return { x: width * .72, y: height * .92 };
-    case 'perception': return { x: width * .12, y: height * .16 };
-    case 'voice': return { x: core.x, y: core.y + coreRadius * .9 };
-  }
+  const { core, modelRadius } = layout;
+  if (region === 'gateway') return { x: core.x + modelRadius, y: core.y };
+  return layout.regions[REGION_ANCHOR[region]];
 }
 
 export function Nebula({ layout, octaves, cyan, gold, regions, luminance }: { layout: SpatialLayout; octaves: number; cyan: number; gold: number; regions: Record<HealthRegion, RegionHealth>; luminance: number }) {

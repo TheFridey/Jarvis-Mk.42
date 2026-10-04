@@ -43,6 +43,8 @@ export function agentField(jobs: OperatingAgentJob[], current: boolean, limit = 
       ...(job.activityStage ? { stage: job.activityStage } : {}),
       jobCount: list.length,
     };
-  }).sort((a, b) => Number(b.animated) - Number(a.animated));
-  return { nodes: nodes.slice(0, limit), activeCount: nodes.filter(node => node.animated).length };
+  });
+  // The limit favours animated work, but orbit order is by identity so a state change never swaps two agents' slots.
+  const shown = [...nodes].sort((a, b) => Number(b.animated) - Number(a.animated)).slice(0, limit).sort((a, b) => a.agentId.localeCompare(b.agentId));
+  return { nodes: shown, activeCount: nodes.filter(node => node.animated).length };
 }

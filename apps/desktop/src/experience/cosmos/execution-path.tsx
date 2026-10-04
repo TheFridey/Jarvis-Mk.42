@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, Group, RingGeometry, ShaderMaterial, Vector3 } from 'three';
-import type { ExperiencePhase } from '../experience-phase-policy.ts';
+import type { ExperiencePhase, FlowStage } from '../experience-phase-policy.ts';
 import { seededUnit } from '../forge-visual-policy.ts';
 import { COLOUR, MOTION, type SemanticColour } from '../visual-tokens.ts';
 import { damp } from './damp.ts';
@@ -19,8 +19,10 @@ const FLOW_FRAGMENT = /* glsl */ `uniform vec3 uColour; uniform float uAlpha; va
 void main(){vec2 c=gl_PointCoord*2.-1.;float r=dot(c,c);if(r>1.)discard;gl_FragColor=vec4(uColour,pow(max(1.-r,0.),2.)*uAlpha*vFade);}`;
 
 interface PathTargets { visible: number; draw: number; hold: number; pulse: number; pulseDir: number; flow: number; flowDir: number; barrier: number; colour: SemanticColour; anchor: number }
-export function executionTargets(phase: ExperiencePhase, barrierFraction: number): PathTargets {
+export function executionTargets(phase: ExperiencePhase, barrierFraction: number, stage?: FlowStage): PathTargets {
   const none: PathTargets = { visible: 0, draw: 0, hold: 0, pulse: 0, pulseDir: 1, flow: 0, flowDir: 1, barrier: 0, colour: 'execution', anchor: 0 };
+  // POLICY: a capability proposal is under policy evaluation, so the execution region surfaces faintly.
+  if (stage === 'POLICY' && !['APPROVAL', 'EXECUTING', 'VERIFYING', 'COMPLETE'].includes(phase)) return { ...none, visible: .4, draw: barrierFraction * .6, hold: .5, anchor: .12 };
   switch (phase) {
     case 'APPROVAL': return { ...none, visible: 1, draw: barrierFraction, hold: 1, barrier: 1, anchor: .35 };
     case 'EXECUTING': return { ...none, visible: 1, draw: 1, pulse: 1, flow: 1, anchor: 1 };
@@ -30,7 +32,7 @@ export function executionTargets(phase: ExperiencePhase, barrierFraction: number
   }
 }
 
-export function ExecutionPath({ phase, core, coreRadius, barrier, anchor, k, fluxCount, criticalRisk }: { phase: ExperiencePhase; core: [number, number]; coreRadius: number; barrier: [number, number]; anchor: [number, number]; k: number; fluxCount: number; criticalRisk: boolean }) {
+export function ExecutionPath({ phase, stage, core, coreRadius, barrier, anchor, k, fluxCount, criticalRisk }: { phase: ExperiencePhase; stage?: FlowStage; core: [number, number]; coreRadius: number; barrier: [number, number]; anchor: [number, number]; k: number; fluxCount: number; criticalRisk: boolean }) {
   const clock = useCosmosClock();
   const dpr = useThree(state => state.viewport.dpr);
   const dx = anchor[0] - core[0], dy = anchor[1] - core[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
@@ -38,7 +40,7 @@ export function ExecutionPath({ phase, core, coreRadius, barrier, anchor, k, flu
   const bend = len * .08;
   const p1: [number, number] = [(p0[0] + anchor[0]) / 2 + uy * bend, (p0[1] + anchor[1]) / 2 - ux * bend];
   const barrierFraction = Math.min(.95, Math.hypot(barrier[0] - p0[0], barrier[1] - p0[1]) / Math.hypot(anchor[0] - p0[0], anchor[1] - p0[1]));
-  const targets = executionTargets(phase, barrierFraction);
+  const targets = executionTargets(phase, barrierFraction, stage);
   const barrierGroup = useRef<Group>(null), anchorGroup = useRef<Group>(null);
   const m = useMemo(() => {
     const n = Math.max(60, Math.floor(fluxCount / 2));

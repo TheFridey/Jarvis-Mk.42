@@ -1,13 +1,13 @@
 'use client';
 import type { JarvisOperatingPicture } from '@jarvis/scene';
 import type { ModelNode, RouteObservation } from './cognition-router-policy.ts';
-import { formatAge, PHASE_LABEL, requestFlow, type DataLiveness, type ExperiencePhase } from './experience-phase-policy.ts';
+import { coreWord, formatAge, PHASE_LABEL, requestFlow, type DataLiveness, type ExperiencePhase } from './experience-phase-policy.ts';
 import { RequestFlow } from './request-flow.tsx';
 import type { SpatialLayout } from './spatial-layout-policy.ts';
 import { REGION_LABEL, type HealthRegion, type RegionHealth } from './telemetry-instrument-policy.ts';
 import { useNow } from './use-viewport.ts';
 
-function detail(phase: ExperiencePhase, picture: JarvisOperatingPicture | undefined, liveness: DataLiveness, nodes: ModelNode[], route: RouteObservation | undefined, regions: Record<HealthRegion, RegionHealth>, now: number): string {
+export function coreDetail(phase: ExperiencePhase, picture: JarvisOperatingPicture | undefined, liveness: DataLiveness, nodes: ModelNode[], route: RouteObservation | undefined, regions: Record<HealthRegion, RegionHealth>, now: number): string {
   const selected = nodes.find(node => node.modelId === route?.selectedModelId);
   const locality = selected?.locality === 'local' ? 'LOCAL' : selected?.locality === 'cloud-ok' ? 'CLOUD' : undefined;
   const capability = picture?.activeCapabilities?.[0];
@@ -34,18 +34,24 @@ function detail(phase: ExperiencePhase, picture: JarvisOperatingPicture | undefi
   }
 }
 
-/** Core annotation: one phase label, one line of truth, the request lifecycle. */
+/** States where the one line of truth must stay visible beside the state word. */
+const VISIBLE_DETAIL = new Set<ExperiencePhase>(['UNAVAILABLE', 'COMM_LOSS', 'CRITICAL', 'ERROR', 'BLOCKED']);
+
+/**
+ * The Core speaks one word. The full truth line and the request lifecycle stay
+ * in the accessible DOM; routing explanations live on the selected route.
+ */
 export function CoreReadout({ phase, picture, liveness, nodes, route, regions, layout, phrase }: {
   phase: ExperiencePhase; picture?: JarvisOperatingPicture; liveness: DataLiveness; nodes: ModelNode[]; route?: RouteObservation;
   regions: Record<HealthRegion, RegionHealth>; layout: SpatialLayout; phrase?: string;
 }) {
   const now = useNow(phase === 'COMM_LOSS' ? 1000 : 10_000);
-  const line = detail(phase, picture, liveness, nodes, route, regions, now);
+  const line = coreDetail(phase, picture, liveness, nodes, route, regions, now);
   const flow = requestFlow(liveness.current ? picture : undefined, phase);
   return <div className={`core-readout phase-${phase.toLowerCase()}`} style={{ left: layout.core.x, top: layout.core.y + layout.coreRadius * 1.02 }} role="status" aria-live="polite" aria-label={`JARVIS ${PHASE_LABEL[phase]}. ${line}`}>
-    <strong>{PHASE_LABEL[phase]}</strong>
-    <span className="core-detail">{line}</span>
-    {liveness.current ? <RequestFlow flow={flow}/> : null}
-    {phrase && liveness.current ? <p className="core-phrase">{phrase}</p> : null}
+    <strong key={phase}>{coreWord(phase, liveness)}</strong>
+    {VISIBLE_DETAIL.has(phase) ? <span className="core-detail">{line}</span> : <span className="sr-only">{line}</span>}
+    {liveness.current ? <RequestFlow flow={flow} hidden/> : null}
+    {phrase && liveness.current ? <p className="sr-only">{phrase}</p> : null}
   </div>;
 }

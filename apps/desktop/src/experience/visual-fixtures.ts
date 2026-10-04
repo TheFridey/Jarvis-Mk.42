@@ -13,24 +13,24 @@ export const VISUAL_SCENARIOS = ['ambient', 'listening', 'thinking', 'routing', 
 export type VisualScenario = typeof VISUAL_SCENARIOS[number];
 export const isVisualScenario = (value: string | null): value is VisualScenario => VISUAL_SCENARIOS.includes(value as VisualScenario);
 
-const iso = (now: number, offsetMs = 0) => new Date(now + offsetMs).toISOString();
+export const iso = (now: number, offsetMs = 0) => new Date(now + offsetMs).toISOString();
 
-const CANDIDATES: Record<string, ModelRouteCandidate> = {
+export const CANDIDATES: Record<string, ModelRouteCandidate> = {
   reasoner: { modelId: 'demo-cloud-reasoner', displayName: 'Demo Cloud Reasoner', provider: 'demo-cloud', locality: 'cloud-ok', state: 'CANDIDATE', reason: 'Deep reasoning tier for plan synthesis', contextLimitUnits: 200_000, toolSupport: true, visionSupport: true, reasoningMode: 'deep', healthState: 'healthy', circuitBreaker: 'closed' },
   swift: { modelId: 'demo-cloud-swift', displayName: 'Demo Cloud Swift', provider: 'demo-cloud', locality: 'cloud-ok', state: 'CANDIDATE', reason: 'Lower latency, shallower reasoning', contextLimitUnits: 128_000, toolSupport: true, visionSupport: false, reasoningMode: 'balanced', healthState: 'healthy', circuitBreaker: 'closed' },
   local: { modelId: 'demo-local-8b', displayName: 'Demo Local 8B', provider: 'demo-local', locality: 'local', state: 'CANDIDATE', reason: 'Private local tier; smaller context', contextLimitUnits: 32_768, toolSupport: true, visionSupport: false, reasoningMode: 'fast', healthState: 'healthy', circuitBreaker: 'closed' },
   vision: { modelId: 'demo-local-vision', displayName: 'Demo Local Vision 11B', provider: 'demo-local', locality: 'local', state: 'CANDIDATE', reason: 'Not required: request carries no image input', contextLimitUnits: 16_384, toolSupport: false, visionSupport: true, reasoningMode: 'fast', healthState: 'healthy', circuitBreaker: 'closed' },
 };
 
-function routing(now: number, phase: ModelRoutingObservability['phase'], candidates: ModelRouteCandidate[], extra: Partial<ModelRoutingObservability> = {}): ModelRoutingObservability {
+export function routing(now: number, phase: ModelRoutingObservability['phase'], candidates: ModelRouteCandidate[], extra: Partial<ModelRoutingObservability> = {}): ModelRoutingObservability {
   return { schemaVersion: 1, phase, correlationId: 'demo-correlation-0042', taskClass: 'plan', privacyClass: 'INTERNAL', startedAt: iso(now, -2400), candidates, fallbackModelIds: [], ...extra } as ModelRoutingObservability;
 }
 
-function run(now: number, partial: Partial<OperatingModelRun> & Pick<OperatingModelRun, 'requestId' | 'status'>): OperatingModelRun {
+export function run(now: number, partial: Partial<OperatingModelRun> & Pick<OperatingModelRun, 'requestId' | 'status'>): OperatingModelRun {
   return { correlationId: 'demo-correlation-0042', modelId: null, agentId: 'agents.nova', taskClass: 'plan', privacyClass: 'INTERNAL', activityConfirmed: true, startedAt: iso(now, -2400), ...partial };
 }
 
-const usage = (latencyMs: number, inputTokens: number, outputTokens: number, costEstimate: number) => ({ contextUnits: inputTokens, outputUnits: outputTokens, costEstimate, latencyMs, inputTokens, outputTokens, tokensPerSecond: Math.round(outputTokens / (latencyMs / 1000)) });
+export const usage = (latencyMs: number, inputTokens: number, outputTokens: number, costEstimate: number) => ({ contextUnits: inputTokens, outputUnits: outputTokens, costEstimate, latencyMs, inputTokens, outputTokens, tokensPerSecond: Math.round(outputTokens / (latencyMs / 1000)) });
 
 function recentRuns(now: number): OperatingModelRun[] {
   return [
@@ -43,7 +43,7 @@ function recentRuns(now: number): OperatingModelRun[] {
 const UNITS: Record<string, string> = { cpu: '%', ram: '%', gpu: '%', disk: '%', network: 'B/s', tokens: 'tokens', latency: 'ms', cost: 'cost units estimate', gateway: 'healthy', gatewayLatency: 'ms', gatewayActive: 'requests', gatewayCircuitOpen: 'circuits', agents: 'agents', queue: 'jobs', agentFailures: 'failures', natsStreamHealth: 'connected', natsPending: 'messages', postgres: 'connected', postgresLatency: 'ms', postgresSaturation: '%', outbox: 'events', redis: 'connected', redisLatency: 'ms', voice: 'ready', voiceLatency: 'ms', vision: 'ready', visionLatency: 'ms' };
 const NOMINAL: Record<string, number | null> = { cpu: 23, ram: 58, gpu: 12, disk: 61, network: 182_000, tokens: 184_220, latency: 2600, cost: .412, gateway: 1, gatewayLatency: 840, gatewayActive: 0, gatewayCircuitOpen: 0, agents: 0, queue: 0, agentFailures: 0, natsStreamHealth: 1, natsPending: 4, postgres: 1, postgresLatency: 3.2, postgresSaturation: 18, outbox: 0, redis: 1, redisLatency: .9, voice: 1, voiceLatency: 96, vision: null, visionLatency: null };
 
-function telemetry(now: number, overrides: Record<string, number | null>, overall: SystemTelemetrySnapshot['overallHealth'] = 'healthy'): SystemTelemetrySnapshot {
+export function telemetry(now: number, overrides: Record<string, number | null>, overall: SystemTelemetrySnapshot['overallHealth'] = 'healthy'): SystemTelemetrySnapshot {
   const values = { ...NOMINAL, ...overrides };
   const readings: Record<string, TelemetryReading> = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, { value, unit: UNITS[key] ?? '', status: value === null ? 'unavailable' : 'available', observedAt: value === null ? null : iso(now, -1200) }]));
   const history = Array.from({ length: 36 }, (_, i) => ({
@@ -53,19 +53,19 @@ function telemetry(now: number, overrides: Record<string, number | null>, overal
   return { generatedAt: iso(now, -1200), window: '24h', overallHealth: overall, readings, history };
 }
 
-function dependencies(now: number, statuses: Partial<Record<string, HealthStatus>> = {}): DependencyState[] {
+export function dependencies(now: number, statuses: Partial<Record<string, HealthStatus>> = {}): DependencyState[] {
   return ['postgres', 'redis', 'event-bus', 'nats', 'model-gateway', 'rtc'].map(name => ({ name, status: statuses[name] ?? 'HEALTHY', placeholder: false, detail: { observedAt: iso(now) } }));
 }
 
-function job(now: number, partial: Partial<OperatingAgentJob> & Pick<OperatingAgentJob, 'jobId' | 'agentId' | 'state'>): OperatingAgentJob {
+export function job(now: number, partial: Partial<OperatingAgentJob> & Pick<OperatingAgentJob, 'jobId' | 'agentId' | 'state'>): OperatingAgentJob {
   return { correlationId: 'demo-correlation-0042', taskClass: 'plan', attempt: 1, startedAt: iso(now, -14_000), deadline: iso(now, 120_000), budget: { wallMs: 120_000, contextUnits: 64_000, costLimit: .5 }, proposalCount: 0, proposedCapabilities: [], evidenceRefs: [], activityConfirmed: true, ...partial };
 }
 
-function capability(now: number, state: DesktopCapabilityActivity['state'], offsetMs = -3000): DesktopCapabilityActivity {
+export function capability(now: number, state: DesktopCapabilityActivity['state'], offsetMs = -3000): DesktopCapabilityActivity {
   return { invocationId: 'demo-invocation-0042', capabilityId: 'capabilities.demo-workstation', action: 'apply_demo_configuration', actor: 'agents.forge', risk: 'HIGH', state, updatedAt: iso(now, offsetMs) };
 }
 
-function approval(now: number): DesktopApproval {
+export function approval(now: number): DesktopApproval {
   return {
     id: 'demo-approval-0042', invocationId: 'demo-invocation-0042', riskClass: 'HIGH', capabilityId: 'capabilities.demo-workstation', capabilityVersion: '1.0.0',
     action: 'Apply configuration to demo staging', summary: 'Apply configuration to demo staging', expiresAt: iso(now, 4 * 60_000), nonce: 'demo-nonce', version: 1, state: 'pending', requestedAt: iso(now, -42_000), requiredAuthorisations: 1, receivedAuthorisations: 0,

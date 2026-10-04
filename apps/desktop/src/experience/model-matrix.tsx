@@ -1,11 +1,43 @@
 'use client';
 import type { ModelNode, RouteObservation } from './cognition-router-policy.ts';
-import type { DataLiveness } from './experience-phase-policy.ts';
+import type { DataLiveness, ExperiencePhase } from './experience-phase-policy.ts';
 import { sessionTotals, type SessionCognitionStats } from './session-cognition-stats.ts';
 
 const UNAVAILABLE = 'UNAVAILABLE';
 const num = (value: number | undefined, digits = 0) => value === undefined || !Number.isFinite(value) ? UNAVAILABLE : value.toLocaleString('en-GB', { maximumFractionDigits: digits });
 const ms = (value: number | undefined) => value === undefined ? UNAVAILABLE : value >= 1000 ? `${(value / 1000).toFixed(2)} S` : `${Math.round(value)} MS`;
+
+/**
+ * Hero-view cognition readout disclosed by phase: nothing at rest, then only
+ * what the current step makes meaningful. Unreported values are omitted here;
+ * the Operations view carries the full UNAVAILABLE ledger.
+ */
+export function CognitionStatus({ phase, nodes, route, liveness }: { phase: ExperiencePhase; nodes: ModelNode[]; route?: RouteObservation; liveness: DataLiveness }) {
+  if (!liveness.current) return null;
+  const active = route?.current ? route : undefined;
+  const name = (id?: string) => id ? (nodes.find(node => node.modelId === id)?.displayName ?? id).toUpperCase() : undefined;
+  const selected = nodes.find(node => node.modelId === active?.selectedModelId);
+  let title: string;
+  let rows: [string, string][] = [];
+  if (phase === 'THINKING' || phase === 'INTERPRETING') {
+    title = 'COGNITION'; rows = [['ROUTE', 'AWAITING OBSERVATION']];
+  } else if (phase === 'ROUTING' && active) {
+    title = `ROUTING · ${active.candidatesConsidered} CANDIDATE${active.candidatesConsidered === 1 ? '' : 'S'}`;
+    rows = [['TASK', active.taskClass?.toUpperCase() ?? UNAVAILABLE], ['PRIVACY', active.privacyClass?.toUpperCase() ?? UNAVAILABLE]];
+  } else if (phase === 'FALLBACK' && active) {
+    title = 'FALLBACK ROUTE';
+    rows = [['PATH', `${active.failedIds.map(id => name(id)).join(', ') || 'PRIMARY'} → ${name(active.selectedModelId) ?? 'PENDING'}`], ['REASON', active.fallbackReason?.toUpperCase() ?? 'NOT REPORTED']];
+  } else if ((phase === 'MODEL_ACTIVE' || phase === 'RESPONDING') && active?.selectedModelId) {
+    title = name(active.selectedModelId)!;
+    if (selected?.latencyMs !== undefined) rows.push(['LATENCY', ms(selected.latencyMs)]);
+    if (selected?.contextRatio !== undefined) rows.push(['CONTEXT', `${Math.round(selected.contextRatio * 100)}%`]);
+    if (selected?.tokensPerSecond !== undefined) rows.push(['TOKENS', `${num(selected.tokensPerSecond, 1)} / S`]);
+  } else return null;
+  return <section className={`cognition-status phase-${phase.toLowerCase()}`} aria-label="Cognition status" aria-live="polite">
+    <strong>{title}</strong>
+    {rows.length ? <dl>{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : null}
+  </section>;
+}
 
 /** Persistent cognition summary plus the session-scoped ledger of observed runs. */
 export function ModelMatrix({ nodes, route, stats, liveness, compact }: { nodes: ModelNode[]; route?: RouteObservation; stats: SessionCognitionStats; liveness: DataLiveness; compact: boolean }) {

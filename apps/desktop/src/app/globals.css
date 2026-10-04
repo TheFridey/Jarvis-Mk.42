@@ -42,6 +42,7 @@ button:disabled{cursor:not-allowed}
 
 /* ---------- environment & phase colour ---------- */
 .environment{position:relative;height:100vh;overflow:hidden;isolation:isolate;background:var(--c-obsidian0);font-family:var(--f-body);outline:none}
+.environment.unmeasured{visibility:hidden}
 .environment.phase-dormant,.environment.phase-aware{--phase:#7fb7c6}
 .environment:is(.phase-listening,.phase-interpreting,.phase-responding,.phase-thinking,.phase-routing,.phase-model_active){--phase:var(--c-cognition)}
 .environment:is(.phase-fallback,.phase-degraded,.phase-error,.phase-blocked,.phase-waiting){--phase:var(--c-degraded)}
@@ -139,13 +140,16 @@ button:disabled{cursor:not-allowed}
 .request-flow li.flow-unobserved i{border-style:dashed;border-color:var(--c-silverDim);background:transparent}
 .request-flow li.flow-unobserved span{text-decoration:line-through dotted var(--c-silverDim)}
 
+/* Framed together with the GPU scene: translate(a,b) scale(s) about the viewport origin. */
+.spatial-projections{position:fixed;inset:0;z-index:21;transform-origin:0 0;pointer-events:none}
+
 /* ---------- model constellation ---------- */
 .model-constellation{position:fixed;inset:0;z-index:21;pointer-events:none}
 .model-node{position:absolute;display:flex;align-items:center;gap:16px;transform:translate(-50%,-50%);padding:0;border:0;background:transparent;text-align:left;pointer-events:auto;font-family:var(--f-data);transition:opacity var(--m-settle)}
 .model-glyph{display:grid;place-items:center;width:30px;height:30px;font:500 var(--t-micro) var(--f-data);letter-spacing:.06em;color:var(--c-ice)}
-.model-label{display:flex;flex-direction:column;gap:2px;position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);width:max-content;max-width:240px}
+.model-label{display:flex;flex-direction:column;gap:2px;position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(calc(-9px * var(--s)));width:max-content;max-width:240px}
 .model-label strong{font:500 var(--t-data) var(--f-data);letter-spacing:.12em;color:var(--c-ink);text-transform:uppercase}
-.model-label small{font-size:var(--t-micro);letter-spacing:.2em;color:var(--c-inkFaint)}
+.model-label small{font-size:var(--t-micro);letter-spacing:.2em;color:var(--c-inkFaint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .model-label em{font:normal var(--t-micro) var(--f-data);letter-spacing:.18em;color:var(--c-inkMuted)}
 .model-node.route-selected .model-label strong{color:var(--c-ice);text-shadow:0 0 12px rgba(95,216,242,.5)}
 .model-node.route-selected .model-label em{color:var(--c-cognition)}
@@ -157,6 +161,13 @@ button:disabled{cursor:not-allowed}
 .model-node.route-unavailable{opacity:.6}
 .model-node.route-historical{opacity:.5}
 .model-node.activity-unconfirmed .model-label em{color:var(--c-inkFaint)}
+.model-reason{margin-top:4px;max-width:220px;font:normal var(--t-micro)/1.5 var(--f-data);letter-spacing:.14em;color:var(--c-inkMuted);white-space:normal}
+.model-node.via-fallback .model-reason{color:var(--c-forge)}
+/* Ambient: models recede to quiet glyphs; names return on hover, focus or relevance. */
+.model-label,.locality-label{transition:opacity var(--m-settle) var(--e-settle)}
+.environment.idle .model-node:not(.emphasised):not(:hover):not(:focus-visible):not(.inspecting) .model-label{opacity:0}
+.environment.idle .model-node:not(.emphasised):not(:hover):not(:focus-visible):not(.inspecting){opacity:.34}
+.environment.idle .locality-label{opacity:0}
 .model-node:hover,.model-node.inspecting,.model-node:focus-visible{opacity:1}
 .model-node.inspecting .model-glyph{outline:1px solid var(--c-ice);outline-offset:6px;border-radius:50%}
 .not-current .model-node{opacity:.38;filter:grayscale(1)}
@@ -230,7 +241,9 @@ button:disabled{cursor:not-allowed}
 .metrics,.evidence{display:flex;flex-wrap:wrap;gap:12px;font:var(--t-data) var(--f-data);color:var(--c-inkMuted)}
 .metrics b{color:var(--c-ink);font-weight:500}
 .spatial-panel.selected{border-top-color:rgba(95,216,242,.45)}
-.environment:not(.phase-dormant):not(.phase-aware) .spatial-panel.compact:not(:hover){opacity:.5}
+/* Panels carry inline motion opacity, so recession is applied to their container. */
+.environment:not(.idle):not(.approval-hold):not(.operations-open) .workspace:not(:hover):not(:focus-within){opacity:.5}
+.environment.idle:not(.operations-open) .workspace:not(:hover):not(:focus-within){opacity:.12}
 .referent-bracket{position:fixed;z-index:24;pointer-events:none;border:1px solid transparent;background:linear-gradient(var(--c-ice),var(--c-ice)) top left/14px 1px no-repeat,linear-gradient(var(--c-ice),var(--c-ice)) top left/1px 14px no-repeat,linear-gradient(var(--c-ice),var(--c-ice)) bottom right/14px 1px no-repeat,linear-gradient(var(--c-ice),var(--c-ice)) bottom right/1px 14px no-repeat}
 .referent-bracket small,.referent-indicator{font:var(--t-micro) var(--f-data);letter-spacing:.2em;color:var(--c-ice)}
 .referent-indicator{position:fixed;z-index:24;top:64px;left:50%;transform:translateX(-50%)}
@@ -346,7 +359,10 @@ button:disabled{cursor:not-allowed}
 .approval-actions button:disabled{opacity:.38}
 .approval-result{margin:14px 0 0;font-size:var(--t-data);color:var(--c-ice)}
 .approval-barrier>.signal{margin:12px 0 0}
-.approval-hold :is(.model-constellation,.agent-field,.peripheral-telemetry,.model-matrix,.workspace,.activity-ribbon,.objective-anchor){opacity:.28;transition:opacity var(--m-unfold)}
+:is(.model-constellation,.agent-field,.peripheral-telemetry,.model-matrix,.workspace,.activity-ribbon,.objective-anchor){transition:opacity var(--m-unfold)}
+.approval-hold :is(.model-constellation,.agent-field,.peripheral-telemetry,.model-matrix,.workspace,.activity-ribbon,.objective-anchor){opacity:.28}
+/* The barrier names the requesting actor; agent labels behind it would only collide. */
+.approval-hold .agent-label{opacity:0;transition:opacity var(--m-settle)}
 
 /* ---------- command deck ---------- */
 .command-deck{position:fixed;z-index:45;left:50%;bottom:20px;transform:translateX(-50%);width:min(860px,calc(100vw - 2 * var(--side) - 4 * var(--edge)));min-width:min(560px,calc(100vw - 32px));height:calc(44px * var(--s));display:flex;align-items:center;gap:12px;padding:0 12px;background:rgba(3,5,8,.62);border:1px solid var(--line);backdrop-filter:blur(14px);font-family:var(--f-data)}
@@ -472,6 +488,7 @@ button:disabled{cursor:not-allowed}
   .axes{display:none}
   .air-touch-state{display:none}
   .model-label{max-width:170px}
+  .model-node.route-unavailable .model-label small{display:none}
   .conversation-projection{width:min(300px,26vw)}
 }
 

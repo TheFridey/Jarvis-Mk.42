@@ -115,23 +115,42 @@ const RELEVANCE: Partial<Record<ExperiencePhase, string[]>> = {
   APPROVAL: ['agents', 'queue'], EXECUTING: ['agents', 'queue', 'postgresLatency', 'outbox'], VERIFYING: ['postgresLatency', 'outbox', 'agents'],
 };
 
+/** Compute instruments disclose themselves only when they are worth attention. */
+const COMPUTE_KEYS = new Set(['cpu', 'ram', 'gpu', 'disk']);
+
 /**
- * State-prioritised peripheral set: idle shows almost nothing; the subsystem the
- * current phase depends on expands; anything elevated or critical surfaces.
+ * Auto-disclosed peripheral set. Healthy idle infrastructure shows nothing;
+ * an elevated or critical compute reading discloses its own instrument; the
+ * subsystem the current phase depends on expands while that phase lasts.
+ * Region-bound instruments surface beside their region (see REGION_INSTRUMENTS).
  */
-export function peripheralSelection(instruments: Instrument[], phase: ExperiencePhase, limit = 6): Instrument[] {
+export function peripheralSelection(instruments: Instrument[], phase: ExperiencePhase, limit = 4): Instrument[] {
   const byKey = new Map(instruments.map(item => [item.key, item]));
   const keys = new Set<string>();
-  instruments.filter(item => item.status === 'critical').forEach(item => keys.add(item.key));
-  instruments.filter(item => item.status === 'elevated').forEach(item => keys.add(item.key));
-  (RELEVANCE[phase] ?? []).forEach(key => keys.add(key));
-  ['cpu', 'ram'].forEach(key => keys.add(key));
+  const alarming = (item: Instrument) => item.status === 'critical' || item.status === 'elevated';
+  instruments.filter(item => item.status === 'critical' && COMPUTE_KEYS.has(item.key)).forEach(item => keys.add(item.key));
+  instruments.filter(item => item.status === 'elevated' && COMPUTE_KEYS.has(item.key)).forEach(item => keys.add(item.key));
+  instruments.filter(item => alarming(item) && !COMPUTE_KEYS.has(item.key) && !REGION_BOUND.has(item.key)).forEach(item => keys.add(item.key));
+  (RELEVANCE[phase] ?? []).forEach(key => { const item = byKey.get(key); if (item && item.status !== 'unavailable') keys.add(key); });
   return [...keys].map(key => byKey.get(key)).filter((item): item is Instrument => Boolean(item)).slice(0, limit);
 }
 
 export type RegionHealth = 'healthy' | 'degraded' | 'offline' | 'unknown';
 export type HealthRegion = 'fabric' | 'storage' | 'cache' | 'gateway' | 'voice' | 'perception';
 export const REGION_LABEL: Record<HealthRegion, string> = { fabric: 'EVENT FABRIC', storage: 'AUTHORITATIVE STATE', cache: 'CACHE', gateway: 'MODEL GATEWAY', voice: 'VOICE', perception: 'PERCEPTION' };
+/** Instruments that belong to a region and surface beside it when that region degrades. */
+export const REGION_INSTRUMENTS: Record<HealthRegion, string[]> = {
+  fabric: ['natsStreamHealth', 'natsPending'], storage: ['postgres', 'postgresLatency', 'outbox'], cache: ['redis', 'redisLatency'],
+  gateway: ['gateway', 'gatewayCircuitOpen', 'gatewayLatency'], voice: ['voice', 'voiceLatency'], perception: ['vision', 'visionLatency'],
+};
+const REGION_BOUND = new Set(Object.values(REGION_INSTRUMENTS).flat());
+/** Spatial anchor for each region: gateway by the model field, fabric on the connective pathways, state under the Core. */
+export const REGION_ANCHOR: Record<HealthRegion, 'gateway' | 'fabric' | 'state' | 'voice' | 'perception'> = { gateway: 'gateway', fabric: 'fabric', storage: 'state', cache: 'state', voice: 'voice', perception: 'perception' };
+
+/** Regions that need attention, in a stable order. */
+export function attentionRegions(regions: Record<HealthRegion, RegionHealth>): HealthRegion[] {
+  return (['gateway', 'fabric', 'storage', 'cache', 'voice', 'perception'] as HealthRegion[]).filter(region => regions[region] === 'degraded' || regions[region] === 'offline');
+}
 
 const fromStatus = (status: HealthStatus | undefined, placeholder = false): RegionHealth => placeholder || !status ? 'unknown' : status === 'HEALTHY' ? 'healthy' : status === 'OFFLINE' ? 'offline' : 'degraded';
 

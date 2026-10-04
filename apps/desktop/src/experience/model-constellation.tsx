@@ -10,19 +10,17 @@ const ROUTE_LABEL: Record<ModelNode['route'], string> = { SELECTED: 'SELECTED', 
 const ACTIVITY_LABEL: Record<ModelNode['activity'], string> = { inferring: 'INFERRING', 'awaiting-first-token': 'AWAITING FIRST TOKEN', evaluating: 'EVALUATING', unconfirmed: 'ACTIVITY UNCONFIRMED', settled: '', historical: '', stale: 'LAST OBSERVED' };
 const locality = (node: ModelNode) => node.locality === 'local' ? 'LOCAL' : node.locality === 'cloud-ok' ? 'CLOUD' : 'LOCALITY UNAVAILABLE';
 
-function routeAnnotation(route: RouteObservation | undefined, nodes: ModelNode[], phase: ExperiencePhase): { tone: string; title: string; lines: string[] } | undefined {
-  if (!route?.current) return phase === 'THINKING' ? { tone: 'muted', title: 'AWAITING ROUTING OBSERVATION', lines: [] } : undefined;
-  const name = (id?: string) => nodes.find(node => node.modelId === id)?.displayName.toUpperCase() ?? id?.toUpperCase() ?? 'UNAVAILABLE';
-  if (route.fallback) return {
-    tone: 'degraded', title: 'PRIMARY UNAVAILABLE · FALLBACK ROUTE ESTABLISHED',
-    lines: [
-      `${route.failedIds.map(name).join(', ') || 'PRIMARY'} → ${name(route.selectedModelId)}`,
-      route.fallbackReason ? `REASON · ${route.fallbackReason.toUpperCase()}` : 'REASON · NOT REPORTED',
-      ...(route.localityShift ? [`ROUTE SHIFT · ${route.localityShift.from === 'local' ? 'LOCAL' : 'CLOUD'} → ${route.localityShift.to === 'local' ? 'LOCAL' : 'CLOUD'}`] : []),
-    ],
-  };
-  if (route.phase === 'CANDIDATE') return { tone: 'cognition', title: `ROUTING · ${route.candidatesConsidered} CANDIDATE${route.candidatesConsidered === 1 ? '' : 'S'}`, lines: [route.taskClass ? `TASK · ${route.taskClass.toUpperCase()}` : 'TASK · UNAVAILABLE', route.privacyClass ? `PRIVACY · ${route.privacyClass.toUpperCase()}` : 'PRIVACY · UNAVAILABLE'] };
-  if (route.selectedModelId) return { tone: 'cognition', title: `ROUTED · ${name(route.selectedModelId)}`, lines: [route.selectionReason ? route.selectionReason.toUpperCase() : 'SELECTION REASON NOT REPORTED', `${route.candidatesConsidered} CONSIDERED · ${route.agentId.replace('agents.', '').toUpperCase()}`] };
+const EMPHASISED = new Set<ModelNode['route']>(['SELECTED', 'CANDIDATE', 'FAILED', 'FALLBACK', 'UNAVAILABLE']);
+const side = (value: 'local' | 'cloud-ok') => value === 'local' ? 'LOCAL' : 'CLOUD';
+
+/** The routing explanation travels with the route it explains, never with the Core. */
+export function routeReason(node: ModelNode, route: RouteObservation | undefined): string | undefined {
+  if (!route?.current) return undefined;
+  if (node.modelId === route.selectedModelId) {
+    if (route.fallback) return [route.fallbackReason ? `FALLBACK · ${route.fallbackReason.toUpperCase()}` : 'FALLBACK · REASON NOT REPORTED', route.localityShift ? `${side(route.localityShift.from)} → ${side(route.localityShift.to)}` : undefined].filter(Boolean).join(' · ');
+    return route.selectionReason?.toUpperCase();
+  }
+  if (route.fallback && node.route === 'FAILED' && route.failedIds.includes(node.modelId)) return 'PRIMARY UNAVAILABLE';
   return undefined;
 }
 
@@ -32,17 +30,17 @@ export function ModelConstellation({ nodes, layout, route, runs, liveness, phase
   liveness: DataLiveness; phase: ExperiencePhase; developer: boolean;
 }) {
   const [inspect, setInspect] = useState<string>();
-  useEffect(() => { if (inspect && !nodes.some(node => node.modelId === inspect)) setInspect(undefined); }, [inspect, nodes]);
+  useEffect(() => { if (inspect && !nodes.some(node => node.modelId === inspect && !node.departing)) setInspect(undefined); }, [inspect, nodes]);
   useEffect(() => {
     if (!inspect) return;
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setInspect(undefined); };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [inspect]);
-  const annotation = routeAnnotation(route, nodes, phase);
   const inspected = nodes.findIndex(node => node.modelId === inspect);
-  const hasCloud = nodes.some(node => node.locality === 'cloud-ok'), hasLocal = nodes.some(node => node.locality === 'local');
-  return <section className={`model-constellation${liveness.current ? '' : ' not-current'}`} aria-label="Model constellation">
+  const present = nodes.filter(node => !node.departing);
+  const hasCloud = present.some(node => node.locality === 'cloud-ok'), hasLocal = present.some(node => node.locality === 'local');
+  return <section className={`model-constellation phase-${phase.toLowerCase()}${liveness.current ? '' : ' not-current'}`} aria-label="Model constellation">
     {nodes.length > 0 && (hasCloud || hasLocal) ? <div className="locality-label" style={{ left: layout.localityBoundary.outer.x + 8, top: layout.localityBoundary.outer.y }} aria-hidden="true">
       <span className={hasCloud ? '' : 'absent'}>CLOUD</span><i/><span className={hasLocal ? '' : 'absent'}>LOCAL</span>
     </div> : null}
@@ -50,22 +48,25 @@ export function ModelConstellation({ nodes, layout, route, runs, liveness, phase
       const at = layout.models[i];
       if (!at) return null;
       const activity = ACTIVITY_LABEL[node.activity];
+      const reason = routeReason(node, route);
+      const emphasised = EMPHASISED.has(node.route) || node.viaFallback || Boolean(activity);
+      if (node.departing) return <div key={node.modelId} className="model-node departing" style={{ left: at.x, top: at.y }} aria-hidden="true">
+        <span className="model-glyph">{node.glyph}</span><span className="model-label"><strong>{node.displayName}</strong></span>
+      </div>;
       return <button key={node.modelId} type="button"
-        className={`model-node route-${node.route.toLowerCase()} activity-${node.activity}${node.viaFallback ? ' via-fallback' : ''}${inspect === node.modelId ? ' inspecting' : ''}`}
+        className={`model-node route-${node.route.toLowerCase()} activity-${node.activity}${node.viaFallback ? ' via-fallback' : ''}${inspect === node.modelId ? ' inspecting' : ''}${emphasised ? ' emphasised' : ''}`}
         style={{ left: at.x, top: at.y }} aria-expanded={inspect === node.modelId}
-        aria-label={`${node.displayName}, ${locality(node)}, ${ROUTE_LABEL[node.route]}${activity ? `, ${activity}` : ''}. Inspect model identity.`}
+        aria-label={`${node.displayName}, ${locality(node)}, ${ROUTE_LABEL[node.route]}${activity ? `, ${activity}` : ''}${reason ? `, ${reason}` : ''}. Inspect model identity.`}
         onClick={() => setInspect(current => current === node.modelId ? undefined : node.modelId)}>
         <span className="model-glyph" aria-hidden="true">{node.glyph}</span>
         <span className="model-label">
           <strong>{node.displayName}</strong>
           <small>{[node.provider?.toUpperCase(), locality(node)].filter(Boolean).join(' · ')}</small>
-          <em>{ROUTE_LABEL[node.route]}{node.viaFallback ? ' · VIA FALLBACK' : ''}{activity ? ` · ${activity}` : ''}</em>
+          {emphasised ? <em>{ROUTE_LABEL[node.route]}{node.viaFallback ? ' · VIA FALLBACK' : ''}{activity ? ` · ${activity}` : ''}</em> : null}
+          {reason ? <span className="model-reason">{reason}</span> : null}
         </span>
       </button>;
     })}
-    {annotation ? <div className={`route-annotation tone-${annotation.tone}`} style={{ left: layout.core.x, top: layout.core.y - layout.coreRadius * 1.12 }} role="status">
-      <strong>{annotation.title}</strong>{annotation.lines.map(line => <span key={line}>{line}</span>)}
-    </div> : null}
     {inspected >= 0 && layout.models[inspected] ? <ModelIdentity node={nodes[inspected]!} run={runs.find(run => run.requestId === nodes[inspected]!.requestId)} developer={developer} at={layout.models[inspected]!} layout={layout} onClose={() => setInspect(undefined)}/> : null}
   </section>;
 }

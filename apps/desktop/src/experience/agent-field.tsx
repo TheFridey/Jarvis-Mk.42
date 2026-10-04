@@ -3,17 +3,19 @@ import { useState } from 'react';
 import { AGENT_ORCHESTRATION_GROUPS, type OperatingAgentJob } from '@jarvis/scene';
 import type { AgentNode } from './agent-field-policy.ts';
 import type { DataLiveness } from './experience-phase-policy.ts';
-import type { SpatialLayout } from './spatial-layout-policy.ts';
+import { presentationBus } from './presentation-bus.ts';
+import { agentPoint, type SpatialLayout } from './spatial-layout-policy.ts';
 
 /** Agent labels pinned to their GPU orbit positions. Only agents with observed jobs appear. */
 export function AgentField({ nodes, layout, liveness, onInspect }: { nodes: AgentNode[]; layout: SpatialLayout; liveness: DataLiveness; onInspect: () => void }) {
   if (!nodes.length) return null;
   return <section className={`agent-field${liveness.current ? '' : ' not-current'}`} aria-label="Agent orchestration">
     {nodes.map((node, i) => {
-      const at = layout.agents[i];
+      const at = agentPoint(layout, i, node.state);
       if (!at) return null;
       const state = liveness.current ? node.state : 'LAST OBSERVED';
-      return <button key={node.agentId} type="button" className={`agent-node state-${node.state.toLowerCase()}${node.animated ? ' animated' : ''}`} style={{ left: at.x, top: at.y }} onClick={onInspect}
+      const fallback = { dx: at.x - layout.core.x, dy: at.y - layout.core.y };
+      return <button key={node.agentId} ref={element => element ? presentationBus.registerOffset(`agent:${node.agentId}`, element, fallback) : undefined} type="button" className={`agent-node state-${node.state.toLowerCase()}${node.animated ? ' animated' : ''}`} style={{ left: layout.core.x, top: layout.core.y }} onClick={onInspect}
         aria-label={`${node.name}, ${state}${node.groups.length ? `, ${node.groups.join(' and ')}` : ''}. Open agent inspector.`}>
         <span className="agent-label"><strong>{node.name}</strong><small>{state}{node.stage && node.stage !== node.state ? ` · ${node.stage}` : ''}{node.jobCount > 1 ? ` · ${node.jobCount} JOBS` : ''}</small></span>
       </button>;

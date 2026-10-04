@@ -24,10 +24,16 @@ export interface ModelNode {
   contextUsedUnits?: number;
   /** Only when both used and limit are observed. */
   contextRatio?: number;
+  /** Observed output rate of this node's run; absent when the run does not report it. */
+  tokensPerSecond?: number;
+  /** Observed completion latency, or time to first token while running. */
+  latencyMs?: number;
   reason?: string;
   requestId?: string;
   agentId?: string;
   lastSeenAt: string;
+  /** Presentation only: no longer in the projection, fading out of its reserved slot. */
+  departing?: boolean;
 }
 
 export interface RouteObservation {
@@ -82,11 +88,22 @@ export function isFallbackRun(run: OperatingModelRun): boolean {
  * The model constellation from observed runs only. Providers and models appear
  * only when a run or routing observation names them; nothing is pre-seeded.
  */
+function runLatency(run: OperatingModelRun): number | undefined {
+  const completed = run.usage?.latencyMs ?? run.latencyMs;
+  if (completed !== undefined && Number.isFinite(completed)) return completed;
+  const first = run.firstTokenAt ?? run.routing?.firstTokenAt;
+  const elapsed = first ? Date.parse(first) - Date.parse(run.startedAt) : Number.NaN;
+  return Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : undefined;
+}
+
 export function cognitionRouterView(active: OperatingModelRun[], recent: OperatingModelRun[], current: boolean, limit = 9): CognitionRouterView {
   const nodes = new Map<string, ModelNode>();
   const add = (run: OperatingModelRun, isActive: boolean) => {
     const candidates = run.routing?.candidates ?? [];
     const used = run.usage?.contextUnits ?? run.contextUnits;
+    const tps = run.usage?.tokensPerSecond;
+    const latency = runLatency(run);
+    const measured = { ...(tps !== undefined && Number.isFinite(tps) ? { tokensPerSecond: tps } : {}), ...(latency !== undefined ? { latencyMs: latency } : {}) };
     for (const candidate of candidates) {
       if (nodes.has(candidate.modelId)) continue;
       const route = isActive && current ? candidateRoute(candidate, run) : 'HISTORICAL';
@@ -101,6 +118,7 @@ export function cognitionRouterView(active: OperatingModelRun[], recent: Operati
         contextLimitUnits: candidate.contextLimitUnits,
         ...(selected && used !== undefined ? { contextUsedUnits: used } : {}),
         ...(selected && used !== undefined && candidate.contextLimitUnits > 0 ? { contextRatio: Math.min(1, used / candidate.contextLimitUnits) } : {}),
+        ...(selected ? measured : {}),
         reason: candidate.reason, requestId: run.requestId, agentId: run.agentId,
         lastSeenAt: run.finishedAt ?? run.startedAt,
       });
@@ -113,13 +131,15 @@ export function cognitionRouterView(active: OperatingModelRun[], recent: Operati
         activity: isActive ? selectedActivity(run, current) : current ? 'historical' : 'stale',
         viaFallback: isFallbackRun(run), requestId: run.requestId, agentId: run.agentId,
         ...(used !== undefined ? { contextUsedUnits: used } : {}),
+        ...measured,
         lastSeenAt: run.finishedAt ?? run.startedAt,
       });
     }
   };
   active.forEach(run => add(run, true));
-  [...recent].sort((a, b) => Date.parse(b.finishedAt ?? b.startedAt) - Date.parse(a.finishedAt ?? a.startedAt)).forEach(run => add(run, false));
-  const lead = active[0] ?? recent[0];
+  const byRecency = [...recent].sort((a, b) => Date.parse(b.finishedAt ?? b.startedAt) - Date.parse(a.finishedAt ?? a.startedAt));
+  byRecency.forEach(run => add(run, false));
+  const lead = active[0] ?? byRecency[0];
   return { nodes: [...nodes.values()].slice(0, limit), activeCount: active.length, ...(lead ? { route: routeObservation(lead, current && active.includes(lead), current) } : {}) };
 }
 

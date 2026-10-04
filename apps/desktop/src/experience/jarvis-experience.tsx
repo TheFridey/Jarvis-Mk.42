@@ -11,13 +11,15 @@ import { cognitionRouterView } from './cognition-router-policy.ts';
 import { ActivityRibbon, ConversationProjection, ObjectiveAnchor, SpatialInspector } from './context-projections.tsx';
 import { CoreSound } from './core-sound.tsx';
 import { demoScene } from './demo-scene.ts';
-import { resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
+import { expressedStage, requestFlow, resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
 import { GpuEnvironment } from './gpu-environment.tsx';
 import { CoreReadout } from './jarvis-core.tsx';
 import { ModelConstellation } from './model-constellation.tsx';
-import { ModelMatrix } from './model-matrix.tsx';
+import { CognitionStatus } from './model-matrix.tsx';
 import { OperationsView } from './operations-view.tsx';
-import { PeripheralTelemetry } from './peripheral-telemetry.tsx';
+import { PeripheralTelemetry, RegionHealthProjections } from './peripheral-telemetry.tsx';
+import { presentationBus } from './presentation-bus.ts';
+import { useChoreography, useDepartingNodes, useStableSlots } from './use-constellation.ts';
 import { ReferentFocus } from './referent-focus.tsx';
 import { RtcControl } from './rtc-control.tsx';
 import { BrowserLayoutCache, createDesktopTransport, LocalSceneTransport, type SceneTransport } from './scene-client.ts';
@@ -50,9 +52,13 @@ export function JarvisExperience() {
     setOperations(params.get('ops') === '1');
     if (!demoMode) return;
     const scenario = params.get('scenario');
-    if (!scenario) return;
+    const sequence = params.get('sequence');
+    if (!scenario && !sequence) return;
     let cancelled = false;
-    void import('./visual-fixtures.ts').then(fixtures => { if (!cancelled && fixtures.isVisualScenario(scenario)) setFixtureTransport(new fixtures.FixtureSceneTransport(scenario)); });
+    if (sequence) {
+      const lead = Number(params.get('lead') ?? 3000);
+      void import('./demo-sequences.ts').then(sequences => { if (!cancelled && sequences.isDemoSequence(sequence)) setFixtureTransport(new sequences.SequenceSceneTransport(sequence, Number.isFinite(lead) ? lead : 3000)); });
+    } else void import('./visual-fixtures.ts').then(fixtures => { if (!cancelled && fixtures.isVisualScenario(scenario)) setFixtureTransport(new fixtures.FixtureSceneTransport(scenario)); });
     return () => { cancelled = true; };
   }, [demoMode]);
   const transport = fixtureTransport ?? baseTransport;
@@ -69,8 +75,15 @@ export function JarvisExperience() {
   const regions = useMemo(() => healthRegions(kernel, current), [kernel, current]);
   const instruments = useMemo(() => interpretTelemetry(kernel?.telemetrySummary.system, current, now), [kernel?.telemetrySummary.system, current, now]);
   const viewport = useViewport();
-  const localitySignature = router.nodes.map(node => node.locality ?? '-').join(',');
-  const layout = useMemo(() => spatialLayout({ width: viewport.width, height: viewport.height, models: localitySignature ? localitySignature.split(',').map(value => value === '-' ? {} : { locality: value as 'local' | 'cloud-ok' }) : [], agentCount: agents.nodes.length }), [viewport.width, viewport.height, localitySignature, agents.nodes.length]);
+  const displayed = useDepartingNodes(router.nodes, reducedSensory);
+  const slots = useStableSlots(displayed);
+  const choreography = useChoreography(router.route, router.nodes);
+  const slotSignature = displayed.map(node => { const slot = slots.get(node.modelId); return `${node.locality ?? '-'}:${slot ? `${slot.arc}.${slot.index}` : '-'}`; }).join(',');
+  const layout = useMemo(() => spatialLayout({ width: viewport.width, height: viewport.height, models: displayed.map(node => ({ ...(node.locality ? { locality: node.locality } : {}), ...(slots.has(node.modelId) ? { slot: slots.get(node.modelId)! } : {}) })), agentCount: agents.nodes.length }),
+    [viewport.width, viewport.height, slotSignature, agents.nodes.length]);
+  const stage = expressedStage(requestFlow(current ? kernel : undefined, phase));
+  const idle = phase === 'DORMANT' || phase === 'AWARE';
+  const projections = useCallback((element: HTMLDivElement | null) => element ? presentationBus.registerLayer(element) : undefined, []);
   const [stats, setStats] = useState(() => emptySessionStats());
   useEffect(() => { if (current && kernel) setStats(previous => observeRuns(previous, [...kernel.activeModels, ...kernel.recentModelRuns])); }, [current, kernel]);
 
@@ -95,25 +108,28 @@ export function JarvisExperience() {
   const approvals = kernel?.pendingApprovals ?? [];
   const runs = useMemo(() => [...(kernel?.activeModels ?? []), ...(kernel?.recentModelRuns ?? [])], [kernel?.activeModels, kernel?.recentModelRuns]);
 
-  return <main className={`environment presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}`}
+  return <main className={`environment presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}${idle ? ' idle' : ''}${viewport.measured ? '' : ' unmeasured'}`}
     onKeyDown={event => { if (event.key === 'Escape' && selected[0]) { send({ type: 'dismiss', targetId: selected[0], input: 'keyboard' }); setSelected([]); } }} tabIndex={-1}>
     {demoMode && <div className="demo-banner" role="status">DEMO MODE · SYNTHETIC DATA · NO LIVE EXECUTION</div>}
-    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={layout} models={router.nodes} {...(router.route ? { route: router.route } : {})} agents={agents.nodes} regions={regions}
-      systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback}/>
+    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={layout} models={displayed} {...(router.route ? { route: router.route } : {})} agents={agents.nodes} regions={regions}
+      systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback} {...(stage ? { stage } : {})} choreography={choreography}/>
     <SystemStatusEdge {...(kernel ? { picture: kernel } : {})} liveness={liveness} regions={regions} operations={operations} inspector={inspector}
       onOperations={() => setOperations(open => !open)} onInspector={() => { setInspectorTab('situation'); setInspector(open => !open); }} onReconnect={() => void reconnect()}
       sound={<CoreSound {...(current && kernel ? { picture: kernel } : {})} reducedSensory={reducedSensory}/>}/>
-    <ObjectiveAnchor {...(kernel ? { picture: kernel } : {})} liveness={liveness}/>
+    {!idle ? <ObjectiveAnchor {...(kernel ? { picture: kernel } : {})} liveness={liveness}/> : null}
     <section className="workspace" aria-label="Semantic workspace">
       <AnimatePresence>{panels.map(object => <SpatialPanel key={object.id} object={object} live={current} compact={!selected.includes(object.id)} selected={selected.includes(object.id)} onSelect={id => setSelected([id])} submit={send}/>)}</AnimatePresence>
     </section>
-    <AgentField nodes={agents.nodes} layout={layout} liveness={liveness} onInspect={() => { setInspectorTab('agents'); setInspector(true); }}/>
-    <ModelConstellation nodes={router.nodes} layout={layout} {...(router.route ? { route: router.route } : {})} runs={runs} liveness={liveness} phase={phase} developer={developer}/>
-    <CoreReadout phase={phase} {...(kernel ? { picture: kernel } : {})} liveness={liveness} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} regions={regions} layout={layout} {...(coreObject?.data.phrase ? { phrase: String(coreObject.data.phrase) } : {})}/>
-    <ConversationProjection {...(kernel ? { picture: kernel } : {})} liveness={liveness} layout={layout} phase={phase}/>
-    <ModelMatrix nodes={router.nodes} {...(router.route ? { route: router.route } : {})} stats={stats} liveness={liveness} compact/>
-    <PeripheralTelemetry instruments={instruments} {...(kernel?.telemetrySummary.system ? { snapshot: kernel.telemetrySummary.system } : {})} phase={phase} regions={regions} liveness={liveness}/>
-    <ActivityRibbon {...(kernel ? { picture: kernel } : {})} liveness={liveness}/>
+    <div className="spatial-projections" ref={projections}>
+      <AgentField nodes={agents.nodes} layout={layout} liveness={liveness} onInspect={() => { setInspectorTab('agents'); setInspector(true); }}/>
+      <ModelConstellation nodes={displayed} layout={layout} {...(router.route ? { route: router.route } : {})} runs={runs} liveness={liveness} phase={phase} developer={developer}/>
+      <RegionHealthProjections instruments={instruments} regions={regions} layout={layout}/>
+      <CoreReadout phase={phase} {...(kernel ? { picture: kernel } : {})} liveness={liveness} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} regions={regions} layout={layout} {...(coreObject?.data.phrase ? { phrase: String(coreObject.data.phrase) } : {})}/>
+      <ConversationProjection {...(kernel ? { picture: kernel } : {})} liveness={liveness} layout={layout} phase={phase}/>
+    </div>
+    <CognitionStatus phase={phase} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} liveness={liveness}/>
+    <PeripheralTelemetry instruments={instruments} {...(kernel?.telemetrySummary.system ? { snapshot: kernel.telemetrySummary.system } : {})} phase={phase} liveness={liveness}/>
+    {!idle ? <ActivityRibbon {...(kernel ? { picture: kernel } : {})} liveness={liveness}/> : null}
     <ReferentFocus focus={kernelLive ? kernel?.referentFocus : undefined} objects={scene.objects} developer={inspector && developer}/>
     {kernel && approvals.length ? <ApprovalBarrier approvals={approvals} stateVersion={kernel.stateVersion} decide={decideApproval} liveness={liveness} layout={layout}/> : null}
     <footer className="command-deck">

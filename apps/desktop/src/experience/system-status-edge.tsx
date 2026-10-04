@@ -24,11 +24,11 @@ export function SystemStatusEdge({ picture, liveness, regions, operations, inspe
       <span className="sigil" aria-hidden="true"><i/><i/></span>
       <strong>JARVIS</strong><em>MK.42</em>
     </div>
-    <dl className="axes" aria-label="Kernel operating axes">
+    <dl className="axes sr-only" aria-label="Kernel operating axes">
       {axes.map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}
     </dl>
     <ul className="region-strip" aria-label="Subsystem health">
-      {REGION_ORDER.map(region => <li key={region} className={`region-${regions[region]}`} title={`${REGION_LABEL[region]} · ${regions[region].toUpperCase()}`}>
+      {REGION_ORDER.map(region => <li key={region} className={`region-${regions[region]}${regions[region] === 'healthy' ? ' nominal' : ''}`} title={`${REGION_LABEL[region]} · ${regions[region].toUpperCase()}`}>
         <i aria-hidden="true"/><span>{REGION_LABEL[region]}</span><b className="sr-only">{regions[region]}</b>
       </li>)}
     </ul>
@@ -40,8 +40,8 @@ export function SystemStatusEdge({ picture, liveness, regions, operations, inspe
         {liveness.current && liveness.synthetic ? null : <small>{liveness.current ? formatAge(age) : liveness.staleSince ? `LOST ${formatAge(now - liveness.staleSince)}` : 'NO DATA'}</small>}
         {!liveness.current ? <RotateCw size={12} aria-hidden="true"/> : null}
       </button>
-      <button className={`edge-toggle${inspector ? ' active' : ''}`} aria-pressed={inspector} onClick={onInspector} title="Inspector"><PanelLeft size={14}/><span>INSPECT</span></button>
-      <button className={`edge-toggle${operations ? ' active' : ''}`} aria-pressed={operations} onClick={onOperations} title="Operations view (O)"><LayoutGrid size={14}/><span>OPERATIONS</span></button>
+      <button className={`edge-toggle${inspector ? ' active' : ''}`} aria-pressed={inspector} onClick={onInspector} title="Inspector" aria-label="Inspector"><PanelLeft size={14} aria-hidden="true"/><span>INSPECT</span></button>
+      <button className={`edge-toggle${operations ? ' active' : ''}`} aria-pressed={operations} onClick={onOperations} title="Operations view (O)" aria-label="Operations view"><LayoutGrid size={14} aria-hidden="true"/><span>OPERATIONS</span></button>
       <time suppressHydrationWarning>{time}</time>
     </div>
   </header>;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JarvisOperatingPicture, OperatingModelRun } from '@jarvis/scene';
-import { freezeFactor, requestFlow, resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
+import { coreWord, freezeFactor, requestFlow, resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
 
 const live = resolveLiveness({ status: 'live' }, false);
 const picture = (patch: Partial<JarvisOperatingPicture> = {}) => ({ interactionState: 'DORMANT', workState: 'IDLE', systemHealth: { overall: 'HEALTHY' }, pendingApprovals: [], activeModels: [], activeCapabilities: [], ...patch } as unknown as JarvisOperatingPicture);
@@ -16,6 +16,11 @@ describe('experience phase policy', () => {
     const stale = resolveLiveness({ status: 'stale', staleSince: '2026-10-03T10:00:00Z' }, false);
     expect(resolveExperiencePhase(picture({ workState: 'THINKING' }), stale)).toBe('COMM_LOSS');
     expect(resolveExperiencePhase(undefined, stale)).toBe('UNAVAILABLE');
+  });
+  it('says STALE while reconnecting and COMM LOSS once disconnected', () => {
+    expect(coreWord('COMM_LOSS', { status: 'reconnecting' })).toBe('STALE');
+    expect(coreWord('COMM_LOSS', { status: 'stale' })).toBe('COMM LOSS');
+    expect(coreWord('MODEL_ACTIVE', { status: 'live' })).toBe('INFERENCE');
   });
   it('freezes progressively after disconnection', () => {
     const since = Date.parse('2026-10-03T10:00:00Z');

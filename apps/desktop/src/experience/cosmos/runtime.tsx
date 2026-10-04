@@ -10,6 +10,8 @@ import { MOTION } from '../visual-tokens.ts';
  * together. `dt` is real elapsed time for damping toward new targets.
  */
 export interface CosmosClock { t: number; dt: number; scale: number; snap: boolean }
+/** Just above the slowest regular frame (12fps idle cap). */
+export const MAX_FRAME_DT = .1;
 const ClockContext = createContext<CosmosClock>({ t: 0, dt: 0, scale: 0, snap: true });
 
 export function CosmosClockProvider({ motion, staleSince, current, children }: { motion: number; staleSince?: number; current: boolean; children: ReactNode }) {
@@ -20,7 +22,8 @@ export function CosmosClockProvider({ motion, staleSince, current, children }: {
     const { motion: m, staleSince: since, current: live } = config.current;
     const freeze = live ? 0 : since === undefined ? 1 : Math.min(1, Math.max(0, (Date.now() - since) / (MOTION.freeze * 1000)));
     clock.scale = m * (1 - freeze);
-    clock.dt = Math.min(delta, .5);
+    // A render stall (shader compile on a new node) must slow motion, not make damped positions leap.
+    clock.dt = Math.min(delta, MAX_FRAME_DT);
     clock.t += clock.dt * clock.scale;
     clock.snap = m === 0;
   });

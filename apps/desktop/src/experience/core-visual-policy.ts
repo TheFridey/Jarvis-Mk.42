@@ -76,7 +76,8 @@ const PHASE: Record<ExperiencePhase, Partial<CoreSystemTargets>> = {
   THINKING: { luminosity: .78, colour: 'cognition', rings: 4.4, orbitSpeed: 1, orbitIndependence: 1, neural: 1, shellExpansion: .85 },
   ROUTING: { luminosity: .82, colour: 'cognition', rings: 5, orbitSpeed: .8, orbitIndependence: .7, neural: .75, shellExpansion: .7, routing: 1 },
   MODEL_ACTIVE: { luminosity: .8, colour: 'cognition', rings: 4.6, orbitSpeed: .7, orbitIndependence: .6, neural: .85, shellExpansion: .6, routing: .7 },
-  FALLBACK: { luminosity: .78, colour: 'degraded', rings: 4.4, orbitSpeed: .65, orbitIndependence: .85, neural: .6, shellExpansion: .55, routing: 1, asymmetry: .25 },
+  // Fallback is a route event: the failed route and fallback link carry amber, the Core keeps cognition colour.
+  FALLBACK: { luminosity: .78, colour: 'cognition', rings: 4.4, orbitSpeed: .65, orbitIndependence: .85, neural: .6, shellExpansion: .55, routing: 1, asymmetry: .25 },
   APPROVAL: { luminosity: .6, colour: 'execution', rings: 3.4, orbitSpeed: .06, orbitIndependence: 0, neural: .1, forge: .7, barrier: 1 },
   EXECUTING: { luminosity: .9, colour: 'execution', rings: 4, orbitSpeed: .55, orbitIndependence: .3, neural: .3, forge: 1, outflow: 1 },
   VERIFYING: { luminosity: .72, colour: 'verified', rings: 3.6, orbitSpeed: .35, neural: .2, forge: .45, scan: 1, returnFlow: 1 },
@@ -84,7 +85,8 @@ const PHASE: Record<ExperiencePhase, Partial<CoreSystemTargets>> = {
   WAITING: { luminosity: .42, colour: 'infra', rings: 3, orbitSpeed: .1, neural: .1 },
   BLOCKED: { luminosity: .5, colour: 'degraded', rings: 3, orbitSpeed: .14, asymmetry: .55 },
   ERROR: { luminosity: .55, colour: 'degraded', rings: 3, orbitSpeed: .2, orbitIndependence: .6, asymmetry: .6, fracture: .45 },
-  DEGRADED: { luminosity: .36, colour: 'degraded', rings: 2.4, orbitSpeed: .14, orbitIndependence: .4, asymmetry: .55 },
+  // Degradation stays local to its region: the Core loses symmetry, it is not repainted amber.
+  DEGRADED: { luminosity: .34, colour: 'infra', rings: 2.4, orbitSpeed: .14, orbitIndependence: .4, asymmetry: .55 },
 };
 
 /** `systemDegraded` overlays asymmetry on any active phase without repainting it. */

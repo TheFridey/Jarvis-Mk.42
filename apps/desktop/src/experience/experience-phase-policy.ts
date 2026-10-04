@@ -59,6 +59,20 @@ export const PHASE_LABEL: Record<ExperiencePhase, string> = {
   WAITING: 'WAITING', BLOCKED: 'BLOCKED', ERROR: 'WORK FAULT', DEGRADED: 'DEGRADED',
 };
 
+/** The single word the Core carries; PHASE_LABEL remains the precise accessible name. */
+export const CORE_WORD: Record<ExperiencePhase, string> = {
+  UNAVAILABLE: 'NO KERNEL STATE', COMM_LOSS: 'COMM LOSS', CRITICAL: 'CRITICAL',
+  DORMANT: 'AMBIENT', AWARE: 'AWARE', LISTENING: 'LISTENING', INTERPRETING: 'INTERPRETING', RESPONDING: 'RESPONDING',
+  THINKING: 'THINKING', ROUTING: 'ROUTING', MODEL_ACTIVE: 'INFERENCE', FALLBACK: 'FALLBACK',
+  APPROVAL: 'APPROVAL', EXECUTING: 'EXECUTING', VERIFYING: 'VERIFYING', COMPLETE: 'COMPLETE',
+  WAITING: 'WAITING', BLOCKED: 'BLOCKED', ERROR: 'FAULT', DEGRADED: 'DEGRADED',
+};
+
+/** While the transport is still reconnecting the picture is stale, not yet lost. */
+export function coreWord(phase: ExperiencePhase, liveness: Pick<DataLiveness, 'status'>): string {
+  return phase === 'COMM_LOSS' && liveness.status === 'reconnecting' ? 'STALE' : CORE_WORD[phase];
+}
+
 /** A run whose live inference is actually confirmed by the projection. */
 export function confirmedInference(run: OperatingModelRun): boolean {
   return run.status === 'running' && run.activityConfirmed !== false && run.routing?.phase === 'STARTING' && Boolean(run.modelId ?? run.routing.selectedModelId);
@@ -140,4 +154,11 @@ export function requestFlow(picture: JarvisOperatingPicture | undefined, phase: 
   if (phase === 'VERIFYING') mark('VERIFY', 'active');
   if (phase === 'COMPLETE') mark('COMPLETE', 'done');
   return flow;
+}
+
+/** The stage the Cosmos should express: the active one, else the last one observed done. */
+export function expressedStage(flow: Record<FlowStage, FlowStatus>): FlowStage | undefined {
+  const active = FLOW_STAGES.find(stage => flow[stage] === 'active');
+  if (active) return active;
+  return [...FLOW_STAGES].reverse().find(stage => flow[stage] === 'done');
 }

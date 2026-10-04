@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { sceneChoreography, type ChoreographyState } from '../transition-choreography.ts';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, EdgesGeometry, Group, IcosahedronGeometry, LineBasicMaterial, RingGeometry, ShaderMaterial, TetrahedronGeometry, Vector3 } from 'three';
 import type { CoreSystemTargets } from '../core-visual-policy.ts';
 import { seededUnit } from '../forge-visual-policy.ts';
@@ -47,9 +48,12 @@ const RING_RADII = [.56, .645, .73, .815, .9];
 const RING_TILT: Array<[number, number]> = [[1.18, .1], [1.32, -.42], [1.05, .55], [1.42, .25], [1.24, -.7]];
 const RING_PACKETS = [3, 5, 2, 4, 6];
 
-interface CoreState { lum: number; rings: number; orbit: number; indep: number; neural: number; shell: number; routing: number; forge: number; wave: number; inflow: number; scan: number; conv: number; asym: number; fracture: number; barrier: number }
+interface CoreState { lum: number; rings: number; orbit: number; indep: number; neural: number; shell: number; routing: number; forge: number; wave: number; inflow: number; outflow: number; returnFlow: number; scan: number; conv: number; asym: number; fracture: number; barrier: number }
 
-export function CoreSystem({ position, scale, targets, routeAngle, envelopeAmplitude, segments, fluxCount, neuralCount }: { position: [number, number]; scale: number; targets: CoreSystemTargets; routeAngle?: number; envelopeAmplitude: number; segments: number; fluxCount: number; neuralCount: number }) {
+/** Decorative ambience, not telemetry: a faint neural flash roughly every seventeen seconds while dormant. */
+const ambientPulse = (ms: number) => Math.pow(Math.max(0, Math.sin(ms / 17_000 * Math.PI * 2)), 80);
+
+export function CoreSystem({ position, scale, targets, routeAngle, envelopeAmplitude, segments, fluxCount, neuralCount, choreo }: { position: [number, number]; scale: number; targets: CoreSystemTargets; routeAngle?: number; envelopeAmplitude: number; segments: number; fluxCount: number; neuralCount: number; choreo?: RefObject<ChoreographyState> }) {
   const clock = useCosmosClock();
   const dpr = useThree(state => state.viewport.dpr);
   const group = useRef<Group>(null);
@@ -57,7 +61,7 @@ export function CoreSystem({ position, scale, targets, routeAngle, envelopeAmpli
   const neuralGroup = useRef<Group>(null);
   const shards = useRef<Group>(null);
   const rings = useRef<Array<Group | null>>([]);
-  const state = useRef<CoreState>({ lum: .2, rings: 2, orbit: .1, indep: 0, neural: 0, shell: 0, routing: 0, forge: 0, wave: 0, inflow: 0, scan: 0, conv: 0, asym: 0, fracture: 0, barrier: 0 });
+  const state = useRef<CoreState>({ lum: .2, rings: 2, orbit: .1, indep: 0, neural: 0, shell: 0, routing: 0, forge: 0, wave: 0, inflow: 0, outflow: 0, returnFlow: 0, scan: 0, conv: 0, asym: 0, fracture: 0, barrier: 0 });
   const phases = useRef({ rings: RING_RADII.map(() => 0), field: 0, nucleus: 0, scan: 0, lobe: 0, conv: 0 });
   const colourNow = useRef(new Color(COLOUR.infra));
   const accentNow = useRef(palette('ice'));
@@ -115,14 +119,17 @@ export function CoreSystem({ position, scale, targets, routeAngle, envelopeAmpli
     s.indep = damp(s.indep, t.orbitIndependence, slow, dt); s.neural = damp(s.neural, t.neural, settle, dt); s.shell = damp(s.shell, t.shellExpansion, slow, dt);
     s.routing = damp(s.routing, t.routing, settle, dt); s.forge = damp(s.forge, t.forge, settle, dt); s.wave = damp(s.wave, t.waveform, settle, dt);
     s.inflow = damp(s.inflow, t.inflow, settle, dt); s.scan = damp(s.scan, t.scan, settle, dt); s.conv = damp(s.conv, t.convergence, fast, dt);
+    s.outflow = damp(s.outflow, t.outflow, settle, dt); s.returnFlow = damp(s.returnFlow, t.returnFlow, settle, dt);
+    const arrival = choreo?.current ? sceneChoreography(choreo.current, performance.now(), clock.snap).coreReturn : 0;
+    const ambient = t.neural < .1 && !clock.snap ? ambientPulse(performance.now()) : 0;
     s.asym = damp(s.asym, t.asymmetry, slow, dt); s.fracture = damp(s.fracture, t.fracture, settle, dt); s.barrier = damp(s.barrier, t.barrier, settle, dt);
     const lerp = clock.snap ? 1 : 1 - Math.exp(-MOTION.dampSettle * dt);
     colourNow.current.lerp(palette(t.colour), lerp); accentNow.current.lerp(palette(accentOf(t.colour)), lerp);
     const colour = colourNow.current, accent = accentNow.current, step = dt * clock.scale, p = phases.current;
 
-    m.halo.uniforms.uColour.value.copy(colour); m.halo.uniforms.uAlpha.value = .05 + .16 * s.lum;
-    m.coreGlow.uniforms.uColour.value.copy(colour); m.coreGlow.uniforms.uAlpha.value = .12 + .4 * s.lum + s.forge * .15;
-    m.core.uniforms.uColour.value.copy(accent); m.core.uniforms.uAlpha.value = .25 + .75 * s.lum;
+    m.halo.uniforms.uColour.value.copy(colour); m.halo.uniforms.uAlpha.value = .05 + .16 * s.lum + arrival * .08;
+    m.coreGlow.uniforms.uColour.value.copy(colour); m.coreGlow.uniforms.uAlpha.value = .12 + .4 * s.lum + s.forge * .15 + arrival * .3;
+    m.core.uniforms.uColour.value.copy(accent); m.core.uniforms.uAlpha.value = .25 + .75 * s.lum + arrival * .25;
 
     p.field += step * .02;
     m.field.uniforms.uAlpha.value = .08 + .12 * s.lum; m.field.uniforms.uArcStart.value = p.field; m.field.uniforms.uArc.value = 1 - .14 * s.asym; m.field.uniforms.uColour.value.set(COLOUR.infra);
@@ -146,8 +153,8 @@ export function CoreSystem({ position, scale, targets, routeAngle, envelopeAmpli
     });
 
     const shellU = m.shell.uniforms;
-    shellU.uColour!.value.copy(colour); shellU.uLum!.value = s.lum; shellU.uNeural!.value = s.neural; shellU.uAsym!.value = s.asym; shellU.uTime!.value = clock.t; shellU.uFracture!.value = s.fracture;
-    m.neural.uniforms.uTime!.value = clock.t; m.neural.uniforms.uNeural!.value = s.neural; m.neural.uniforms.uBase!.value = .015 + .07 * s.neural; m.neural.uniforms.uColour!.value.copy(colour).lerp(palette('ice'), .3);
+    shellU.uColour!.value.copy(colour); shellU.uLum!.value = s.lum + arrival * .3; shellU.uNeural!.value = s.neural + ambient * .5; shellU.uAsym!.value = s.asym; shellU.uTime!.value = clock.t; shellU.uFracture!.value = s.fracture;
+    m.neural.uniforms.uTime!.value = clock.t; m.neural.uniforms.uNeural!.value = s.neural; m.neural.uniforms.uBase!.value = .015 + .07 * s.neural + ambient * .12; m.neural.uniforms.uColour!.value.copy(colour).lerp(palette('ice'), .3);
     if (neuralGroup.current) { neuralGroup.current.rotation.y += step * (.05 + s.neural * .25); neuralGroup.current.rotation.x += step * .02; neuralGroup.current.scale.setScalar(1 + s.shell * .3); }
 
     p.nucleus += step * (.1 + s.forge * .6);
@@ -168,7 +175,13 @@ export function CoreSystem({ position, scale, targets, routeAngle, envelopeAmpli
     p.conv = (p.conv + step * .45) % 1;
     m.conv.uniforms.uAlpha.value = s.conv * (1 - p.conv) * .7;
 
-    m.fluxMaterial.uniforms.uTime!.value = clock.t; m.fluxMaterial.uniforms.uPixel!.value = dpr; m.fluxMaterial.uniforms.uAlpha!.value = s.inflow * .75; m.fluxMaterial.uniforms.uScale!.value = 1;
+    // Flux runs inward for input and verification return, outward while execution energy leaves the Core.
+    const outward = s.outflow > Math.max(s.inflow, s.returnFlow);
+    const fluxU = m.fluxMaterial.uniforms;
+    fluxU.uTime!.value = clock.t; fluxU.uPixel!.value = dpr; fluxU.uScale!.value = 1;
+    fluxU.uOuter!.value = outward ? .45 : 1.5; fluxU.uInner!.value = outward ? 1.6 : .2;
+    fluxU.uAlpha!.value = Math.max(s.inflow * .75, s.outflow * .5, s.returnFlow * .5, arrival * .6);
+    (fluxU.uColour!.value as Color).copy(s.inflow >= Math.max(s.outflow, s.returnFlow) ? palette('cognition') : colour);
 
     m.shard.opacity = s.fracture * .9;
     if (shards.current) { shards.current.scale.setScalar(1 + s.fracture * .25); shards.current.rotation.z += step * .05; }

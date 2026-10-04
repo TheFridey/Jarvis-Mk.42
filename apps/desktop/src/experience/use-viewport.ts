@@ -1,13 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 
-/** Viewport size; re-renders only on resize, coalesced to one per frame. */
-export function useViewport(): { width: number; height: number } {
-  const [size, setSize] = useState({ width: 1920, height: 1080 });
-  useEffect(() => {
+/**
+ * Viewport size; measured before first client paint, then re-renders only on resize, coalesced to one per frame.
+ * `measured` is false in the prerendered HTML, whose layout assumes 1920x1080 and must not be shown.
+ */
+export function useViewport(): { width: number; height: number; measured: boolean } {
+  const [size, setSize] = useState({ width: 1920, height: 1080, measured: false });
+  useLayoutEffect(() => {
     let frame = 0;
-    const update = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => setSize({ width: window.innerWidth, height: window.innerHeight })); };
-    update();
+    const measure = () => setSize({ width: window.innerWidth, height: window.innerHeight, measured: true });
+    const update = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
+    measure();
     window.addEventListener('resize', update);
     return () => { cancelAnimationFrame(frame); window.removeEventListener('resize', update); };
   }, []);

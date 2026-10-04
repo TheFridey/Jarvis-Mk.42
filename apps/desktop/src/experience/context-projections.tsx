@@ -7,6 +7,8 @@ import type { SpatialLayout } from './spatial-layout-policy.ts';
 import { useNow } from './use-viewport.ts';
 
 const RECENT_ANSWER_MS = 120_000;
+/** Once JARVIS has returned to ambient, an answer lingers briefly and then yields the space. */
+const IDLE_ANSWER_MS = 15_000;
 const truncate = (text: string, max: number) => text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 
 /** Conversation beside the Core: live caption while listening, else the latest recorded answer. */
@@ -18,7 +20,8 @@ export function ConversationProjection({ picture, liveness, layout, phase }: { p
   const caption = liveness.current && captionAge !== undefined && captionAge < 10_000 ? audio?.partialTranscript ?? audio?.finalTranscript : undefined;
   const latest = picture.cognitionResponses.at(-1);
   const answerAge = dataAgeMs(latest?.createdAt, now);
-  const recent = latest?.answer && answerAge !== undefined && answerAge < RECENT_ANSWER_MS;
+  const linger = phase === 'DORMANT' || phase === 'AWARE' ? IDLE_ANSWER_MS : RECENT_ANSWER_MS;
+  const recent = latest?.answer && answerAge !== undefined && answerAge < linger;
   if (!caption && !recent) return null;
   const style = { left: layout.conversation.x, top: layout.conversation.y, width: layout.conversationWidth };
   if (caption) return <output className={`conversation-projection caption${audio?.partialTranscript ? ' partial' : ''}`} style={style} aria-live="polite">

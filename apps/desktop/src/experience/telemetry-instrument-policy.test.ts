@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JarvisOperatingPicture, SystemTelemetrySnapshot } from '@jarvis/scene';
-import { healthRegions, interpretTelemetry, peripheralSelection, trendOf } from './telemetry-instrument-policy.ts';
+import { attentionRegions, healthRegions, interpretTelemetry, peripheralSelection, REGION_INSTRUMENTS, trendOf } from './telemetry-instrument-policy.ts';
 
 const now = Date.parse('2026-10-03T10:00:10Z');
 const snapshot = (readings: SystemTelemetrySnapshot['readings'], generatedAt = '2026-10-03T10:00:05Z'): SystemTelemetrySnapshot => ({ generatedAt, window: '24h', overallHealth: 'healthy', readings, history: [] });
@@ -23,10 +23,20 @@ describe('telemetry instrument policy', () => {
     expect(items.postgres).toMatchObject({ status: 'critical', display: 'DOWN' });
     expect(items.redis).toMatchObject({ status: 'nominal', display: 'CONNECTED' });
   });
-  it('keeps idle peripheral instrumentation minimal but always surfaces critical subsystems', () => {
-    const items = interpretTelemetry(snapshot({ cpu: reading(10), ram: reading(30), postgres: reading(0, 'connected') }), true, now);
-    expect(peripheralSelection(items, 'DORMANT').map(item => item.key)).toEqual(['postgres', 'cpu', 'ram']);
+  it('auto-discloses: healthy idle shows nothing, an elevated compute reading discloses its instrument', () => {
+    const healthy = interpretTelemetry(snapshot({ cpu: reading(10), ram: reading(30) }), true, now);
+    expect(peripheralSelection(healthy, 'DORMANT')).toEqual([]);
+    const hot = interpretTelemetry(snapshot({ cpu: reading(10), ram: reading(95) }), true, now);
+    expect(peripheralSelection(hot, 'DORMANT').map(item => item.key)).toEqual(['ram']);
+  });
+  it('keeps region-bound failures beside their region and phase-relevant instruments while the phase lasts', () => {
+    const items = interpretTelemetry(snapshot({ cpu: reading(10), postgres: reading(0, 'connected'), gatewayLatency: reading(840, 'ms') }), true, now);
+    expect(peripheralSelection(items, 'DORMANT').map(item => item.key)).not.toContain('postgres');
+    expect(REGION_INSTRUMENTS.storage).toContain('postgres');
     expect(peripheralSelection(items, 'MODEL_ACTIVE').map(item => item.key)).toContain('gatewayLatency');
+  });
+  it('lists only degraded or offline regions for attention', () => {
+    expect(attentionRegions({ fabric: 'healthy', storage: 'offline', cache: 'unknown', gateway: 'degraded', voice: 'healthy', perception: 'unknown' })).toEqual(['gateway', 'storage']);
   });
   it('derives trends only from enough measured samples', () => {
     expect(trendOf([1, null])).toBe('unknown');
