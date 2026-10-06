@@ -44,7 +44,7 @@ export function AgentInspector({ jobs, live, generatedAt, onCancel }: { jobs: Op
       const end = job.finishedAt ?? generatedAt;
       const elapsed = job.startedAt && end ? Math.max(0, Date.parse(end) - Date.parse(job.startedAt)) : undefined;
       return <li key={job.jobId} className={`job-${job.state.toLowerCase()}`}>
-        <header><strong>{job.agentId.replace('agents.', '').toUpperCase()}</strong><span>{live ? job.state : 'LAST OBSERVED'}{job.activityConfirmed === false ? ' · UNCONFIRMED' : ''}</span></header>
+        <header><strong>{job.agentId.replace('agents.', '').toUpperCase()}</strong><span>{live ? job.state : 'LAST OBSERVED'}{['RUNNING','WAITING','LEASED'].includes(job.state)&&job.activityConfirmed === false ? ' · UNCONFIRMED' : ''}</span></header>
         <p className="path">JARVIS → {groups.join(' / ') || 'SPECIALIST'} → {job.agentId.replace('agents.', '')} → {job.selectedModelId ?? 'MODEL NOT OBSERVED'}</p>
         <p>STAGE {job.activityStage ?? job.state} · TASK {job.taskClass.toUpperCase()}</p>
         {['RUNNING', 'WAITING'].includes(job.state) && job.activityConfirmed === false && <p className="signal">Worker lease unconfirmed. No live activity is implied.</p>}

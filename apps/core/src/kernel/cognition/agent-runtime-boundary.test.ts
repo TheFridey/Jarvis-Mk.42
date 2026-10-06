@@ -5,6 +5,23 @@ import type { AgentJobStore } from './agent-job-store.ts';
 const request: ModelRequest = { task:'reason',capabilities:['json'],input:{instruction:'test',context:{} as never,constraints:[]},budget:{contextUnits:10,maxOutput:10},locality:'local',principalId:'p',correlationId:'c' };
 const proposal = () => ({ proposalId:'p1',kind:'answer',correlationId:'c',confidence:1,text:'answer',citations:[],provenance:{method:'model',producedBy:'fixture',producedOn:'test',producedAt:new Date().toISOString(),correlationId:'c',derivedFromUntrusted:true} });
 const runtime = (output: unknown) => new AgentRuntime({ async generate() { return { modelId:'fixture',output,usage:{contextUnits:1,outputUnits:1,costEstimate:0,latencyMs:1},finishReason:'stop',provenance:proposal().provenance as never }; } },()=>new Date().toISOString());
+it('repairs malformed citation objects once without weakening the proposal contract or privacy',async()=>{
+  const requests:ModelRequest[]=[];
+  const worker=new AgentRuntime({async generate(r){requests.push(r);const value={...proposal(),citations:requests.length===1?[{url:'https://example.com'}]:['https://example.com']};return{modelId:'fixture',output:{proposals:[value],evidence:[]},usage:{contextUnits:1,outputUnits:1,costEstimate:0.2,latencyMs:1},finishReason:'stop',provenance:value.provenance as never}}},()=>new Date().toISOString());
+  const result=await worker.invoke('agents.oracle',{...request,budget:{...request.budget,maxCost:1}});
+  expect(requests).toHaveLength(2);expect(requests[1]?.locality).toBe('local');expect(requests[1]?.input.constraints.join(' ')).toContain('citations');expect(requests[1]?.budget.maxCost).toBe(0.8);
+  expect(result.response.usage).toMatchObject({costEstimate:0.4,contextUnits:2,outputUnits:2});expect(result.result.proposals).toHaveLength(1);
+});
+it('rejects persistently malformed output with a schema error instead of worker failure',async()=>{
+  let calls=0;
+  const worker=new AgentRuntime({async generate(){calls++;return{modelId:'fixture',output:{proposals:[{...proposal(),citations:[{url:'https://example.com'}]}]},usage:{contextUnits:1,outputUnits:1,costEstimate:0,latencyMs:1},finishReason:'stop',provenance:proposal().provenance as never}}},()=>new Date().toISOString());
+  await expect(worker.invoke('agents.oracle',request)).rejects.toMatchObject({code:'INVALID_RESPONSE'});expect(calls).toBe(2);
+});
+it('charges the correction against the original total cost ceiling',async()=>{
+  let calls=0;
+  const worker=new AgentRuntime({async generate(){calls++;const value={...proposal(),citations:calls===1?[{url:'https://example.com'}]:[]};return{modelId:'fixture',output:{proposals:[value]},usage:{contextUnits:1,outputUnits:1,costEstimate:0.6,latencyMs:1},finishReason:'stop',provenance:value.provenance as never}}},()=>new Date().toISOString());
+  await expect(worker.invoke('agents.oracle',{...request,budget:{...request.budget,maxCost:1}})).rejects.toThrow('agent cost budget exceeded');expect(calls).toBe(2);
+});
 it('retains the eleven specialists and adds Nova without write authority',()=>{ expect(Object.keys(AGENTS)).toHaveLength(12); expect(AGENTS['agents.hephaestus']?.displayName).toBe('Hephaestus');expect(AGENTS['agents.nova']?.proposalScope.capabilities).toEqual([]); });
 it('rejects a forged proposal correlation',async()=>{await expect(runtime({proposals:[{...proposal(),correlationId:'other'}]}).invoke('agents.oracle',request)).rejects.toThrow('correlation mismatch');});
 it('rejects duplicate proposal identities',async()=>{await expect(runtime({proposals:[proposal(),proposal()]}).invoke('agents.oracle',request)).rejects.toThrow('duplicate proposal');});

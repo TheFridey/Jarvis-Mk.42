@@ -7,6 +7,11 @@ import { areas } from '../../../../../capabilities/scalesmiths/definition.ts';
 import { scalePageSchema, type ScalePage } from './transport.ts';
 
 const fields = ['MRR','activeRetainers','activeProjects','pipeline','proposalValue','unpaidInvoices','recentPayments','followUps','meetings','productionIncidents','clientAlerts','recentReviews','seoAnalyticsSignals'];
+/** A time-of-day greeting is conversational, not an instruction to read business data. */
+export function isBusinessBriefingRequest(text: string): boolean {
+  return /\b(situation|following up|follow.up|gone cold|meetings|outstanding)\b/i.test(text)
+    || /\bmorning\s+(?:brief|briefing|update)\b/i.test(text);
+}
 type Snapshot = { data: unknown; at: string; ref: string; failed?: boolean; sourceRefs?: string[] };
 type Checkpoint = { capability: string; action: string; input: unknown; value?: unknown; outcome?: string; ref?: string; fetchedAt?: string };
 export class BusinessIntelligence {
@@ -93,12 +98,18 @@ export class BusinessIntelligence {
       return `Meeting briefing (${briefing.status}), objective ${briefing.objectiveId}. Missing sources: ${briefing.unavailable.join(', ')||'none'}.\n${JSON.stringify(briefing.sections)}`;
     }
     if(/\bchanged with\b/i.test(text)){const clientId=text.match(/\bclient\s+id[:= ]+([a-zA-Z0-9_-]+)/i)?.[1];if(clientId)return JSON.stringify(await this.clientHistory(principalId,clientId,correlationId));return 'Provide the ScaleSmiths client ID to retrieve current client data and relevant recorded history through /desktop/nova/client.';}
-    if(!/\b(morning|situation|following up|follow.up|gone cold|meetings|outstanding)\b/i.test(text))return;
+    if(!isBusinessBriefingRequest(text))return;
     const {picture}=await this.refresh(principalId,correlationId);
     let names=fields;
     if(/follow/i.test(text))names=['followUps'];else if(/meetings/i.test(text))names=['meetings'];else if(/outstanding/i.test(text))names=['unpaidInvoices'];else if(/gone cold/i.test(text)) {
       const pipeline=picture.readings.pipeline!;if(Array.isArray(pipeline.value))pipeline.value=pipeline.value.filter((lead:Record<string,unknown>)=>!['won','lost'].includes(String(lead.status))&&typeof lead.lastContactAt==='string'&&Number.isFinite(Date.parse(lead.lastContactAt))&&Date.parse(this.d.now())-Date.parse(lead.lastContactAt)>=14*24*60*60_000);
       names=['pipeline'];
+    }
+    if(names.every(name=>picture.readings[name]?.status==='unavailable')) {
+      const focused=names.length===1?names[0]:undefined;
+      const descriptions:Record<string,string>={meetings:'your meetings',followUps:'your follow-ups',unpaidInvoices:'your outstanding invoices',pipeline:'which leads have gone cold'};
+      const subject=focused?descriptions[focused]:'business figures or client activity';
+      return `I could not retrieve verified ${focused==='meetings'?'Calendar':'ScaleSmiths'} data for this request. The connection may be unconfigured, unavailable, or not authorised. I cannot report ${subject} without those sources.`;
     }
     return `ScaleSmiths situation as of ${picture.generatedAt}.${/gone cold/i.test(text)?' Cold means no recorded contact for at least 14 days; leads without a contact date cannot be classified.':''}\n`+names.map(name=>{const r=picture.readings[name]!;return `${name}: ${r.status}${r.value===undefined?'':` — ${JSON.stringify(r.value)}`} (${r.sourceRefs.join(', ')||'no source'}).`;}).join('\n');
   }

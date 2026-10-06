@@ -16,6 +16,7 @@ export interface ExecutorDeps {
   evaluate(query: { capability: Capability; action: Capability['actions'][number]; proposal: CapabilityInvocationProposal; origin: EventActor }): PolicyDecision | Promise<PolicyDecision>;
   permission: ExecutorPermission; broker: ExecutorBroker; adapter(capability: Capability): AdapterRunner; verification: VerificationRunner; events: ExecutorEventSink;
   store?: InvocationStorePort; leases?: ResourceLeasePort; now?: () => string;
+  onTransitionCommitted?:()=>void;
 }
 export class CapabilityExecutor {
   private readonly store: InvocationStorePort; private readonly leases: ResourceLeasePort; private readonly now: () => string;
@@ -119,7 +120,7 @@ export class CapabilityExecutor {
   }
   private context(credential: CredentialHandle, input: unknown): AdapterContext { return { credential, input, mode: credential.mode, abortSignal: new AbortController().signal, log: () => undefined, http: async () => { throw new Error('http unavailable'); } }; }
   private async event(id: string, name: string, payload: Record<string, unknown> = {}, retention: 'AUDIT' | 'SECURITY' = 'AUDIT') { const row = await this.store.get(id); if (!row) throw new Error('invocation not found'); return this.deps.events.emit(`jarvis.agency.invocation.${name}`, { invocationId: id, ...payload }, retention, { correlationId: row.correlationId, principalId: row.principalId, actor: row.originActor }); }
-  private async transition(id: string, state: InvocationLifecycle['state'], name: string, payload: Record<string, unknown> = {}, retention: 'AUDIT' | 'SECURITY' = 'AUDIT') { const eventId = await this.event(id, name, payload, retention); await this.store.transition(id, state, this.now(), eventId); }
+  private async transition(id: string, state: InvocationLifecycle['state'], name: string, payload: Record<string, unknown> = {}, retention: 'AUDIT' | 'SECURITY' = 'AUDIT') { const eventId = await this.event(id, name, payload, retention); await this.store.transition(id, state, this.now(), eventId); this.deps.onTransitionCommitted?.(); }
   private async terminal(id: string, state: 'REJECTED' | 'DENIED' | 'ABORTED' | 'FAILED' | 'VERIFICATION_FAILED', outcome: InvocationResult['outcome'], reason: string, retention: 'AUDIT' | 'SECURITY'): Promise<InvocationResult> { await this.transition(id, state, outcome, { reason }, retention); return { invocationId: id, outcome, finishedAt: this.now() }; }
   private outcome(state: InvocationLifecycle['state']): InvocationResult['outcome'] {
     const map: Partial<Record<InvocationLifecycle['state'], InvocationResult['outcome']>> = { AWAITING_APPROVAL: 'awaiting_approval', COMPLETED: 'verified', REJECTED: 'rejected', DENIED: 'denied', ABORTED: 'aborted', FAILED: 'failed', VERIFICATION_FAILED: 'verification_failed', ROLLED_BACK: 'rolled_back', PARTIALLY_COMPLETED: 'partially_completed' };

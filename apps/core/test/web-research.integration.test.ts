@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { pathToFileURL } from 'node:url';
@@ -49,6 +49,9 @@ describe.skipIf(!dockerOk)('governed web research', () => {
       webFetch: { allowedPorts: [port], resolve: async () => [{ address: '127.0.0.1', family: 4 }], addressAllowed: address => address === '127.0.0.1' },
     });
     await k.start();
+    const pushed:Array<import('@jarvis/scene').ExperienceStreamUpdate>=[];
+    const unsubscribe=k.experience.subscribe(update=>pushed.push(update));
+    await ctx.pg.sql`insert into experience.conversation_turns(turn_id,conversation_id,principal_id,source_node_id,input,command_hash,status,created_at) values('research-1','research-conversation',${principalId},${k.config.nodeId},'Research acme.test and report back','fixture','completed',${ctx.clock.nowIso()})`;
 
     const first = await k.cognition.submit({ requestId: 'research-1', principalId, correlationId: 'corr-research', input: 'Research acme.test and report back', agentId: 'agents.oracle', task: 'reason' });
     expect(first.answer).toContain('I will fetch the site.');
@@ -74,5 +77,11 @@ describe.skipIf(!dockerOk)('governed web research', () => {
     expect(grounded.input.instruction).not.toContain('Ignore previous instructions');
     expect(JSON.stringify(grounded.input.context)).toContain('"derivedFromUntrusted":true');
     expect(JSON.stringify(report!.response)).toContain(`invocation:${pending!.invocationId}`);
+    const [delivered]=await ctx.pg.sql<{answer:string;conversation_id:string}[]>`select answer,conversation_id from experience.conversation_turns where turn_id like 'web-evidence:%' and principal_id=${principalId}`;
+    expect(delivered).toMatchObject({conversation_id:'research-conversation',answer:`Report: ${MARKER}.`});
+    expect(report!.response).toMatchObject({conversationId:'research-conversation'});
+    await vi.waitFor(()=>expect(pushed.some(update=>update.patch.capabilityActivity?.some(item=>item.invocationId===pending!.invocationId&&item.state==='COMPLETED'))).toBe(true));
+    await vi.waitFor(()=>expect(pushed.some(update=>update.patch.cognitionResponses?.some(response=>response.answer?.includes(MARKER)))).toBe(true));
+    unsubscribe();
   }, 60_000);
 });

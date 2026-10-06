@@ -31,6 +31,8 @@ import { healthRegions, interpretTelemetry } from './telemetry-instrument-policy
 import { SystemStatusEdge } from './system-status-edge.tsx';
 import { useNow, useViewport } from './use-viewport.ts';
 import { useScene } from './use-scene.ts';
+import { latestConversationAnswer } from './conversation-answer.ts';
+import { ResponsePanel } from './response-panel.tsx';
 
 const offlineScene = (): SemanticScene => ({ id: 'kernel-offline', principalId: 'unavailable', version: 0, presentation: 'DEGRADED', monitors: [{ id: 'primary', label: 'Primary', bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 }, scaleFactor: 1, primary: true, connected: true }], objects: [{ id: 'core', kind: 'jarvis-core', title: 'JARVIS', semanticRole: 'connection-status', monitorId: 'primary', position: { x: 760, y: 300 }, size: { width: 400, height: 400 }, zIndex: 1, state: 'focused', pinned: true, dismissible: false, resourceRefs: [], updatedAt: new Date().toISOString(), data: { activity: [], phrase: 'Kernel unavailable. No authoritative state is being shown.' } }], updatedAt: new Date().toISOString() });
 
@@ -91,6 +93,8 @@ export function JarvisExperience() {
   const [proposalOpen, setProposalOpen] = useState(false);
   const [proposalText, setProposalText] = useState('');
   const [commandResult, setCommandResult] = useState('');
+  const deliveredAnswer=latestConversationAnswer(kernel?.cognitionResponses??[]);
+  useEffect(()=>{if(deliveredAnswer?.answer){setCommandResult(deliveredAnswer.answer);if(deliveredAnswer.conversationId)setConversationId(deliveredAnswer.conversationId)}},[deliveredAnswer?.requestId]);
   const panels = scene.objects.filter(object => object.kind !== 'jarvis-core');
   const coreObject = scene.objects.find(object => object.kind === 'jarvis-core');
   const send = (intent: SceneIntent) => void submit(intent).catch(() => setCommandResult('Presentation update conflicted; live state retained.'));
@@ -140,7 +144,7 @@ export function JarvisExperience() {
       <span className="air-touch-state"><i/>AIR TOUCH · {kernelLive ? 'PRESENTATION READY' : 'LOCAL ONLY'}</span>
     </footer>
     {proposalOpen && <section className="proposal-entry"><label htmlFor="proposal-json">JARVIS REQUEST</label><textarea id="proposal-json" value={proposalText} onChange={event => setProposalText(event.target.value)} placeholder="Ask a question or describe the outcome you want."/><div><button onClick={() => setProposalOpen(false)}>CANCEL</button><button onClick={() => void runProposal()}>SUBMIT TO JARVIS</button></div></section>}
-    {commandResult && <div className="command-result" role="status">{commandResult}</div>}
+    <ResponsePanel text={commandResult} answerId={commandResult===deliveredAnswer?.answer?deliveredAnswer?.requestId:undefined} live={kernelLive}/>
     <AirTouchLayer objects={panels} submit={send} transport={transport}/>
     {inspector && <SpatialInspector key={inspectorTab} initialTab={inspectorTab} {...(kernel ? { picture: kernel } : {})} liveness={liveness} onClose={() => setInspector(false)} agents={<AgentInspector jobs={kernel?.agentJobs ?? []} live={kernelLive} {...(kernel?.generatedAt ? { generatedAt: kernel.generatedAt } : {})} onCancel={cancelJob}/>}/>}
     {operations && <OperationsView instruments={instruments} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} regions={regions} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} stats={stats} agents={agents.nodes} onClose={closeOperations}/>}

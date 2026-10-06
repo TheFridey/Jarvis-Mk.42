@@ -101,16 +101,35 @@ export class AgentRuntime {
           } finally { change.dispose(); }
         }
       }
-      const response = await runAgentWorker({ jobId, request: bounded, gateway: this.gateway, signal: controller.signal,
+      let response!:ModelResponse;
+      let parsed!:z.SafeParseReturnType<unknown,z.infer<typeof proposal>[]>;
+      let spent=0;
+      const usages:ModelResponse['usage'][]=[];
+      const inferenceStart=Date.now();
+      for(let formatAttempt=0;formatAttempt<2;formatAttempt++){
+      response = await runAgentWorker({ jobId, request: {...bounded,budget:{...bounded.budget,maxCost:Math.max(0,bounded.budget.maxCost!-spent),maxLatencyMs:Math.max(1,bounded.budget.maxLatencyMs!-(Date.now()-inferenceStart))}}, gateway: this.gateway, signal: controller.signal,
         proposalScope:manifest.proposalScope,
         onSpawn: async pid => { await this.jobs?.heartbeat(jobId, this.owner, attempt, pid); await this.jobs?.update(jobId, this.owner, attempt, 'RUNNING'); },
         heartbeat: async () => { await this.jobs?.heartbeat(jobId, this.owner, attempt); },
         beforeInference: async () => { await this.jobs?.update(jobId, this.owner, attempt, 'WAITING'); },
         onRouting: async routing => { await this.jobs?.route(jobId, this.owner, attempt, routing); await onRouting?.(routing); } });
-      if (response.usage.costEstimate > bounded.budget.maxCost!) throw new Error('agent cost budget exceeded');
+      spent+=response.usage.costEstimate;
+      usages.push(response.usage);
+      if (spent > bounded.budget.maxCost!) throw new Error('agent cost budget exceeded');
       const envelope = response.output as { proposals?: unknown; evidence?: unknown };
-      const parsed = z.array(proposal).max(32).safeParse(envelope?.proposals ?? response.output);
-      if (!parsed.success) throw new Error(`invalid structured model output: ${parsed.error.issues[0]?.message ?? 'invalid proposals'}`);
+      parsed = z.array(proposal).max(32).safeParse(envelope?.proposals ?? response.output);
+      if(parsed.success)break;
+      const issue=parsed.error.issues[0];
+      if(formatAttempt===1)throw new ModelGatewayError('INVALID_RESPONSE',`invalid structured model output at proposals.${issue?.path.join('.')}: ${issue?.message??'invalid proposals'}`,false);
+      // A completed but malformed cognitive response caused no effects. One
+      // correction pass keeps the same privacy, scope, lease and total budgets.
+      bounded.input={...bounded.input,constraints:[...(bounded.input.constraints??[]),`Previous response failed schema validation at proposals.${issue?.path.join('.')}: ${issue?.message}. Return the exact proposal contract; citations and evidence must be string arrays, not objects.`]};
+      }
+      if(!parsed.success)throw new ModelGatewayError('INVALID_RESPONSE','invalid structured model output',false);
+      const latencyMs=Date.now()-inferenceStart;
+      const knownTotal=(field:'inputTokens'|'cachedTokens'|'outputTokens'|'actualCost')=>usages.every(usage=>usage[field]!==undefined)?usages.reduce((sum,usage)=>sum+usage[field]!,0):undefined;
+      response={...response,usage:{contextUnits:usages.reduce((sum,usage)=>sum+usage.contextUnits,0),outputUnits:usages.reduce((sum,usage)=>sum+usage.outputUnits,0),costEstimate:spent,latencyMs,inputTokens:knownTotal('inputTokens'),cachedTokens:knownTotal('cachedTokens'),outputTokens:knownTotal('outputTokens'),actualCost:knownTotal('actualCost')}};
+      const envelope = response.output as { proposals?: unknown; evidence?: unknown };
       for (const p of parsed.data) {
         if (p.correlationId !== request.correlationId || p.provenance.correlationId !== request.correlationId) throw new Error('proposal correlation mismatch');
         if (!manifest.proposalScope.kinds.includes(p.kind)) throw new Error(`proposal kind ${p.kind} outside agent scope`);

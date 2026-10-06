@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isPublicWebRequest } from './public-web-request.ts';
 import { EventNames, type CapabilityInvocationProposal, type CognitionRequest, type CognitionResponse, type InvocationResult } from '@jarvis/contracts';
 import type { Sql } from '@jarvis/persistence';
 import type { AgencyIngress } from '../agency-ingress/agency-ingress.ts';
@@ -19,11 +20,13 @@ export function capabilityStatus(proposal: CapabilityInvocationProposal, result:
   return `JARVIS Kernel: ${proposal.invocation.capabilityId}/${proposal.invocation.action}${target} ${outcome[result.outcome]} (invocation ${result.invocationId}).${followUp}`;
 }
 export function cognitionIdentity(req: CognitionRequest, cloudAllowed: boolean): string {
-  const identity:unknown[]=[req.requestId,req.principalId,req.correlationId,req.agentId,req.input,req.task,req.locality??'any',req.maxCost??null,req.maxLatencyMs??null,req.realtime??false,req.cloudAllowed??cloudAllowed,req.preferredModels??[],req.preferredProviders??[],req.objectiveId??null,req.parentJobId??null,req.workflowRef??null];if(req.perceptionRef||req.analysisOnly)identity.push(req.perceptionRef??null,req.analysisOnly??false);if(req.evidenceRef)identity.push(req.evidenceRef);return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
+  const scope=req.contextScope??null;
+  const identity:unknown[]=[req.requestId,req.principalId,req.correlationId,req.agentId,req.input,req.task,req.locality??'any',req.maxCost??null,req.maxLatencyMs??null,req.realtime??false,req.cloudAllowed??cloudAllowed,req.preferredModels??[],req.preferredProviders??[],req.objectiveId??null,req.parentJobId??null,req.workflowRef??null];if(req.perceptionRef||req.analysisOnly)identity.push(req.perceptionRef??null,req.analysisOnly??false);if(req.evidenceRef)identity.push(req.evidenceRef);if(scope)identity.push({contextScope:scope});return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
 }
 export class CognitionOrchestrator {
   private readonly inFlight = new Set<string>();
   constructor(private readonly d:{sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean;
+    deliverContinuation?:(response:CognitionResponse,parentJobId:string)=>Promise<CognitionResponse>;
     /** True when a policy-permitted local model route exists. RESTRICTED context
      *  fails closed when this is false — it is never downgraded to cloud. */
     localModelAvailable?:()=>boolean;research?:{remember(req:CognitionRequest,proposal:CapabilityInvocationProposal):void};businessAnswer?:(principalId:string,text:string,correlationId:string)=>Promise<string|{answer:string;modelId:string;agentId:'agents.nova'|'agents.sentinel'}|undefined>}){}
@@ -34,6 +37,7 @@ export class CognitionOrchestrator {
     try { return await this.process(req); } finally { this.inFlight.delete(req.requestId); }
   }
   private async process(req:CognitionRequest):Promise<CognitionResponse>{
+    if(!req.contextScope&&!req.perceptionRef&&!req.evidenceRef&&isPublicWebRequest(req.input))req={...req,contextScope:'public-web'};
     const created=this.d.now(), hash=createHash('sha256').update(req.perceptionRef||req.analysisOnly?JSON.stringify([req.input,req.perceptionRef??null,req.analysisOnly??false]):req.input).digest('hex');
     const inserted=await this.d.sql<{request_id:string}[]>`insert into cognition.runs(request_id,principal_id,correlation_id,agent_id,status,input_hash,task_class,objective_ref,workflow_ref,created_at) values(${req.requestId},${req.principalId},${req.correlationId},${req.agentId},'running',${hash},${req.task},${req.objectiveId??null},${req.workflowRef??null},${created}) on conflict(request_id) do nothing returning request_id`;
     if(inserted.length===0){
@@ -58,7 +62,7 @@ export class CognitionOrchestrator {
       // Compile with the ceiling wide open so ATLAS/MNEMOSYNE knowledge is not
       // dropped before routing can consider it; the package's own maxPrivacyClass
       // then drives model locality (privacy-aware routing, not label loosening).
-      const context=await this.d.context.compile({correlationId:req.correlationId,intent:req.input,intentClass:req.task,budgetUnits:req.evidenceRef?9000:4000,maxPrivacyClass:'RESTRICTED',principalId:req.principalId,perceptionRef:req.perceptionRef,...(req.evidenceRef?{evidenceRef:req.evidenceRef}:{})});
+      const context=await this.d.context.compile({correlationId:req.correlationId,intent:req.input,intentClass:req.task,budgetUnits:req.evidenceRef?9000:4000,maxPrivacyClass:req.contextScope==='public-web'?'PUBLIC':'RESTRICTED',...(req.contextScope?{scope:req.contextScope}:{}),principalId:req.principalId,perceptionRef:req.perceptionRef,...(req.evidenceRef?{evidenceRef:req.evidenceRef}:{})});
       const pc=context.maxPrivacyClass, sensitive=pc==='SENSITIVE'||pc==='RESTRICTED';
       if(pc==='RESTRICTED'&&!(this.d.localModelAvailable?.()??false)){
         throw new Error('context contains RESTRICTED knowledge and no policy-permitted local model route is available — refusing to route (privacy fail-closed)');
@@ -75,7 +79,8 @@ export class CognitionOrchestrator {
       for(const p of result.proposals)if(p.kind==='capability_invocation'&&!req.analysisOnly){const proposal=p as CapabilityInvocationProposal;this.d.research?.remember(req,proposal);statuses.push(capabilityStatus(proposal,await this.d.agency.submitOnce(proposal,{principalId:req.principalId,authenticated:true})));}
       if(req.analysisOnly)result.proposals=result.proposals.filter(p=>p.kind!=='capability_invocation');
       const answerText=[...(answer?.kind==='answer'?[answer.text]:[]),...statuses].join('\n\n');
-      const out:CognitionResponse={requestId:req.requestId,principalId:req.principalId,correlationId:req.correlationId,result,modelId:response.modelId,...(answerText?{answer:answerText}:{}),createdAt:created};
+      let out:CognitionResponse={requestId:req.requestId,principalId:req.principalId,correlationId:req.correlationId,result,modelId:response.modelId,...(answerText?{answer:answerText}:{}),createdAt:created};
+      if(req.parentJobId&&this.d.deliverContinuation)out=await this.d.deliverContinuation(out,req.parentJobId);
       await this.d.sql`update cognition.runs set model_id=${response.modelId},status='completed',response=${JSON.stringify(out)},privacy_class=${pc},routing_observability=${response.routing?JSON.stringify(response.routing):null},usage_observability=${JSON.stringify(response.usage)},first_token_at=${response.routing?.firstTokenAt??null},context_units=${response.usage.contextUnits},output_units=${response.usage.outputUnits},cost_estimate=${response.usage.costEstimate},latency_ms=${response.usage.latencyMs},finished_at=${this.d.now()} where request_id=${req.requestId}`;
       await this.emit(EventNames.CognitionCompleted,req,{modelId:response.modelId,proposalCount:result.proposals.length});await this.emit(EventNames.CognitionResultDelivered,req,{requestId:req.requestId,hasAnswer:Boolean(out.answer)});return out;
     }catch(e){const errorClass=typeof e==='object'&&e!==null&&'code'in e?String(e.code):e instanceof Error?e.name:'error';await this.d.sql`update cognition.runs set status='failed',error_code=${errorClass},finished_at=${this.d.now()} where request_id=${req.requestId}`;await this.emit(EventNames.CognitionRejected,req,{error:e instanceof Error?e.message:String(e),errorClass});throw e;}

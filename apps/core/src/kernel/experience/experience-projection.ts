@@ -10,7 +10,7 @@ const CHANNEL_KEYS: Record<ExperienceChannel, ReadonlyArray<keyof JarvisOperatin
 export const ALL_EXPERIENCE_CHANNELS = Object.freeze(Object.keys(CHANNEL_KEYS) as ExperienceChannel[]);
 
 export function channelsForEvent(type: string): ExperienceChannel[] {
-  if (type.includes('.cognition.')) return ['cognition','system'];
+  if (type.includes('.cognition.')) return ['cognition','agency','system'];
   if (type.includes('.agency.') || type.includes('.capability.') || type.includes('.approval.')) return ['agency','system'];
   if (type.includes('.objective.')) return ['objectives','system'];
   if (type.includes('.notification.') || type.includes('.alert.')) return ['notifications','system'];

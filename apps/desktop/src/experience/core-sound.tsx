@@ -24,5 +24,5 @@ export function CoreSound({picture,reducedSensory}:{picture?:JarvisOperatingPict
   const signature=picture?`${picture.interactionState}:${picture.workState}:${picture.systemHealth.overall}:${picture.pendingApprovals.length}`:'';
   useEffect(()=>{if(!enabled||reducedSensory||!signature||signature===previous.current){previous.current=signature;return}previous.current=signature;const cue=cueFor(picture);if(cue)void engine.current?.play(cue,true)},[enabled,picture,reducedSensory,signature]);
   useEffect(()=>()=>{void engine.current?.close()},[]);
-  return <button className="sound-control" onClick={()=>setEnabled(current=>!current)} aria-pressed={enabled} aria-label={enabled?'Mute JARVIS sounds':'Enable JARVIS sounds'} disabled={reducedSensory}>{enabled?<Volume2 size={14}/>:<VolumeX size={14}/>} SOUND {reducedSensory?'REDUCED':enabled?'ON':'OFF'}</button>;
+  return <button className="sound-control" onClick={()=>setEnabled(current=>!current)} aria-pressed={enabled} aria-label={enabled?'Mute JARVIS sounds':'Enable JARVIS sounds'} disabled={reducedSensory}>{enabled?<Volume2 size={14}/>:<VolumeX size={14}/>} CUES {reducedSensory?'REDUCED':enabled?'ON':'OFF'}</button>;
 }

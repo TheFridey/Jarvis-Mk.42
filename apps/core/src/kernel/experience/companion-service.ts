@@ -1,4 +1,5 @@
 import { desktopRoute } from '../cognition/desktop-route.ts';
+import { isPublicWebRequest } from '../cognition/public-web-request.ts';
 import { createHash } from 'node:crypto';
 import type { CompanionPicture, CompanionTurn, RegisteredNode, CognitionRequest, CognitionResponse } from '@jarvis/contracts';
 import type { DesktopKernelSnapshot, DesktopCognitionCommand } from '@jarvis/scene';
@@ -48,6 +49,14 @@ export class CompanionService {
     for(const r of rows){const turn:CompanionTurn={id:r.turn_id,conversationId:r.conversation_id,input:r.input.slice(0,2000),answer:r.answer?.slice(0,4000)??null,status:r.status,sourceNodeId:r.source_node_id,createdAt:new Date(r.created_at).toISOString()};const size=Buffer.byteLength(JSON.stringify(turn));if(bytes+size>20000)break;bytes+=size;selected.push(turn);}
     return selected.reverse();
   }
+  async deliverContinuation(response:CognitionResponse,parentJobId:string):Promise<CognitionResponse>{
+    const [parent]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${parentJobId} and principal_id=${response.principalId}`;
+    if(!parent)return response;
+    const delivered={...response,conversationId:parent.conversation_id};
+    const hash=createHash('sha256').update(JSON.stringify([response.requestId,parentJobId])).digest('hex');
+    await this.d.sql`insert into experience.conversation_turns(turn_id,conversation_id,principal_id,source_node_id,input,command_hash,answer,response,status,created_at,finished_at) values(${response.requestId},${parent.conversation_id},${response.principalId},${parent.source_node_id},${'Follow-up: '+parent.input},${hash},${response.answer??null},${JSON.stringify(delivered)},'completed',${response.createdAt},${response.result.finishedAt??this.d.now()}) on conflict(turn_id) do nothing`;
+    this.d.invalidate();return delivered;
+  }
   async converse(node:Pick<RegisteredNode,'nodeId'|'principalId'>,command:DesktopCognitionCommand,conversationId?:string,mobile=false){
     if(!mobile)command={...command,...desktopRoute(command.input,command)};
     const turnId=mobile?'mobile:'+createHash('sha256').update(node.nodeId+'|'+command.commandId).digest('hex'):command.commandId;
@@ -63,12 +72,14 @@ export class CompanionService {
       if(old?.status==='completed')return {turnId,conversationId:old.conversation_id,answer:old.answer,...(old.response?{result:old.response}:{})};
       const [turn]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${turnId}`;
       const history=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at desc limit 6`;
-      const input=turn!.cognition_input??(history.length?JSON.stringify({conversation:history.reverse().map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
+      // A recovered input may already contain private history from an older attempt.
+      const publicWeb=!mobile&&(!turn!.cognition_input||turn!.cognition_input===command.input)&&isPublicWebRequest(command.input);
+      const input=turn!.cognition_input??(history.length&&!publicWeb?JSON.stringify({conversation:history.reverse().map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
       if(!turn!.cognition_input)await this.d.sql`update experience.conversation_turns set cognition_input=${input} where turn_id=${turnId}`;
       this.d.invalidate();
       try{
         // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',locality:command.locality??'prefer-local',...((mobile||conversationId)?{locality:'local',cloudAllowed:false}:{}),...(mobile?{analysisOnly:true}:{})});
+        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};

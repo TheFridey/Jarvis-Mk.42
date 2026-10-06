@@ -89,6 +89,11 @@ describe('web research continuation', () => {
     const { research } = harness();
     expect(research.capture(proposal(), verified(), 'p1')).toMatchObject({ locality: 'local', cloudAllowed: false });
   });
+  it('retains the isolated public context in verified-fetch analysis', () => {
+    const { research } = harness();
+    research.remember({...origin,contextScope:'public-web'}, proposal());
+    expect(research.capture(proposal(), verified(), 'p1')).toMatchObject({contextScope:'public-web',locality:'prefer-local'});
+  });
 
   it('serves evidence only to its principal, framed as untrusted retrieval, and expires it', () => {
     const { research, advance } = harness();

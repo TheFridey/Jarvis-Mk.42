@@ -7,6 +7,43 @@ const response=(body:unknown,status=200)=>new Response(JSON.stringify(body),{sta
 class FakeSocket {readyState=1;onopen:null|(()=>void)=null;onmessage:null|((event:{data:string})=>void)=null;onclose:null|((event:{code:number;reason:string})=>void)=null;onerror:null|(()=>void)=null;sent:string[]=[];send(data:string){this.sent.push(data)}close(code=1000,reason=''){this.readyState=3;this.onclose?.({code,reason})}open(){this.onopen?.()}message(value:ExperienceServerMessage){this.onmessage?.({data:JSON.stringify(value)})}}
 function harness(initial=7){const sockets:FakeSocket[]=[];const fetch=vi.fn<typeof globalThis.fetch>(async(input)=>String(input).includes('/auth/session')?response({accessToken:'a'.repeat(43),credential:{sessionId:'session'}},201):response(snapshot(initial)));const transport=new KernelSceneTransport({endpoint:'http://core',credential:'secret',nodeId:'local-server',cache,fetch,socket:()=>{const socket=new FakeSocket();sockets.push(socket);return socket},retryBaseMs:1,retryMaxMs:2});return{transport,fetch,sockets}}
 describe('realtime Kernel scene transport',()=>{
+  it('renews a stale approval session and retries only the rejected command with identical arguments',async()=>{
+    const{transport,fetch,sockets}=harness();transport.subscribeConnection(()=>{});
+    await vi.waitFor(()=>expect(sockets).toHaveLength(1));sockets[0]!.open();sockets[0]!.message({type:'experience.ready',schemaVersion:1,streamId:'s',sequence:1,heartbeatMs:10_000});
+    const attempts:Array<RequestInit|undefined>=[];
+    fetch.mockImplementation(async(input,init)=>{
+      if(String(input).endsWith('/auth/session'))return response({accessToken:'b'.repeat(43),credential:{sessionId:'fresh'}},201);
+      if(String(input).endsWith('/desktop/approvals')){attempts.push(init);return attempts.length===1?response({error:'unauthorised'},401):response({accepted:true});}
+      return response(snapshot());
+    });
+    const command={commandId:'approval-command',expectedStateVersion:7,approvalId:'approval',decision:'approve',nonce:'same-nonce'} as unknown as Parameters<typeof transport.decideApproval>[0];
+    await transport.decideApproval(command);
+    expect(attempts).toHaveLength(2);expect(attempts[0]?.body).toBe(attempts[1]?.body);
+    expect(attempts[1]?.headers).toMatchObject({authorization:`Bearer ${'b'.repeat(43)}`,'x-jarvis-session-id':'fresh'});
+    expect(sockets[0]!.readyState).toBe(3);sockets.at(-1)!.open();
+    expect(JSON.parse(sockets.at(-1)!.sent[0]!)).toMatchObject({accessToken:'b'.repeat(43),sessionId:'fresh'});transport.close();
+  });
+  it('bounds repeated authentication rejection and handles a socket opening after credentials were cleared',async()=>{
+    const{transport,fetch,sockets}=harness();transport.subscribeConnection(()=>{});
+    await vi.waitFor(()=>expect(sockets).toHaveLength(1));sockets[0]!.open();sockets[0]!.message({type:'experience.ready',schemaVersion:1,streamId:'s',sequence:1,heartbeatMs:10_000});
+    let attempts=0;
+    fetch.mockImplementation(async(input)=>String(input).endsWith('/auth/session')?response({accessToken:'b'.repeat(43),credential:{sessionId:'fresh'}},201):(attempts++,response({error:'unauthorised'},401)));
+    await expect(transport.decideApproval({} as never)).rejects.toThrow('KERNEL_COMMAND_REJECTED_401');expect(attempts).toBe(2);
+    const opening=sockets.at(-1)!;expect(()=>opening.open()).not.toThrow();expect(opening.sent).toEqual([]);transport.close();
+  });
+  it('shares a pending session exchange between concurrent consumers',async()=>{
+    const{transport,fetch,sockets}=harness();let resolveAuth!:(value:Response)=>void;
+    const pending=new Promise<Response>(resolve=>{resolveAuth=resolve});
+    fetch.mockImplementation(async(input,init)=>{
+      if(String(input).endsWith('/auth/session'))return pending;
+      if(String(input).endsWith('/vision/stream'))return new Promise<Response>((_,reject)=>init?.signal?.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));
+      return response(snapshot());
+    });
+    transport.subscribeConnection(()=>{});const cancelVision=transport.subscribeAirTouch(()=>{});
+    await vi.waitFor(()=>expect(fetch.mock.calls.filter(([url])=>String(url).endsWith('/auth/session'))).toHaveLength(1));
+    resolveAuth(response({accessToken:'a'.repeat(43),credential:{sessionId:'session'}},201));
+    await vi.waitFor(()=>expect(sockets).toHaveLength(1));cancelVision();transport.close();
+  });
   it('explains model unavailability without reflecting provider details or pretending the Kernel disconnected',async()=>{
     const{transport,fetch,sockets}=harness();let status='';transport.subscribeConnection(value=>{status=value.status});
     await vi.waitFor(()=>expect(sockets).toHaveLength(1));sockets[0]!.open();sockets[0]!.message({type:'experience.ready',schemaVersion:1,streamId:'s',sequence:1,heartbeatMs:10_000});

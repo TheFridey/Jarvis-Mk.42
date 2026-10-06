@@ -57,7 +57,7 @@ it('checkpoints a partial meeting objective and resumes missing sources with a r
 it('answers the morning situation from real verified Operating Picture fixtures without model calls',async()=>{
   const response=await kernel.cognition.submit({requestId:'morning1',principalId,correlationId:'morning-corr',input:'Jarvis, morning. Give me the situation.',agentId:'agents.nova',task:'reason'});
   expect(response.modelId).toBe('nova:operating-picture');expect(response.answer).toContain('MRR: available');expect(response.answer).toContain('invocation:');expect(response.answer).not.toContain('fixture-refresh');
-  expect(response.answer).toContain('Kernel situation');expect(response.answer).toContain('"health"');expect(response.answer).toContain('"knowledge"');expect(response.answer).toContain('"notifications"');
+  expect(response.answer).toContain('JARVIS is');expect(response.answer).toContain('active alerts');expect(response.answer).not.toContain('"subsystems"');expect(response.answer).not.toContain('evidenceNote');
   expect(kernel.business.picture('other').readings.MRR?.status).toBe('unavailable');
 });
 it('answers check production from measured local telemetry without inventing remote health or model activity',async()=>{

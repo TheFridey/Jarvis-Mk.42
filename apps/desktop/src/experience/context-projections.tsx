@@ -6,9 +6,6 @@ import { dataAgeMs, formatAge, type DataLiveness, type ExperiencePhase } from '.
 import type { SpatialLayout } from './spatial-layout-policy.ts';
 import { useNow } from './use-viewport.ts';
 
-const RECENT_ANSWER_MS = 120_000;
-/** Once JARVIS has returned to ambient, an answer lingers briefly and then yields the space. */
-const IDLE_ANSWER_MS = 15_000;
 const truncate = (text: string, max: number) => text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 
 /** Conversation beside the Core: live caption while listening, else the latest recorded answer. */
@@ -18,20 +15,13 @@ export function ConversationProjection({ picture, liveness, layout, phase }: { p
   const audio = picture.voiceAudio;
   const captionAge = dataAgeMs(audio?.observedAt, now);
   const caption = liveness.current && captionAge !== undefined && captionAge < 10_000 ? audio?.partialTranscript ?? audio?.finalTranscript : undefined;
-  const latest = picture.cognitionResponses.at(-1);
-  const answerAge = dataAgeMs(latest?.createdAt, now);
-  const linger = phase === 'DORMANT' || phase === 'AWARE' ? IDLE_ANSWER_MS : RECENT_ANSWER_MS;
-  const recent = latest?.answer && answerAge !== undefined && answerAge < linger;
-  if (!caption && !recent) return null;
+  if (!caption) return null;
   const style = { left: layout.conversation.x, top: layout.conversation.y, width: layout.conversationWidth };
   if (caption) return <output className={`conversation-projection caption${audio?.partialTranscript ? ' partial' : ''}`} style={style} aria-live="polite">
     <small>{audio?.partialTranscript ? 'HEARING' : 'HEARD'} · {liveness.synthetic ? 'SYNTHETIC' : 'OPERATOR'}</small>
     <p>{truncate(caption, 220)}</p>
   </output>;
-  return <article className={`conversation-projection answer${liveness.current ? '' : ' not-current'}`} style={style} aria-label="Latest JARVIS answer">
-    <small>JARVIS · {latest!.modelId} · {liveness.current ? formatAge(answerAge) : 'LAST OBSERVED'}</small>
-    <p>{truncate(latest!.answer!, 280)}</p>
-  </article>;
+  return null;
 }
 
 /** The active objective, anchored quietly under the status edge. */

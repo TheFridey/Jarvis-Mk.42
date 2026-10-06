@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { AgentIds, type AgentId, type CapabilityInvocationProposal, type CognitionRequest, type ContextItem, type InvocationResult } from '@jarvis/contracts';
 import { fetchOutput, type WebFetchOutput } from '../../../../../capabilities/web/definition.ts';
 
-type Origin = Pick<CognitionRequest, 'requestId' | 'principalId' | 'input' | 'agentId' | 'locality' | 'cloudAllowed' | 'preferredModels' | 'preferredProviders' | 'objectiveId'>;
+type Origin = Pick<CognitionRequest, 'requestId' | 'principalId' | 'input' | 'agentId' | 'locality' | 'cloudAllowed' | 'preferredModels' | 'preferredProviders' | 'objectiveId' | 'contextScope'>;
 interface Evidence { principalId: string; at: number; page: WebFetchOutput; invocationId: string }
 const TTL_MS = 30 * 60_000, LIMIT = 64;
 
@@ -21,7 +21,7 @@ export class WebResearch {
   remember(req: CognitionRequest, proposal: CapabilityInvocationProposal): void {
     if (!isWebFetch(proposal)) return;
     this.prune(this.origins);
-    this.origins.set(proposal.proposalId, { requestId: req.requestId, principalId: req.principalId, input: req.input, agentId: req.agentId, locality: req.locality, cloudAllowed: req.cloudAllowed, preferredModels: req.preferredModels, preferredProviders: req.preferredProviders, objectiveId: req.objectiveId, at: this.d.now() });
+    this.origins.set(proposal.proposalId, { requestId: req.requestId, principalId: req.principalId, input: req.input, agentId: req.agentId, locality: req.locality, cloudAllowed: req.cloudAllowed, preferredModels: req.preferredModels, preferredProviders: req.preferredProviders, objectiveId: req.objectiveId, contextScope:req.contextScope, at: this.d.now() });
   }
 
   /** Called for every verified agency result; returns the continuation request it scheduled, if any. */
@@ -40,7 +40,7 @@ export class WebResearch {
     const req: CognitionRequest = {
       requestId: `web-evidence:${createHash('sha256').update(result.invocationId).digest('hex').slice(0, 40)}`,
       principalId, correlationId: proposal.correlationId, agentId, task: 'reason', analysisOnly: true, evidenceRef: ref,
-      ...(origin ? { parentJobId: origin.requestId } : {}),
+      ...(origin ? { parentJobId: origin.requestId,contextScope:origin.contextScope } : {}),
       // Privacy routing is inherited; without the original request it fails closed to local-only.
       ...(origin ? { locality: origin.locality, cloudAllowed: origin.cloudAllowed, preferredModels: origin.preferredModels, preferredProviders: origin.preferredProviders, objectiveId: origin.objectiveId } : { locality: 'local' as const, cloudAllowed: false }),
       input: [
