@@ -5,6 +5,7 @@ import type { CredentialBroker } from '../credential-broker/broker.ts';
 import email from '../../../../../capabilities/email/definition.ts';
 import calendar from '../../../../../capabilities/calendar/definition.ts';
 import scalesmiths from '../../../../../capabilities/scalesmiths/definition.ts';
+import { canonicalJson } from '../../runtime/canonical-json.ts';
 
 export const googleMaterial = z.object({ principalId: z.string().min(1), clientId: z.string().min(1), clientSecret: z.string().min(1), refreshToken: z.string().min(1), calendars: z.array(z.string()).min(1).default(['primary']) }).strict();
 export const scaleMaterial = z.object({ principalId: z.string().min(1), baseUrl: z.string().url().refine(value=>{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!url.search&&!url.hash;}), token: z.string().min(1), contractVersion: z.literal(1), readActions: z.array(z.string().regex(/^(clients|leads|projects|tasks|invoices|payments|retainers|proposals|analytics|deployments|infrastructure|caseStudies)\.read$/)).optional(), mutations: z.array(z.enum(['leads.update','tasks.update'])).default([]) }).strict();
@@ -66,7 +67,15 @@ export class IntegrationTransport {
     if (config.readActions && !config.readActions.includes(readAction)) throw new Error('ScaleSmiths read not supported by configured upstream');
     const readUrl = new URL(`v1/${enc(readAction)}`, base.href.endsWith('/') ? base : `${base.href}/`);
     for (const [key,value] of Object.entries(write ? { id: input.id } : input)) if (value !== undefined) readUrl.searchParams.set(key, String(value));
-    return scalePageSchema.parse(await this.json(readUrl.href, config.token));
+    const page=scalePageSchema.parse(await this.json(readUrl.href, config.token));
+    if(job.mode==='dry-run'&&!write){
+      const recorded=scalePageSchema.safeParse((job.output as {data?:unknown}|undefined)?.data);
+      // Independent readback compares facts, pagination and provenance. Retrieval
+      // timestamps change on every GET; keep the first read's original expiry.
+      const facts=(value:ScalePage)=>({...value,records:value.records.map(({observedAt,validTo,...record})=>({...record,...(validTo?{validityMs:Date.parse(validTo)-Date.parse(observedAt)}:{})}))});
+      if(recorded.success&&canonicalJson(facts(recorded.data))===canonicalJson(facts(page)))return recorded.data;
+    }
+    return page;
   }
   private async gmail(job: AdapterJob, input: Json, call: (url:string,method?:string,body?:unknown)=>Promise<Json>) {
     const root = 'https://gmail.googleapis.com/gmail/v1/users/me';

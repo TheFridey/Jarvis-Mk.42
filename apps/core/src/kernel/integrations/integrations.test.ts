@@ -53,6 +53,22 @@ describe('operational integrations',()=>{
     await expect(s.transport.run(job('scalesmiths','leads.update',{id:'1',patch:{status:'won'}}),{method:'POST',url:'integration://scalesmiths/leads.update'})).rejects.toThrow('not supported');expect(s.fetcher).not.toHaveBeenCalled();
     expect(scalePageSchema.safeParse({records:[],complete:false}).success).toBe(false);
   });
+  it('independently verifies ScaleSmiths facts despite changing retrieval timestamps',async()=>{
+    const original={records:[{id:'1',entityType:'client',attributes:{name:'Client',status:'active',sourceUpdatedAt:now},sourceRef:'https://service.example/api/jarvis/v1/clients.read?id=1',observedAt:now,validTo:'2026-10-02T08:15:00.000Z',confidence:1,privacy:'RESTRICTED'}],complete:true};
+    const reread={...original,records:original.records.map(row=>({...row,observedAt:'2026-10-02T08:00:02.000Z',validTo:'2026-10-02T08:15:02.000Z'}))};
+    const config={principalId:'p1',baseUrl:'https://service.example/api/jarvis/',token:'secret',contractVersion:1,mutations:[]};
+    const s=setup('p1',config,[reread],true);
+    const j=job('scalesmiths','clients.read',{limit:100},'dry-run');j.output={data:original};
+    expect(await s.transport.run(j,{method:'GET',url:'integration://scalesmiths/clients.read'})).toEqual({data:original});
+    expect(s.fetcher).toHaveBeenCalledTimes(1);
+    for(const change of [{attributes:{name:'Changed'}},{sourceRef:'https://other.example/1'},{privacy:'SENSITIVE'},{confidence:0.5},{validTo:'2026-10-02T09:00:02.000Z'}]){
+      const changed={...reread,records:reread.records.map(row=>({...row,...change}))};
+      const independent=setup('p1',config,[changed],true);
+      expect(await independent.transport.run(j,{method:'GET',url:'integration://scalesmiths/clients.read'})).not.toEqual({data:original});
+    }
+    const incomplete=setup('p1',config,[{...reread,complete:false,cursor:'1'}],true);
+    expect(await incomplete.transport.run(j,{method:'GET',url:'integration://scalesmiths/clients.read'})).not.toEqual({data:original});
+  });
   it('creates and reads back a Gmail draft with encoded Unicode content',async()=>{
     const s=setup('p1',material,[{access_token:'access'},{id:'draft1'},{id:'draft1',message:{id:'m1',labelIds:['DRAFT'],payload:{mimeType:'text/plain',headers:[{name:'To',value:'fixture@example.com'},{name:'Subject',value:'Meeting ✓'}],body:{data:Buffer.from('Hello').toString('base64url')}}}}]);
     const j=job('email','draft.create',{to:['fixture@example.com'],subject:'Meeting ✓',body:'Hello'});
