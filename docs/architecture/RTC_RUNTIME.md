@@ -19,7 +19,8 @@ uses OpenAI transcription/synthesis and requires the existing `OPENAI_API_KEY`.
 Provider calls and speech model overrides run only in the Model Gateway process.
 Core calls its authenticated `/v1/speech` endpoint using
 `JARVIS_MODEL_GATEWAY_URL` and `JARVIS_GATEWAY_TOKEN`; Core does not need the
-provider key for speech admission. See ADR-0040 and RELEASE_BASELINE.md for the
+provider key for speech admission. See [ADR-0040](adr/0040-runtime-and-speech-boundary.md)
+and [RELEASE_BASELINE.md](RELEASE_BASELINE.md) for the
 current boundary and code-gate evidence. The qualification results below are
 historical synthetic-media evidence, not a rerun against this release.
 Cloud selection permits sending this session's audio to OpenAI; enabling cloud

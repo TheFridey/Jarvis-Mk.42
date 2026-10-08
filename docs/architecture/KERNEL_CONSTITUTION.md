@@ -81,7 +81,9 @@ knowledge subsystem — the sole writer to `atlas.*` (ATLAS) and `mnemosyne.*`
 No Kernel component may:
 
 1. Import a model provider SDK, or call an inference endpoint directly. All
-   inference goes through `apps/gateway` via `ModelRequest` (L1, L3).
+   provider inference goes through `apps/gateway` via neutral contracts:
+   `ModelRequest` for cognition and `SpeechRequest` for consent-selected cloud
+   RTC speech (L1, L3; ADR-0040).
 2. Import a capability adapter, or perform an adapter's side effect inline.
    Effects go through the Executor (L18).
 3. Read or write another component's tables. Cross-component data flows through

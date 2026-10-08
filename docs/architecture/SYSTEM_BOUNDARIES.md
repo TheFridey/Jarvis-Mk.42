@@ -107,6 +107,12 @@ observation types.
 
 ### 5.1 Model Gateway (`apps/gateway`)
 
+Cloud RTC speech also enters here through the authenticated `/v1/speech`
+endpoint and shared `SpeechRequest` / `SpeechResponse` contracts (ADR-0040).
+Provider credentials, wire formats and PCM conversion stay in the speech
+provider adapter. Explicit session audio consent is separate from permission
+to route cognition to a cloud model.
+
 **Does.** Accepts provider-neutral `ModelRequest`; selects a model using
 Model Registry metadata + routing policy (capability match, cost, latency,
 `locality` constraint, health); serialises the request to the chosen
