@@ -71,7 +71,7 @@ export interface ContextItem {
 
 export interface ContextRequest {
   /** Public web tasks exclude ambient state, events and knowledge entirely. */
-  scope?: 'public-web';
+  scope?: 'public-web' | 'conversation';
   principalId?:string;
   perceptionRef?:string;
   /** Verified capability evidence that must be kept in the package (budget reserved for it). */

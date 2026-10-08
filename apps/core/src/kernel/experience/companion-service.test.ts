@@ -1,8 +1,21 @@
-import {describe,it,expect,vi} from 'vitest';
+import {afterEach,describe,it,expect,vi} from 'vitest';
 import { CompanionService,companionPicture,nextMeetingTime } from './companion-service.ts';
 import { companionDescriptor,companionScopes,type RegisteredNode } from '@jarvis/contracts';
 import type { DesktopKernelSnapshot } from '@jarvis/scene';
 const node={principalId:'owner',nodeType:'display',trustTier:'owned-mobile'} as RegisteredNode;
+afterEach(()=>vi.unstubAllEnvs());
+it('uses cloud conversation with safe history, excluding private and unclassified turns',async()=>{
+  vi.stubEnv('JARVIS_CONVERSATION_CLOUD_ALLOWED','true');
+  const turn={turn_id:'greeting',conversation_id:'conversation',principal_id:'owner',source_node_id:'local-server',input:'Hey Jarvis',cognition_input:null};
+  const results=[[],[{principal_id:'owner'}],[],[turn],[{input:'Private business facts',answer:'sensitive records',privacy_class:'RESTRICTED'},{input:'Unknown old turn',answer:'unknown privacy'},{input:'Hello',answer:'Hi there',privacy_class:'PUBLIC'}],[],[]];
+  const cognize=vi.fn(async()=>({answer:'Hello',result:{proposals:[]}}));
+  const service=new CompanionService({sql:vi.fn(async()=>results.shift()??[]),snapshot:async()=>({principalId:'owner',stateVersion:1}),cognize,now:()=> '2026-10-08T12:00:00Z',id:()=> 'conversation',invalidate:()=>{}} as unknown as ConstructorParameters<typeof CompanionService>[0]);
+  await service.converse({nodeId:'local-server',principalId:'owner'},{commandId:'greeting',expectedStateVersion:1,input:'Hey Jarvis'},'conversation');
+  const [request]=cognize.mock.calls[0] as unknown as [import('@jarvis/contracts').CognitionRequest];
+  expect(request).toMatchObject({currentTurnInput:'Hey Jarvis',contextScope:'conversation',cloudAllowed:true,locality:'prefer-local'});
+  expect(JSON.parse(request.input)).toEqual({conversationScope:'cloud-chat-v1',conversation:[{user:'Hello',assistant:'Hi there'}],omittedPrivateHistory:true,user:'Hey Jarvis'});
+  expect(request.input).not.toContain('sensitive records');
+});
 it.each([[false,false],[true,false],[false,true]])('isolates desktop public-site work while preserving private inputs (mobile=%s, recovered=%s)',async (mobile,recovered)=>{
   const input='Can you check the live ScaleSmiths site for me and audit where we are at? https://scalesmiths.co.uk';
   const turn={turn_id:'audit',conversation_id:'conversation',principal_id:'owner',source_node_id:'local-server',cognition_input:recovered?JSON.stringify({conversation:[{user:'private financial history'}],user:input}):null};
@@ -12,6 +25,7 @@ it.each([[false,false],[true,false],[false,true]])('isolates desktop public-site
   const service=new CompanionService({sql,snapshot:async()=>({principalId:'owner',stateVersion:1}),cognize,now:()=> '2026-10-06T09:08:53Z',id:()=> 'new-conversation',invalidate:()=>{}} as unknown as ConstructorParameters<typeof CompanionService>[0]);
   await service.converse({nodeId:'local-server',principalId:'owner'},{commandId:'audit',expectedStateVersion:1,input},'conversation',mobile);
   const request=cognize.mock.calls[0] as unknown as [import('@jarvis/contracts').CognitionRequest];
+  expect(request[0].currentTurnInput).toBe(input);
   if(mobile||recovered){expect(request[0]).toMatchObject({locality:'local',cloudAllowed:false,...(mobile?{analysisOnly:true}:{})});expect(request[0].contextScope).toBeUndefined();expect(request[0].input).toContain('private financial history');}
   else{expect(request[0]).toMatchObject({input,contextScope:'public-web',locality:'prefer-local'});expect(request[0].input).not.toContain('private financial history');expect(request[0].cloudAllowed).toBeUndefined();}
 });

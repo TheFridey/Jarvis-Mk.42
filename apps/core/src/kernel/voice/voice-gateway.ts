@@ -1,10 +1,11 @@
 import { EventNames,type VoiceAudioState,type VoiceEventCommand,type VoiceEventResponse } from '@jarvis/contracts';import type{SessionManager}from'../session/session-manager.ts';import type{ModeManager}from'../mode/mode-manager.ts';import type{CognitionOrchestrator}from'../cognition/cognition-orchestrator.ts';import type{EventManager}from'../event-fabric/event-manager.ts';import{safeVoiceAudioState}from'./audio-state.ts';
+import {cloudConversationEnabled,needsPrivateContext} from '../cognition/conversation-scope.ts';
 // RC-audit: the static-token `authenticate`/`authorises` pair was removed.
 // DiagnosticsHttp authenticates every /voice/events request with a session-bound
 // credential and asserts the principal/node binding before this class is reached;
 // a second, weaker static-token check here was dead code.
 export class VoiceGateway{private observed?:{ready:boolean;deviceReady:boolean;updatedAt:string;processingLatencyMs:number;droppedObservations?:number}; diagnostics(){return this.observed;} constructor(private d:{sessions:SessionManager;mode:ModeManager;cognition:CognitionOrchestrator;events:EventManager;principalId:string;referent?:(utterance:string,principalId:string,nodeId:string)=>Promise<{perceptionRef?:string;clarification?:string}>}){}
- private audio?:VoiceAudioState;private conversations=new Map<string,{updatedAt:number;turns:Array<{role:'user'|'assistant';text:string}>;sequence:number}>();
+ private audio?:VoiceAudioState;private conversations=new Map<string,{updatedAt:number;turns:Array<{role:'user'|'assistant';text:string;cloudSafe?:boolean}>;sequence:number}>();
  audioSnapshot(){if(!this.audio||Date.now()-Date.parse(this.audio.observedAt)>3000)return undefined;return{...this.audio};}
  async handle(command:VoiceEventCommand):Promise<VoiceEventResponse>{
   if(command.event.type==='audio.state'){if(command.principalId!==this.d.principalId)throw new Error('voice principal mismatch');this.audio=safeVoiceAudioState(command.event.state);return{sessionId:command.event.sessionId??'',state:'idle'};}
@@ -33,8 +34,11 @@ export class VoiceGateway{private observed?:{ready:boolean;deviceReady:boolean;u
    const referent=/\b(this|that|these|those)\b|\b(fix|repair|delete|remove|move|change)\s+it\b/i.test(command.event.text)?await this.d.referent?.(command.event.text,command.principalId,command.nodeId):undefined;
    if(referent?.clarification){await this.mode('ENGAGED','focus_released','reference clarification');return{sessionId:session.id,state:'speaking',utterance:referent.clarification};}
    const worldRequest=Boolean(referent?.perceptionRef)&&/\b(fix|repair|delete|remove|execute|run|install|change|move)\b/i.test(command.event.text);
-   const cognition=await this.d.cognition.submit({requestId:command.commandId,principalId:command.principalId,correlationId:command.commandId,input,agentId:worldRequest?'agents.forge':'agents.oracle',task:worldRequest?'code':'reason',realtime:true,maxLatencyMs:15000,...(process.env.JARVIS_RTC_MODEL?{preferredModels:[process.env.JARVIS_RTC_MODEL]}:{}),...(referent?.perceptionRef?{perceptionRef:referent.perceptionRef,analysisOnly:!/\b(fix|repair|delete|remove|execute|run|install|change|move)\b/i.test(command.event.text)}:{})});
-   if(history.sequence===sequence&&cognition.answer)history.turns.push({role:'assistant',text:cognition.answer.slice(0,2048)});
+   const chatCloud=cloudConversationEnabled()&&!referent?.perceptionRef&&!needsPrivateContext(command.event.text);
+   history.turns.at(-1)!.cloudSafe=chatCloud;
+   const scopedInput=chatCloud?JSON.stringify({conversationScope:'cloud-chat-v1',conversation:history.turns.slice(0,-1).filter(turn=>turn.cloudSafe).map(({role,text})=>({role,text})),user:command.event.text}):input;
+   const cognition=await this.d.cognition.submit({requestId:command.commandId,principalId:command.principalId,correlationId:command.commandId,input:scopedInput,currentTurnInput:command.event.text,agentId:worldRequest?'agents.forge':'agents.oracle',task:worldRequest?'code':'reason',realtime:true,maxLatencyMs:15000,...(chatCloud?{contextScope:'conversation' as const,cloudAllowed:true}:{}),...(process.env.JARVIS_RTC_MODEL?{preferredModels:[process.env.JARVIS_RTC_MODEL]}:{}),...(referent?.perceptionRef?{perceptionRef:referent.perceptionRef,analysisOnly:!/\b(fix|repair|delete|remove|execute|run|install|change|move)\b/i.test(command.event.text)}:{})});
+   if(history.sequence===sequence&&cognition.answer)history.turns.push({role:'assistant',text:cognition.answer.slice(0,2048),cloudSafe:chatCloud});
    await this.mode('ENGAGED','focus_released','voice response ready');return{sessionId:session.id,state:'speaking',cognition,...(cognition.answer?{utterance:cognition.answer}:{})};
   }
   if(command.event.type==='barge-in'){await this.emit(EventNames.VoiceBargeIn,command,session.id,{});await this.mode('ENGAGED','focus_released','barge in');return{sessionId:session.id,state:'listening'}}

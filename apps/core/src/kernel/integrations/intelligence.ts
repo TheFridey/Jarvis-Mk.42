@@ -6,17 +6,28 @@ import type { ContextCompiler } from '../context/context-compiler.ts';
 import { areas } from '../../../../../capabilities/scalesmiths/definition.ts';
 import { scalePageSchema, type ScalePage } from './transport.ts';
 
-const fields = ['MRR','activeRetainers','activeProjects','pipeline','proposalValue','unpaidInvoices','recentPayments','followUps','meetings','productionIncidents','clientAlerts','recentReviews','seoAnalyticsSignals'];
+const fields = ['clients','tasks','deployments','analytics','MRR','activeRetainers','activeProjects','pipeline','proposalValue','unpaidInvoices','recentPayments','followUps','meetings','productionIncidents','clientAlerts','recentReviews','seoAnalyticsSignals'];
+const fieldReads:Record<string,string>={clients:'clients',tasks:'tasks',deployments:'deployments',analytics:'analytics',MRR:'retainers',activeRetainers:'retainers',activeProjects:'projects',pipeline:'leads',proposalValue:'proposals',unpaidInvoices:'invoices',recentPayments:'payments',followUps:'leads'};
+export function requestedBusinessFields(text:string):string[]|undefined {
+  if(/\b(follow.up|following up)\b/i.test(text))return ['followUps'];
+  if(/\bgone cold\b/i.test(text))return ['pipeline'];
+  if(/\bmeetings\b/i.test(text))return ['meetings'];
+  if(/\boutstanding\b/i.test(text))return ['unpaidInvoices'];
+  const explicit=/\b(scalesmiths|my|our|show|list|check|get|how many|how much)\b/i.test(text);
+  if(!explicit)return;
+  if(/\b(mrr|monthly recurring revenue|retainers?)\b/i.test(text))return ['MRR','activeRetainers'];
+  for(const [pattern,names] of [[/\bclients?\b/i,['clients']],[/\btasks?\b/i,['tasks']],[/\bprojects?\b/i,['activeProjects']],[/\b(leads?|pipeline)\b/i,['pipeline']],[/\binvoices?\b/i,['unpaidInvoices']],[/\bpayments?\b/i,['recentPayments']],[/\bproposals?\b/i,['proposalValue']],[/\banalytics\b/i,['analytics']],[/\bdeployments?\b/i,['deployments']]] as const)if(pattern.test(text))return [...names];
+}
 /** A time-of-day greeting is conversational, not an instruction to read business data. */
 export function isBusinessBriefingRequest(text: string): boolean {
   return /\b(situation|following up|follow.up|gone cold|meetings|outstanding)\b/i.test(text)
-    || /\bmorning\s+(?:brief|briefing|update)\b/i.test(text);
+    || /\bmorning\s+(?:brief|briefing|update)\b/i.test(text) || requestedBusinessFields(text)!==undefined;
 }
 type Snapshot = { data: unknown; at: string; ref: string; failed?: boolean; sourceRefs?: string[] };
 type Checkpoint = { capability: string; action: string; input: unknown; value?: unknown; outcome?: string; ref?: string; fetchedAt?: string };
 export class BusinessIntelligence {
   private readonly snapshots = new Map<string, Map<string, Snapshot>>();
-  constructor(private readonly d: { agency: AgencyIngress; knowledge: KnowledgeIngestion; objectives: ObjectiveEngine; context: ContextCompiler; nodeId: string; now:()=>string; id:()=>string; specialist?:(input:{agentId:AgentId;principalId:string;objectiveId:string;instruction:string;correlationId:string})=>Promise<CognitionResponse> }) {}
+  constructor(private readonly d: { agency: AgencyIngress; knowledge: KnowledgeIngestion; objectives: ObjectiveEngine; context: ContextCompiler; nodeId: string; now:()=>string; id:()=>string; hasRead?:(provider:string,action:string)=>boolean; specialist?:(input:{agentId:AgentId;principalId:string;objectiveId:string;instruction:string;correlationId:string})=>Promise<CognitionResponse> }) {}
   async coordinate(principalId:string,objectiveId:string,agentId:AgentId,instruction:string,correlationId:string){
     if(!['agents.hermes','agents.scout','agents.prometheus','agents.atlas','agents.mnemosyne'].includes(agentId))throw new Error('Specialist not in Nova grouping');
     const objective=await this.d.objectives.get(objectiveId);if(!objective||objective.principalId!==principalId||!objective.desiredState.nova)throw new Error('Nova objective principal mismatch');
@@ -65,6 +76,7 @@ export class BusinessIntelligence {
     list('retainers','activeRetainers',v=>v.status==='active');list('projects','activeProjects',v=>v.status==='active');
     list('leads','pipeline',v=>!['won','lost'].includes(String(v.status)));list('invoices','unpaidInvoices',v=>['unpaid','overdue','part_paid'].includes(String(v.status)));list('payments','recentPayments',v=>typeof v.paidAt==='string'&&Number.isFinite(Date.parse(v.paidAt))&&Date.parse(v.paidAt)>=Date.parse(this.d.now())-30*24*60*60_000&&Date.parse(v.paidAt)<=Date.parse(this.d.now()));
     list('leads','followUps',v=>typeof v.nextFollowUpAt==='string'&&Number.isFinite(Date.parse(v.nextFollowUpAt))&&Date.parse(v.nextFollowUpAt)<=Date.parse(this.d.now()));
+    list('clients','clients');list('tasks','tasks');list('deployments','deployments');list('analytics','analytics');
     const retainers=page('retainers');
     if(retainers?.[1].complete) { const active=retainers[1].records.filter(r=>r.attributes.status==='active'); const totals:Record<string,number>={}; let valid=retainers[1].records.every(r=>['active','inactive','paused','cancelled','expired','pending'].includes(String(r.attributes.status)));
       for(const row of active) {const a=row.attributes;if(a.period!=='month'||typeof a.amountMinor!=='number'||!Number.isSafeInteger(a.amountMinor)||a.amountMinor<0||typeof a.currency!=='string'){valid=false;break;}totals[a.currency]=(totals[a.currency]??0)+a.amountMinor;}
@@ -75,9 +87,11 @@ export class BusinessIntelligence {
     const meetings=cache?.get('calendar.events.read');if(meetings){const data=meetings.data as {items?:unknown[];nextPageToken?:string};assign('meetings',meetings,data.items??[],!data.nextPageToken);}
     return {principalId,generatedAt:this.d.now(),readings};
   }
-  async refresh(principalId:string,correlationId:string) {
+  async refresh(principalId:string,correlationId:string,names=fields) {
     const timeMin=this.d.now(),timeMax=new Date(Date.parse(timeMin)+24*60*60_000).toISOString();
-    const reads=[...areas.map(area=>({capability:'scalesmiths',action:`${area}.read`,input:{limit:100}})),{capability:'calendar',action:'events.read',input:{calendarId:'primary',timeMin,timeMax}}];
+    const requestedAreas=names===fields?areas:[...new Set(names.flatMap(name=>fieldReads[name]?[fieldReads[name]!]:[]))];
+    const requested=[...requestedAreas.map(area=>({capability:'scalesmiths',action:`${area}.read`,input:{limit:100}})),...(names.includes('meetings')?[{capability:'calendar',action:'events.read',input:{calendarId:'primary',timeMin,timeMax}}]:[])];
+    const reads=requested.filter(read=>this.d.hasRead?.(read.capability,read.action)??true);
     const unavailable:string[]=[];
     // Bound concurrent upstream load; each read still has its own Executor authority.
     for(let i=0;i<reads.length;i+=3) {const group=reads.slice(i,i+3);const results=await Promise.allSettled(group.map(read=>this.read(principalId,correlationId,this.d.id(),read)));for(let j=0;j<results.length;j++){const result=results[j]!;if(result.status==='rejected'||result.value.outcome!=='verified'){const read=group[j]!;unavailable.push(read.action);const old=this.snapshots.get(principalId)?.get(`${read.capability}.${read.action}`);if(old)old.failed=true;}}}
@@ -99,8 +113,8 @@ export class BusinessIntelligence {
     }
     if(/\bchanged with\b/i.test(text)){const clientId=text.match(/\bclient\s+id[:= ]+([a-zA-Z0-9_-]+)/i)?.[1];if(clientId)return JSON.stringify(await this.clientHistory(principalId,clientId,correlationId));return 'Provide the ScaleSmiths client ID to retrieve current client data and relevant recorded history through /desktop/nova/client.';}
     if(!isBusinessBriefingRequest(text))return;
-    const {picture}=await this.refresh(principalId,correlationId);
-    let names=fields;
+    let names=requestedBusinessFields(text)??fields;
+    const {picture}=await this.refresh(principalId,correlationId,names);
     if(/follow/i.test(text))names=['followUps'];else if(/meetings/i.test(text))names=['meetings'];else if(/outstanding/i.test(text))names=['unpaidInvoices'];else if(/gone cold/i.test(text)) {
       const pipeline=picture.readings.pipeline!;if(Array.isArray(pipeline.value))pipeline.value=pipeline.value.filter((lead:Record<string,unknown>)=>!['won','lost'].includes(String(lead.status))&&typeof lead.lastContactAt==='string'&&Number.isFinite(Date.parse(lead.lastContactAt))&&Date.parse(this.d.now())-Date.parse(lead.lastContactAt)>=14*24*60*60_000);
       names=['pipeline'];
@@ -108,7 +122,7 @@ export class BusinessIntelligence {
     if(names.every(name=>picture.readings[name]?.status==='unavailable')) {
       const focused=names.length===1?names[0]:undefined;
       const descriptions:Record<string,string>={meetings:'your meetings',followUps:'your follow-ups',unpaidInvoices:'your outstanding invoices',pipeline:'which leads have gone cold'};
-      const subject=focused?descriptions[focused]:'business figures or client activity';
+      const subject=focused?(descriptions[focused]??`your ${focused}`):'business figures or client activity';
       return `I could not retrieve verified ${focused==='meetings'?'Calendar':'ScaleSmiths'} data for this request. The connection may be unconfigured, unavailable, or not authorised. I cannot report ${subject} without those sources.`;
     }
     return `ScaleSmiths situation as of ${picture.generatedAt}.${/gone cold/i.test(text)?' Cold means no recorded contact for at least 14 days; leads without a contact date cannot be classified.':''}\n`+names.map(name=>{const r=picture.readings[name]!;return `${name}: ${r.status}${r.value===undefined?'':` — ${JSON.stringify(r.value)}`} (${r.sourceRefs.join(', ')||'no source'}).`;}).join('\n');

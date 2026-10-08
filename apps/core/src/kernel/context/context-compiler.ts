@@ -105,6 +105,7 @@ export class ContextCompiler {
   }
 
   private async compileInner(req: ContextRequest): Promise<ContextPackage> {
+    const isolated = req.scope === 'public-web' || req.scope === 'conversation';
     const now = this.deps.clock.epochMs();
     const nowIso = this.deps.clock.nowIso();
     const candidates: RankInput[] = [];
@@ -113,7 +114,7 @@ export class ContextCompiler {
     if(req.perceptionRef){if(!req.principalId||!this.deps.perception)throw new Error('perception context binding required');for(const item of this.deps.perception(req.perceptionRef,req.principalId)){candidates.push(this.mkItem(item.kind,`selected perception: ${item.kind}`,item.content,item.privacyClass,{ageMs:now-Date.parse(item.observedAt),sizeUnits:estimateUnits(item.content),sourceType:'derivation',confidence:item.confidence,provenance:{method:'sensor',producedBy:'local-perception',producedOn:'workstation',producedAt:item.observedAt,correlationId:req.correlationId,derivedFromUntrusted:true}}));}}
 
     // 1. authoritative state slices
-    const view = req.scope==='public-web'?undefined:await this.deps.state.view();
+    const view = isolated?undefined:await this.deps.state.view();
     for (const [key, kind] of (view?Object.entries(SLICE_TO_KIND):[]) as [StateSliceKey, ContextItemKind][]) {
       const slice = view!.slices[key];
       if (isEmptyValue(slice.value)) {
@@ -126,7 +127,7 @@ export class ContextCompiler {
     }
 
     // 2. recent events (bounded)
-    for (const e of req.scope==='public-web'?[]:await this.deps.eventStore.readRecent(20)) {
+    for (const e of isolated?[]:await this.deps.eventStore.readRecent(20)) {
       if(!recentEventRelevant(e.type,req.intent))continue;
       candidates.push(this.mkItem('recent_event', `${e.type} @ ${e.time}`, { type: e.type, subject: e.subject }, e.privacyClass, {
         ageMs: now - Date.parse(e.time), sizeUnits: 8, sourceType: 'event_log',
@@ -142,7 +143,7 @@ export class ContextCompiler {
 
     // 4. ATLAS — entities, relationships, facts, observations, conflicts, causal
     // 5. MNEMOSYNE — episodes, semantic, procedures, preferences
-    if (this.deps.knowledge && req.scope!=='public-web') {
+    if (this.deps.knowledge && !isolated) {
       const objectiveIds = await this.deps.knowledge.activeObjectiveIds().catch(() => [] as string[]);
       const entityIds = await this.addAtlasItems(req, candidates, unknowns, nowIso, now);
       freshness.atlasAsOf = nowIso;

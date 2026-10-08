@@ -16,7 +16,7 @@ export type WebFetchInput = z.infer<typeof fetchInput>;
 export type WebFetchOutput = z.infer<typeof fetchOutput>;
 export default defineCapability({
   id: 'capabilities.web', version: '1.1.0', provider: 'web', credentialKind: 'none',
-  description: 'Read-only GET of one public http(s) page; returns sanitised text as untrusted evidence. Every fetch requires operator approval.',
+  description: 'Read-only GET of one public http(s) page; returns sanitised text as untrusted evidence. Kernel grants control standing or per-request approval.',
   executionEnvironment: 'worker', auditPolicy: { hashInput: true, recordOutput: 'summary' }, privacyRequirements: { maxContentPrivacyClass: 'PUBLIC' },
   resourceKeySelector: 'url',
   actions: {

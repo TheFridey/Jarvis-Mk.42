@@ -2,7 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { BusinessIntelligence, isBusinessBriefingRequest } from './intelligence.ts';
 
 describe('business briefing intent', () => {
-  it.each(['Good morning Jarvis, how are you today?', 'Morning!', 'Good morning Jarvis', 'Hello Jarvis'])('keeps %s on the conversation path', async text => {
+  it('reads only requested supported sources and skips unconfigured capabilities', async () => {
+    const submitOnce=vi.fn(async(_proposal:unknown)=>({outcome:'rejected'}));
+    const business=new BusinessIntelligence({agency:{submitOnce},hasRead:(provider:string,action:string)=>provider==='scalesmiths'&&action==='clients.read',now:()=> '2026-10-08T12:00:00Z',id:()=> 'read'} as unknown as ConstructorParameters<typeof BusinessIntelligence>[0]);
+    await business.answer('operator','Show my clients','clients');
+    expect(submitOnce).toHaveBeenCalledTimes(1);
+    expect(submitOnce.mock.calls[0]?.[0]).toMatchObject({invocation:{action:'clients.read'}});
+    submitOnce.mockClear();
+    await business.answer('operator','What invoices are outstanding?','invoices');
+    expect(submitOnce).not.toHaveBeenCalled();
+  });
+  it.each(['Hey Jarvis', 'Good morning Jarvis, how are you today?', 'Morning!', 'Good morning Jarvis', 'Hello Jarvis'])('keeps %s on the conversation path', async text => {
     const business = new BusinessIntelligence({} as ConstructorParameters<typeof BusinessIntelligence>[0]);
     const refresh = vi.spyOn(business, 'refresh');
     expect(await business.answer('operator', text, 'greeting')).toBeUndefined();

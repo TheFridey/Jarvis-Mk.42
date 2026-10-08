@@ -54,6 +54,10 @@ describe('web.fetch capability registration and grants', () => {
     const holders = Object.values(AGENTS).filter(agent => agent.proposalScope.capabilities.includes('capabilities.web')).map(agent => agent.id).sort();
     expect(holders).toEqual(['agents.oracle', 'agents.scout']);
   });
+  it('supports explicit standing permission for public read-only web requests',()=>{
+    const loaded=loadWebFetch('p1','node-1',{JARVIS_WEB_READ_AUTO_APPROVE:'true',JARVIS_WEB_FETCH_ALLOWED_DOMAINS:'example.com'});
+    expect(loaded.bootstrapGrants[0]).toMatchObject({scopes:['web.fetch'],mayProceedWithoutLiveApproval:true,maxRiskWithoutLiveApproval:'LOW',resourceConstraints:[{kind:'domain-allow',values:['example.com']}]});
+  });
 
   it('tells the specialist the exact registered contract and that results are not available in the same response', () => {
     const text = proposalInstructions(AGENTS['agents.oracle']!, 'turn-1', '2026-10-04T12:00:00.000Z', [capabilityContract(web.manifest), { id: 'capabilities.terminal', version: '1.0.0', description: 'shell', actions: [] }]);

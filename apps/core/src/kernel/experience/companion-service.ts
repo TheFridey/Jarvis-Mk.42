@@ -1,12 +1,13 @@
 import { desktopRoute } from '../cognition/desktop-route.ts';
 import { isPublicWebRequest } from '../cognition/public-web-request.ts';
+import { cloudConversationEnabled, isCloudChatInput, needsPrivateContext } from '../cognition/conversation-scope.ts';
 import { createHash } from 'node:crypto';
 import type { CompanionPicture, CompanionTurn, RegisteredNode, CognitionRequest, CognitionResponse } from '@jarvis/contracts';
 import type { DesktopKernelSnapshot, DesktopCognitionCommand } from '@jarvis/scene';
 import type { Sql } from '@jarvis/persistence';
 import { KeyedMutex } from '../../runtime/mutex.ts';
 
-interface TurnRow { turn_id:string;conversation_id:string;principal_id:string;source_node_id:string;input:string;command_hash:string;cognition_input:string|null;response:CognitionResponse|null;answer:string|null;status:CompanionTurn['status'];created_at:string; }
+interface TurnRow { turn_id:string;conversation_id:string;principal_id:string;source_node_id:string;input:string;command_hash:string;cognition_input:string|null;response:CognitionResponse|null;answer:string|null;status:CompanionTurn['status'];created_at:string;privacy_class?:string; }
 export function nextMeetingTime(p:DesktopKernelSnapshot):string|null{
   const reading=p.scalesmiths?.readings.meetings;if(reading?.status!=='available'||!Array.isArray(reading.value))return null;
   const now=Date.parse(p.generatedAt);const times=reading.value.flatMap((item:unknown)=>{if(!item||typeof item!=='object')return [];const meeting=item as {status?:string;start?:{dateTime?:string;date?:string}};if(meeting.status==='cancelled')return [];const time=meeting.start?.dateTime??meeting.start?.date;const at=typeof time==='string'?Date.parse(time):NaN;return Number.isFinite(at)&&at>=now?[at]:[];});return times.length?new Date(Math.min(...times)).toISOString():null;
@@ -71,15 +72,17 @@ export class CompanionService {
       }
       if(old?.status==='completed')return {turnId,conversationId:old.conversation_id,answer:old.answer,...(old.response?{result:old.response}:{})};
       const [turn]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${turnId}`;
-      const history=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at desc limit 6`;
+      const history=await this.d.sql<TurnRow[]>`select t.*,r.privacy_class from experience.conversation_turns t left join cognition.runs r on r.request_id=t.turn_id and r.principal_id=t.principal_id where t.conversation_id=${turn!.conversation_id} and t.principal_id=${node.principalId} and t.turn_id<>${turnId} and t.status='completed' order by t.created_at desc limit 6`;
       // A recovered input may already contain private history from an older attempt.
       const publicWeb=!mobile&&(!turn!.cognition_input||turn!.cognition_input===command.input)&&isPublicWebRequest(command.input);
-      const input=turn!.cognition_input??(history.length&&!publicWeb?JSON.stringify({conversation:history.reverse().map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
+      const chatCloud=!mobile&&cloudConversationEnabled()&&!publicWeb&&!needsPrivateContext(command.input)&&(!turn!.cognition_input||isCloudChatInput(turn!.cognition_input,turn!.input??command.input));
+      const safeHistory=chatCloud?history.filter(row=>['PUBLIC','INTERNAL'].includes(row.privacy_class??'')):history;
+      const input=turn!.cognition_input??(chatCloud?JSON.stringify({conversationScope:'cloud-chat-v1',conversation:safeHistory.reverse().map(r=>({user:r.input,assistant:r.answer})),omittedPrivateHistory:safeHistory.length!==history.length,user:command.input}):history.length&&!publicWeb?JSON.stringify({conversation:history.reverse().map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
       if(!turn!.cognition_input)await this.d.sql`update experience.conversation_turns set cognition_input=${input} where turn_id=${turnId}`;
       this.d.invalidate();
       try{
         // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
+        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,currentTurnInput:turn!.input??command.input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb&&!chatCloud))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:chatCloud?{contextScope:'conversation' as const,cloudAllowed:true}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};

@@ -7,7 +7,7 @@ import calendar from '../../../../../capabilities/calendar/definition.ts';
 import scalesmiths from '../../../../../capabilities/scalesmiths/definition.ts';
 
 export const googleMaterial = z.object({ principalId: z.string().min(1), clientId: z.string().min(1), clientSecret: z.string().min(1), refreshToken: z.string().min(1), calendars: z.array(z.string()).min(1).default(['primary']) }).strict();
-export const scaleMaterial = z.object({ principalId: z.string().min(1), baseUrl: z.string().url().refine(value=>{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!url.search&&!url.hash;}), token: z.string().min(1), contractVersion: z.literal(1), mutations: z.array(z.enum(['leads.update','tasks.update'])).default([]) }).strict();
+export const scaleMaterial = z.object({ principalId: z.string().min(1), baseUrl: z.string().url().refine(value=>{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&!url.search&&!url.hash;}), token: z.string().min(1), contractVersion: z.literal(1), readActions: z.array(z.string().regex(/^(clients|leads|projects|tasks|invoices|payments|retainers|proposals|analytics|deployments|infrastructure|caseStudies)\.read$/)).optional(), mutations: z.array(z.enum(['leads.update','tasks.update'])).default([]) }).strict();
 const record = z.object({ id: z.string().min(1), entityType: z.enum(['business','client','lead','contact','project','invoice','retainer','meeting','website','repository','service','deployment','task','payment','proposal','analytics','infrastructure','caseStudy']), attributes: z.record(z.unknown()), sourceRef: z.string().min(1), observedAt: z.string().datetime({ offset: true }), validTo: z.string().datetime({ offset: true }).optional(), confidence: z.number().min(0).max(1), privacy: z.enum(['SENSITIVE','RESTRICTED']) }).strict();
 export const scalePageSchema = z.object({ records: z.array(record).max(100), complete: z.boolean(), cursor: z.string().optional(), signals: z.record(z.unknown()).optional() }).strict().refine(v => v.complete || !!v.cursor, 'Incomplete pages require a cursor');
 export type ScalePage = z.infer<typeof scalePageSchema>;
@@ -63,6 +63,7 @@ export class IntegrationTransport {
       return changed;
     }
     const readAction = write ? job.action.replace('.update', '.read') : job.action;
+    if (config.readActions && !config.readActions.includes(readAction)) throw new Error('ScaleSmiths read not supported by configured upstream');
     const readUrl = new URL(`v1/${enc(readAction)}`, base.href.endsWith('/') ? base : `${base.href}/`);
     for (const [key,value] of Object.entries(write ? { id: input.id } : input)) if (value !== undefined) readUrl.searchParams.set(key, String(value));
     return scalePageSchema.parse(await this.json(readUrl.href, config.token));

@@ -22,7 +22,7 @@ export function loadIntegrations(path: string | undefined, principalId: string, 
     const writes=definition.manifest.actions.filter(action=>action.sideEffects.length>0).flatMap(action=>action.requiredScopes??[]);
     if(config.writeScopes.some(scope=>scope.startsWith(`${provider}.`)&&!writes.includes(scope)))throw new Error('Unknown integration write scope');
     const unsupported=provider==='scalesmiths'?definition.manifest.actions.filter(action=>action.name.endsWith('.update')&&!(Array.isArray(material.mutations)&&material.mutations.includes(action.name))).map(action=>action.name):[];
-    const manifest={...definition.manifest,actions:definition.manifest.actions.filter(action=>!unsupported.includes(action.name))};
+    const manifest={...definition.manifest,actions:definition.manifest.actions.filter(action=>!unsupported.includes(action.name)&&(provider!=='scalesmiths'||!action.name.endsWith('.read')||!Array.isArray(material.readActions)||material.readActions.includes(action.name)))};
     manifest.requiredScopes=[...new Set(manifest.actions.flatMap(action=>action.requiredScopes??[]))];
     capabilities.push({manifest,moduleUrl:new URL(`../../../../../capabilities/${provider}/definition.ts`,import.meta.url).href});
     credentialMaterial[provider]=JSON.stringify(material);
