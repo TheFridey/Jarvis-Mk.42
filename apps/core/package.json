@@ -2,7 +2,7 @@
   "name": "@jarvis/core",
   "version": "0.43.0",
   "private": true,
-  "description": "The JARVIS Kernel - the Nervous System. Modular monolith (ADR-0008). See docs note MK43 on the NestJS deviation.",
+  "description": "The JARVIS Kernel - the Nervous System. TypeScript/Node modular monolith with explicit constructor injection (ADR-0008, ADR-0040).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

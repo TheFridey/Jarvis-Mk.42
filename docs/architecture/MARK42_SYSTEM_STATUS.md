@@ -1,5 +1,10 @@
 # Mark 42 system status
 
+> This page preserves the 3 October qualification snapshot. For the current
+> main-branch release baseline and the Gateway speech correction, see
+> [RELEASE_BASELINE.md](RELEASE_BASELINE.md). Historical live observations below
+> do not certify the resulting release commit.
+
 RTC follow-up on 3 October 2026: trusted desktop LiveKit/WebRTC is implemented
 and running. Both local Windows speech and explicitly selected cloud speech
 passed real media round trips using labelled synthetic speech, with a returned

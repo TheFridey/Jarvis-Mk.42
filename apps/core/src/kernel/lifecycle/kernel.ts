@@ -5,11 +5,9 @@ import { TelemetryMonitor } from '../sentinel/telemetry-monitor.ts';
 /**
  * The JARVIS Kernel composition root (KERNEL_CONSTITUTION.md).
  *
- * MK.43 DEVIATION from ADR-0001: this is a plain module, not a NestJS
- * application. The NestJS dependency tree could not be installed in this
- * environment (external drive; pathological pnpm link times). Every component
- * is still a bounded unit with constructor injection and an interface; wiring
- * it into NestJS modules later is mechanical. Tracked in the MK43 notes.
+ * ADR-0040 records the implemented Node composition root, superseding the
+ * original NestJS choice in ADR-0001. Components use constructor injection
+ * and explicit interfaces; framework migration is not a release requirement.
  *
  * Cold start (KERNEL_CONSTITUTION.md sec 5):
  *   connect PG -> (migrate) -> ensure state rows -> catch state up from events

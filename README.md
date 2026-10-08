@@ -1,5 +1,8 @@
 # JARVIS Mark 42
 
+For the current code-gate baseline, implemented technologies and remaining live
+qualification, see [RELEASE_BASELINE.md](docs/architecture/RELEASE_BASELINE.md).
+
 JARVIS is a persistent, event-driven AI operating layer. A single authoritative Kernel coordinates temporal world knowledge (ATLAS), memory (MNEMOSYNE), provider-neutral model routing, isolated cognitive workers, permissioned agency and realtime desktop/mobile/wall projections. Models are replaceable cognitive resources; identity, state, approvals, execution and verification remain in the Kernel.
 
 The desktop exposes observed model selection, agent jobs, telemetry, conversation, business-source provenance and capability lifecycle through Forge Cosmos and the Operating Picture. Missing or disconnected measurements are unavailable; demo scenes and qualification model fixtures are explicitly labelled. Cognitive completion never implies a verified effect.

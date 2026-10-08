@@ -5,15 +5,15 @@ packages:
   - "capabilities/*"
 
 # JARVIS MK.42 monorepo.
-# One repository, many deployable units. See docs/architecture/ADR/0007-monorepo-pnpm.md
-# and docs/architecture/ADR/0008-modular-monolith.md for the reasoning.
+# One repository, many deployable units. See docs/architecture/adr/0007-monorepo-pnpm.md
+# and docs/architecture/adr/0008-modular-monolith.md for the reasoning.
 #
 # MK.42 deploys as:
-#   - apps/core      : the Kernel process (NestJS, modular monolith)
+#   - apps/core      : the Kernel process (TypeScript/Node, manual injection)
 #   - apps/gateway   : the Model Gateway process (separate blast radius, holds provider creds)
 #   - apps/voice     : realtime audio / wake / ASR perception process (local-first)
 #   - apps/vision    : realtime vision perception process (local-first)
 #   - apps/desktop   : Tauri desktop shell (Experience Plane)
-#   - apps/diagnostics: operator diagnostics UI (read-only over Kernel APIs)
+# Diagnostics HTTP is implemented inside Core; apps/diagnostics is a README-only seam.
 #
-# Everything else in apps/ (relay) is a documented, empty extraction seam for later MKs.
+# apps/relay is also an empty seam; adapter-host, labs and display have implementations.

@@ -153,7 +153,7 @@ TV/display nodes, future AR, future wearables. **Consumes state, owns none
 authoritative store. Detailed in `SYSTEM_BOUNDARIES.md` §Experience.
 
 ### 4.2 Kernel
-`apps/core`, a NestJS modular monolith. The 16 components listed above are the
+`apps/core`, a TypeScript/Node modular monolith with manual injection (ADR-0040). The 16 components listed above are the
 **frozen set** — see `KERNEL_CONSTITUTION.md`. The Kernel is the only writer of
 authoritative state, the only caller of the Capability Executor, and the only
 component that decides policy. It runs and makes decisions with **zero cloud
@@ -580,7 +580,7 @@ into the documents.
   with only three separate processes justified by *lifecycle* or *blast
   radius*: `gateway` (holds provider creds, slow network IO), `voice`,
   `vision` (realtime, local-only, crash-isolated). Everything else is an
-  in-process Nest module with a documented extraction seam.
+  in-process service with a documented extraction seam.
 
 ### 16.6 Provider coupling
 

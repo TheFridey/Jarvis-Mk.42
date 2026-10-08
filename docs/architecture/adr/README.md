@@ -35,7 +35,7 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 
 | ADR | Title | Status | Reversal |
 |---|---|---|---|
-| [0001](0001-nestjs.md) | NestJS for the Kernel | Accepted | Moderate |
+| [0001](0001-nestjs.md) | NestJS for the Kernel | Superseded by ADR-0040 | Moderate |
 | [0002](0002-postgresql.md) | PostgreSQL as authoritative store | Accepted | Severe |
 | [0003](0003-drizzle.md) | Drizzle ORM | Accepted | Low |
 | [0004](0004-redis.md) | Redis for ephemeral state | Accepted | Low |
@@ -73,6 +73,7 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0037](0037-node-protocol-and-backup.md) | Node Protocol v1 (identity, enrollment, rotation, revocation); backup & restore drilled | Accepted | Moderate |
 | [0038](0038-fitness-and-contract-tests.md) | Architecture-fitness & contract-compatibility gates (real, not grep) | Accepted | Low |
 | [0039](0039-atlas-mnemosyne-implemented.md) | ATLAS + MNEMOSYNE implemented — Kernel-internal runtime locations, boundaries preserved, deterministic embeddings, privacy-aware routing | Accepted | Moderate |
+| [0040](0040-runtime-and-speech-boundary.md) | Implemented Node runtime and cloud speech Gateway boundary | Accepted | Low |
 
 ## ASCENSION (Stage A) audit
 

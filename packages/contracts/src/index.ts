@@ -56,3 +56,4 @@ export * from './memory-recall.ts';
 export * from './knowledge-agent.ts';
 export * from './business.ts';
 export * from './companion.ts';
+export * from './speech.ts';

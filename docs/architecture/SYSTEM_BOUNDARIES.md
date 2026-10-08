@@ -27,7 +27,7 @@ communicates only through contracts and events.
 | Adapter Host | `apps/adapter-host` | local server + workstation | Agency worker runtime (HEPHAESTUS, ADR-0025): one zero-environment Node worker per capability invocation; per-invocation credential handle; typed IPC to the Executor only; no store credential. Isolates a compromised adapter to one scoped, short-lived invocation. |
 | JARVIS LABS | `apps/labs` | local server | Isolated experimentation sandbox (HEPHAESTUS, ADR-0029): ephemeral Docker, synthetic credentials, mock APIs, throwaway PG + scratch FS, default-deny network, resource limits, guaranteed teardown. FORGE builds/tests capability drafts here; no route to real Kernel infra; promotion is human-reviewed and operator-gated. |
 
-Everything else is an **in-process Nest module** inside `apps/core`, or a
+Everything else is an **in-process TypeScript service** inside `apps/core`, or a
 **library** in `packages/*`, or an **out-of-process adapter/worker** spawned on
 demand (capability adapters, agents).
 
@@ -56,7 +56,8 @@ clients of the same SDK + Node Protocol.
 
 ## 3. Kernel module boundaries
 
-The 16 components (`KERNEL_CONSTITUTION.md` §1) are Nest modules. Rules:
+The 16 components (`KERNEL_CONSTITUTION.md` §1) are manually injected services
+(ADR-0040), not Nest modules. Rules:
 
 - A module exposes a **service interface** (TypeScript `interface` in
   `packages/contracts` or a local `*.port.ts`) and an **event contribution**
