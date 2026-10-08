@@ -49,6 +49,15 @@ as process-isolated.
 4. Current architecture/workspace documentation described NestJS modules and
    obsolete gate execution as implemented. Current descriptions are corrected;
    historical ADRs and test/operational reports are preserved with status notes.
+5. Non-integration tests used CPU-count worker defaults on Windows, allowing
+   competing TypeScript/worker startups to overcommit the developer workstation
+   and miss existing deadlines. Windows concurrency is now bounded to two;
+   assertions and deadlines are unchanged. Linux CI scheduling is unchanged.
+6. Experience stream tests replaced the production five-second authentication
+   deadline with 50 ms, racing real WebSocket startup under load. They now use
+   the production default, with an additional fake-clock regression proving
+   an unauthenticated connection stays open before that deadline and closes
+   at it. Existing revocation and privacy assertions remain intact.
 
 No architecture assertions were removed or relaxed. No Forge Cosmos visuals,
 layout, branding, palettes, animation, CSS or model-specific visual state changed.
@@ -58,7 +67,8 @@ layout, branding, palettes, animation, CSS or model-specific visual state change
 Run `pnpm install --frozen-lockfile`, ensure Docker is available, then
 `pnpm verify:full`. The unchanged `.github/workflows/quality.yml` executes the
 following on Ubuntu/Node 22 for every push/PR to main; integration concurrency
-is two workers in CI and defaults to one on Windows.
+is two workers in CI and defaults to one on Windows. Other Windows suites use
+at most two workers to avoid CPU-count startup overcommit.
 
 | Command | Evidence required |
 | --- | --- |
