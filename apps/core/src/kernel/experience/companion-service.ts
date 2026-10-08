@@ -60,7 +60,7 @@ export class CompanionService {
   async converse(node:Pick<RegisteredNode,'nodeId'|'principalId'>,command:DesktopCognitionCommand,conversationId?:string,mobile=false){
     if(!mobile)command={...command,...desktopRoute(command.input,command)};
     const turnId=mobile?'mobile:'+createHash('sha256').update(node.nodeId+'|'+command.commandId).digest('hex'):command.commandId;
-    const commandHash=createHash('sha256').update(JSON.stringify([command.input,mobile?'agents.oracle':command.agentId??'agents.oracle',mobile?'reason':command.task??'reason',mobile?'local':command.locality??'prefer-local',mobile])).digest('hex');
+    const commandHash=createHash('sha256').update(JSON.stringify([command.input,mobile?'agents.oracle':command.agentId??'agents.oracle',mobile?'reason':command.task??'reason',mobile?'local':command.locality??'prefer-local',mobile, mobile?[]:command.preferredModels??[]])).digest('hex');
     return this.gate.run(turnId,async()=>{
       const [old]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${turnId}`;
       if(old&&(old.principal_id!==node.principalId||old.source_node_id!==node.nodeId||old.command_hash!==commandHash||(conversationId&&old.conversation_id!==conversationId)))throw new Error('conversation command conflict');
@@ -79,7 +79,7 @@ export class CompanionService {
       this.d.invalidate();
       try{
         // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
+        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};

@@ -17,7 +17,7 @@ export function runAgentWorker(d: {
   const parentTrace = context.active();
   return new Promise((resolve, reject) => {
     const path = fileURLToPath(new URL('./agent-worker.mjs', import.meta.url));
-    const child = spawn(process.execPath, ['--experimental-permission', `--allow-fs-read=${path}`, '--max-old-space-size=64', path], {
+    const child = spawn(process.execPath, [process.allowedNodeEnvironmentFlags.has('--permission')?'--permission':'--experimental-permission', `--allow-fs-read=${path}`, '--max-old-space-size=64', path], {
       env: { NODE_ENV: 'production' }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
     });
     const nonce = randomUUID();

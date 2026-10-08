@@ -8,11 +8,14 @@ import { useCosmosClock } from './runtime.tsx';
 
 const vertex = /* glsl */ `
 attribute float aSeed;
-uniform float uTime, uPixel, uEnergy, uAudio, uGalaxy;
+uniform float uTime, uPixel, uEnergy, uAudio, uGalaxy, uShape, uDensity;
 varying float vLight, vSeed;
 void main(){
   vec3 p=position; float s=aSeed;
   if(uGalaxy<.5){
+    if(uShape>.5&&uShape<1.5){p.xz*=1.+.045*sin(p.y*28.);}
+    if(uShape>1.5&&uShape<2.5){float a=atan(p.z,p.x);p*=1.+.11*cos(a*6.)*pow(1.-abs(p.y),2.);}
+    if(uShape>2.5){p.y*=.68;p.xz*=1.13;}
     float wave=sin(p.y*12.+uTime*.65+s*3.)*cos(p.x*9.-uTime*.35);
     p*=1.+wave*(.022+uEnergy*.035)+uAudio*.055;
     float a=uTime*.045; p.xz=mat2(cos(a),-sin(a),sin(a),cos(a))*p.xz;
@@ -22,7 +25,7 @@ void main(){
     vLight=.35+.65*pow(.5+.5*sin(s*87.+uTime*.3),5.);
   }
   vec4 mv=modelViewMatrix*vec4(p,1.);
-  gl_PointSize=clamp((.65+s*1.6)*uPixel*(9./max(.5,-mv.z)),.5,5.);
+  gl_PointSize=clamp((.65+s*1.6)*uPixel*uDensity*(9./max(.5,-mv.z)),1.15,6.);
   vSeed=s; gl_Position=projectionMatrix*mv;
 }`;
 const fragment = /* glsl */ `
@@ -34,7 +37,7 @@ void main(){vec2 p=gl_PointCoord*2.-1.;float r=dot(p,p);if(r>1.)discard;
 }`;
 
 /** Uniform spherical sampling avoids latitude bands; all movement follows the shared motion clock. */
-export function CinematicCore({position,scale,colour,energy,audio,count}:{position:[number,number];scale:number;colour:string;energy:number;audio:number;count:number}) {
+export function CinematicCore({position,scale,colour,energy,audio,count,shape=0}:{position:[number,number];scale:number;colour:string;energy:number;audio:number;count:number;shape?:number}) {
   const clock=useCosmosClock(), dpr=useThree(state=>state.viewport.dpr);
   const root=useRef<Group>(null);
   const assets=useMemo(()=>{
@@ -52,7 +55,7 @@ export function CinematicCore({position,scale,colour,energy,audio,count}:{positi
         }
       }
       geometry.setAttribute('position',new BufferAttribute(positions,3));geometry.setAttribute('aSeed',new BufferAttribute(seeds,1));
-      const material=new ShaderMaterial({vertexShader:vertex,fragmentShader:fragment,transparent:true,depthWrite:false,blending:AdditiveBlending,uniforms:{uTime:{value:0},uPixel:{value:1},uEnergy:{value:0},uAudio:{value:0},uGalaxy:{value:galaxy?1:0},uColour:{value:new Color(modelTint())}}});
+      const material=new ShaderMaterial({vertexShader:vertex,fragmentShader:fragment,transparent:true,depthWrite:false,blending:AdditiveBlending,uniforms:{uTime:{value:0},uPixel:{value:1},uEnergy:{value:0},uAudio:{value:0},uDensity:{value:Math.sqrt(22000/count)},uShape:{value:0},uGalaxy:{value:galaxy?1:0},uColour:{value:new Color(modelTint())}}});
       return {geometry,material};
     };
     return {sphere:make(false,count),galaxy:make(true,Math.floor(count*.5))};
@@ -61,7 +64,7 @@ export function CinematicCore({position,scale,colour,energy,audio,count}:{positi
   useEffect(()=>()=>{Object.values(assets).forEach(({geometry,material})=>{geometry.dispose();material.dispose();});},[assets]);
   useFrame(()=>{
     for(const {material} of Object.values(assets)){
-      const u=material.uniforms;u.uTime!.value=clock.t;u.uPixel!.value=dpr;u.uEnergy!.value=energy;u.uAudio!.value=audio;
+      const u=material.uniforms;u.uTime!.value=clock.t;u.uPixel!.value=dpr;u.uEnergy!.value=energy;u.uAudio!.value=audio;u.uShape!.value=shape;
       (u.uColour!.value as Color).lerp(target,clock.snap?1:1-Math.exp(-clock.dt*2.4));
     }
     if(root.current)root.current.rotation.z=Math.sin(clock.t*.04)*.04;

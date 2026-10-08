@@ -34,3 +34,5 @@ __pycache__/
 
 # Local integration secrets
 *.integrations.local.json
+
+/apps/desktop/public/assets/mediapipe/

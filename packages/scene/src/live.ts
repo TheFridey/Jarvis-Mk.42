@@ -60,6 +60,7 @@ export interface DesktopKernelSnapshot {
   activeTasks: OperatingObjective[];
   activeModels: OperatingModelRun[];
   recentModelRuns: OperatingModelRun[];
+  modelUsage?: { generatedAt: string; models: ModelUsageSummary[] };
   activeAgents: OperatingAgentRun[];
   agentJobs?: OperatingAgentJob[];
   cognitionResponseBodiesTruncated?: boolean;
@@ -155,7 +156,7 @@ export interface DesktopProposalResponse {
   stateVersion: number;
   result: { invocationId: string; outcome: InvocationOutcome; output?: unknown; verifyReport?: unknown; finishedAt: string };
 }
-export interface DesktopCognitionCommand { commandId: string; expectedStateVersion: number; input: string; conversationId?:string; agentId?: AgentId; task?: 'reason'|'plan'|'summarize'|'extract'|'classify'|'code'; locality?: 'local'|'prefer-local'|'any'|'cloud-ok'; }
+export interface DesktopCognitionCommand { commandId: string; expectedStateVersion: number; input: string; preferredModels?:string[]; conversationId?:string; agentId?: AgentId; task?: 'reason'|'plan'|'summarize'|'extract'|'classify'|'code'; locality?: 'local'|'prefer-local'|'any'|'cloud-ok'; }
 export interface DesktopAgentCancelCommand { commandId: string; expectedStateVersion: number; jobId: string; }
 export interface DesktopAgentCancelResponse { jobId: string; cancelled: boolean; }
 
@@ -180,4 +181,10 @@ export interface SystemTelemetrySnapshot {
   generatedAt: string; window: '24h'; overallHealth: 'healthy' | 'degraded' | 'unknown';
   readings: Record<string, TelemetryReading>;
   history: Array<{ at: string; values: Record<string, number | null> }>;
+}
+
+export type UsagePeriod = '24h' | 'week' | 'month' | 'all';
+export interface ModelUsageSummary {
+  modelId: string; period: UsagePeriod; requests: number; measuredCostRequests: number;
+  actualCost: number | null; estimatedCost: number | null; inputTokens: number | null; outputTokens: number | null;
 }

@@ -3,7 +3,7 @@ import type { ExperienceChannel, ExperienceStreamUpdate, JarvisOperatingPicture 
 const CHANNEL_KEYS: Record<ExperienceChannel, ReadonlyArray<keyof JarvisOperatingPicture>> = {
   system: ['generatedAt','stateVersion','sceneVersion','systemMode','interactionState','workState','principal','presence','systemHealth','diagnostics','state','principalId'],
   objectives: ['activeObjective','activeTasks','objectives','scalesmiths'],
-  cognition: ['activeModels','recentModelRuns','activeAgents','agentJobs','conversationActivity','cognitionResponses','cognitionResponseBodiesTruncated','sessions'],
+  cognition: ['activeModels','recentModelRuns','modelUsage','activeAgents','agentJobs','conversationActivity','cognitionResponses','cognitionResponseBodiesTruncated','sessions'],
   agency: ['activeCapabilities','pendingApprovals','capabilityActivity','policyDenials','approvals','agentJobs'],
   notifications: ['notifications'], scene: ['scene','selectedContext','selectedProjectId','contextId','referentFocus'], telemetry: ['telemetrySummary','voiceAudio'],
 };

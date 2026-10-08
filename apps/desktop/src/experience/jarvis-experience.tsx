@@ -3,11 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
 import { Activity, Command, Layers } from 'lucide-react';
 import { CinematicHud } from './cinematic-hud.tsx';
-import { modelTint } from './cinematic-palette.ts';
+import { ModelControls } from './model-controls.tsx';
+import { VISUAL_PRESETS, type VisualPreset, modelTint } from './cinematic-palette.ts';
 import type { CSSProperties } from 'react';
 import type { SceneIntent, SemanticScene } from '@jarvis/scene';
 import { agentField } from './agent-field-policy.ts';
 import { AgentInspector } from './agent-field.tsx';
+import { AirTouchControl } from './air-touch-control.tsx';
 import { AirTouchLayer } from './air-touch-layer.tsx';
 import { ApprovalBarrier } from './approval-barrier.tsx';
 import { cognitionRouterView } from './cognition-router-policy.ts';
@@ -37,7 +39,12 @@ const offlineScene = (): SemanticScene => ({ id: 'kernel-offline', principalId: 
 const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
 export function JarvisExperience() {
+  const [visualPreferences,setVisualPreferences]=useState<Record<string,VisualPreset>>({});
+  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('jarvis:model-visuals:v1')??'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))setVisualPreferences(Object.fromEntries(Object.entries(saved).filter(([,value])=>typeof value==='string'&&Object.hasOwn(VISUAL_PRESETS,value))) as Record<string,VisualPreset>);}catch{}},[]);
   const [focusedModel, setFocusedModel] = useState<string>();
+  const [preferredModel,setPreferredModel]=useState(process.env.NEXT_PUBLIC_JARVIS_PREFERRED_MODEL??'gpt-6.1-sol');
+  useEffect(()=>{try{const saved=localStorage.getItem('jarvis:preferred-model:v1');if(saved!==null)setPreferredModel(saved);}catch{}},[]);
+  const updatePreferredModel=(value:string)=>{setPreferredModel(value);try{localStorage.setItem('jarvis:preferred-model:v1',value);}catch{}};
   const [conversationId, setConversationId] = useState<string | undefined>();
   const prefersReduced = Boolean(useReducedMotion());
   const [mounted, setMounted] = useState(false);
@@ -88,6 +95,9 @@ export function JarvisExperience() {
     [viewport.width, viewport.height, slotSignature, agents.nodes.length]);
   const cinematicLayout = useMemo(() => ({ ...layout, core: { x: viewport.width * .5, y: viewport.height * (layout.narrow ? .40 : .50) }, coreRadius: Math.min(viewport.height * .24, viewport.width * (layout.narrow ? .34 : .205)) }), [layout, viewport.width, viewport.height]);
   const visualModel = displayed.find(node => node.modelId === focusedModel)?.modelId ?? displayed.find(node => node.route === 'SELECTED')?.modelId;
+  const preset=visualPreferences[visualModel??'preview']??'auto';
+  const updatePreset=(value:VisualPreset)=>{const next={...visualPreferences,[visualModel??'preview']:value};setVisualPreferences(next);try{localStorage.setItem('jarvis:model-visuals:v1',JSON.stringify(next));}catch{}};
+  const visualId = preset==='auto'?visualModel:VISUAL_PRESETS[preset].model;
   const stage = expressedStage(requestFlow(current ? kernel : undefined, phase));
   const idle = phase === 'DORMANT' || phase === 'AWARE';
   const [stats, setStats] = useState(() => emptySessionStats());
@@ -109,15 +119,15 @@ export function JarvisExperience() {
     return () => window.removeEventListener('keydown', key);
   }, []);
   const closeOperations = useCallback(() => setOperations(false), []);
-  const runProposal = async () => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(proposalText.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: proposalText, ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } setProposalOpen(false); } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
+  const runProposal = async () => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(proposalText.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: proposalText, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } setProposalOpen(false); } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
   const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
   const developer = process.env.NODE_ENV === 'development';
   const approvals = kernel?.pendingApprovals ?? [];
 
-  return <main style={{ '--cinematic-accent': modelTint(visualModel) } as CSSProperties} className={`environment cinematic presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${workspaceOpen ? ' workspace-open' : ''}${commandResult ? ' has-response' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}${idle ? ' idle' : ''}${viewport.measured ? '' : ' unmeasured'}`}
+  return <main style={{ '--cinematic-accent': modelTint(visualId) } as CSSProperties} className={`environment cinematic visual-${preset} presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${workspaceOpen ? ' workspace-open' : ''}${commandResult ? ' has-response' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}${idle ? ' idle' : ''}${viewport.measured ? '' : ' unmeasured'}`}
     onKeyDown={event => { if (event.key === 'Escape' && selected[0]) { send({ type: 'dismiss', targetId: selected[0], input: 'keyboard' }); setSelected([]); } }} tabIndex={-1}>
     {demoMode && <div className="demo-banner" role="status">DEMO MODE · SYNTHETIC DATA · NO LIVE EXECUTION</div>}
-    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={cinematicLayout} {...(visualModel ? { focusModel: visualModel } : {})} models={displayed} {...(router.route ? { route: router.route } : {})} agents={agents.nodes} regions={regions}
+    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={cinematicLayout} {...(visualId ? { focusModel: visualId } : {})} models={displayed} {...(router.route ? { route: router.route } : {})} agents={agents.nodes} regions={regions}
       systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback} {...(stage ? { stage } : {})} choreography={choreography}/>
     <SystemStatusEdge {...(kernel ? { picture: kernel } : {})} liveness={liveness} regions={regions} operations={operations} inspector={inspector}
       onOperations={() => setOperations(open => !open)} onInspector={() => { setInspectorTab('situation'); setInspector(open => !open); }} onReconnect={() => void reconnect()}
@@ -127,6 +137,7 @@ export function JarvisExperience() {
       <AnimatePresence>{panels.map(object => <SpatialPanel key={object.id} object={object} live={current} compact={!selected.includes(object.id)} selected={selected.includes(object.id)} onSelect={id => setSelected([id])} submit={send}/>)}</AnimatePresence>
     </section>
     <CinematicHud models={displayed} {...(focusedModel ? { focused: focusedModel } : {})} onFocus={setFocusedModel} instruments={instruments} agents={agents.nodes} phase={phase} liveness={liveness} layout={cinematicLayout} onAgents={() => { setInspectorTab('agents'); setInspector(true); }}/>
+    <ModelControls {...(kernel?{picture:kernel}:{})} {...(visualModel?{modelId:visualModel}:{})} preset={preset} onPreset={updatePreset} preferredModel={preferredModel} onPreferredModel={updatePreferredModel} current={current}/>
     <ReferentFocus focus={kernelLive ? kernel?.referentFocus : undefined} objects={scene.objects} developer={inspector && developer}/>
     {kernel && approvals.length ? <ApprovalBarrier approvals={approvals} stateVersion={kernel.stateVersion} decide={decideApproval} liveness={liveness} layout={layout}/> : null}
     <footer className="command-deck">
@@ -135,7 +146,7 @@ export function JarvisExperience() {
       <button aria-label="Scene workspace" aria-expanded={workspaceOpen} className="deck-icon" onClick={() => setWorkspaceOpen(open => !open)} title="Scene workspace"><Layers size={16}/></button>
       <SelectedCapture {...(kernel ? { kernel } : {})} live={kernelLive} submit={submitProposal}/>
       <button aria-label="Open operations view" className={`deck-icon${operations ? ' active' : ''}`} onClick={() => setOperations(open => !open)}><Activity size={16}/></button>
-      <span className="air-touch-state"><i/>AIR TOUCH · {kernelLive ? 'PRESENTATION READY' : 'LOCAL ONLY'}</span>
+      <AirTouchControl onReady={()=>setWorkspaceOpen(true)}/>
     </footer>
     {proposalOpen && <section className="proposal-entry"><label htmlFor="proposal-json">JARVIS REQUEST</label><textarea id="proposal-json" value={proposalText} onChange={event => setProposalText(event.target.value)} placeholder="Ask a question or describe the outcome you want."/><div><button onClick={() => setProposalOpen(false)}>CANCEL</button><button onClick={() => void runProposal()}>SUBMIT TO JARVIS</button></div></section>}
     <ResponsePanel text={commandResult} answerId={commandResult===deliveredAnswer?.answer?deliveredAnswer?.requestId:undefined} live={kernelLive}/>

@@ -81,6 +81,10 @@ export interface ModelResponse {
     cachedTokens?: number;
     outputTokens?: number;
     actualCost?: number;
+    /** Each successful provider call, retained when a formatting retry changes models. */
+    byModel?: Array<{modelId:string;usage:{inputTokens?:number;outputTokens?:number;actualCost?:number;costEstimate:number}}>;
+
+    limits?: { observedAt:string; scope:string; requests?:number; remainingRequests?:number; tokens?:number; remainingTokens?:number; resetRequests?:string; resetTokens?:string; keyLimitUSD?:number; keyRemainingUSD?:number; keyUnlimited?:boolean };
     tokensPerSecond?: number;
   };
   routing?: ModelRoutingObservability;

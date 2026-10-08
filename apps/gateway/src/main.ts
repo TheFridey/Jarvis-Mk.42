@@ -10,8 +10,8 @@ import { extractTraceContext, startTelemetry, withSpan, withTraceContext } from 
 import { assertGatewayIngressIsSecure, DEVELOPMENT_GATEWAY_TOKEN } from './runtime-config.ts';
 const registry=new ModelRegistry(),now=new Date().toISOString();
 function register(id:string,provider:string,adapter:Parameters<ModelRegistry['register']>[1],locality:ModelRegistration['locality'],cost=0){registry.register({id,provider,displayName:id,tasks:['reason','plan','summarize','extract','classify','code'],capabilities:['json','streaming','long_context'],contextLimitUnits:128_000,costPerContextUnit:cost,costPerOutputUnit:cost*3,locality,enabled:true,registeredAt:now},adapter)}
-if(process.env.OPENAI_API_KEY)register(process.env.JARVIS_OPENAI_MODEL??'gpt-5','openai',new OpenAIAdapter(process.env.OPENAI_API_KEY),'cloud-ok',.00001);
-if(process.env.ANTHROPIC_API_KEY)register(process.env.JARVIS_ANTHROPIC_MODEL??'claude-sonnet-4-5','anthropic',new AnthropicAdapter(process.env.ANTHROPIC_API_KEY),'cloud-ok',.00001);
+if(process.env.OPENAI_API_KEY)register(process.env.JARVIS_OPENAI_MODEL??'gpt-6.1-sol','openai',new OpenAIAdapter(process.env.OPENAI_API_KEY),'cloud-ok',.00001);
+if(process.env.ANTHROPIC_API_KEY)register(process.env.JARVIS_ANTHROPIC_MODEL??'claude-opus-5-5','anthropic',new AnthropicAdapter(process.env.ANTHROPIC_API_KEY),'cloud-ok',.00001);
 if(process.env.OPENROUTER_API_KEY){
  const model=process.env.JARVIS_OPENROUTER_MODEL?.trim();
  if(!model)throw new Error('JARVIS_OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured');
