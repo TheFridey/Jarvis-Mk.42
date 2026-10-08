@@ -1,0 +1,11 @@
+{
+  "errors": [],
+  "overflow": false,
+  "checks": [
+    "three visual presets",
+    "saved preference",
+    "all usage periods",
+    "camera permission failure",
+    "mobile framing"
+  ]
+}

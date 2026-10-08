@@ -59,12 +59,24 @@ export class DesktopGateway {
   async snapshot(): Promise<DesktopKernelSnapshot> {
     const state=await this.deps.state.view();
     const principalId = (state.slices.active_principal?.value as { principalId?: string | null } | undefined)?.principalId ?? null;
-    const [diagnostics, allSessions, allPending, activity, cognitionRows, objectiveRows, jobRows] = await Promise.all([
+    const [diagnostics, allSessions, allPending, activity, cognitionRows, objectiveRows, jobRows, usageRows] = await Promise.all([
       this.deps.diagnostics.report(), this.deps.sessions.listActive(), this.deps.approvals.listPending(),
       this.deps.sql<InvocationRow[]>`select i.invocation_id, i.capability_id, i.action, i.state, i.origin_actor, i.risk_class, i.proposal, i.final_outcome, coalesce(i.finished_at, i.started_at, i.created_at) as updated_at, i.finished_at, cv.manifest from agency.invocations i left join agency.capability_versions cv on cv.capability_id=i.capability_id and cv.version=i.capability_version where i.principal_id=${principalId} order by i.created_at desc limit 30`,
       this.deps.sql<CognitionRow[]>`select request_id,correlation_id,agent_id,model_id,status,response,task_class,privacy_class,objective_ref,workflow_ref,routing_observability,usage_observability,first_token_at,error_code,context_units,output_units,cost_estimate,latency_ms,created_at,finished_at from cognition.runs r where r.principal_id=${principalId} order by exists(select 1 from cognition.agent_jobs j where j.job_id=r.request_id and j.state in ('RUNNING','WAITING') and j.lease_expiry>clock_timestamp()) desc,(status='running') desc,created_at desc limit 100`,
       this.deps.sql<ObjectiveRow[]>`select objective_id,statement,status,priority,updated_at from projections.objectives where principal_id=${principalId} and status in ('proposed','active','blocked','paused') order by priority desc,created_at limit 30`,
       this.deps.sql<JobRow[]>`select *, (state in ('RUNNING','WAITING') and lease_expiry>clock_timestamp() and worker_pid is not null) as activity_confirmed from cognition.agent_jobs where principal_id=${principalId} order by (state in ('QUEUED','LEASED','RUNNING','WAITING')) desc,created_at desc limit 100`,
+      this.deps.sql<import('@jarvis/scene').ModelUsageSummary[]>`select call.value->>'modelId' as "modelId", p.period, count(*)::int as requests,
+        count(call.value->'usage'->>'actualCost')::int as "measuredCostRequests",
+        sum((call.value->'usage'->>'actualCost')::float8) as "actualCost",
+        sum((call.value->'usage'->>'costEstimate')::float8) as "estimatedCost",
+        case when count(call.value->'usage'->>'inputTokens')=count(*) then sum((call.value->'usage'->>'inputTokens')::float8) end as "inputTokens",
+        case when count(call.value->'usage'->>'outputTokens')=count(*) then sum((call.value->'usage'->>'outputTokens')::float8) end as "outputTokens"
+        from cognition.runs r cross join lateral jsonb_array_elements(
+          coalesce(r.usage_observability->'byModel',jsonb_build_array(jsonb_build_object('modelId',r.model_id,'usage',r.usage_observability)))) call(value)
+        cross join (values ('24h',interval '24 hours'),('week',interval '7 days'),('month',interval '30 days'),('all',null::interval)) p(period,duration)
+        where r.principal_id=${principalId} and r.status='completed' and r.model_id is not null and r.usage_observability is not null and r.model_id not in ('nova:operating-picture','sentinel:measured-telemetry')
+          and (p.duration is null or r.finished_at>=clock_timestamp()-p.duration)
+        group by call.value->>'modelId',p.period`,
     ]);
     const sessions=allSessions.filter(session=>session.principalId===principalId);
     const pending=allPending.filter(approval=>approval.principalId===principalId);
@@ -120,7 +132,7 @@ export class DesktopGateway {
       interactionState, workState, principal: { id: principalId, status: principalId ? 'active' : 'unassigned' },
       presence: { status: presenceValue.state === 'present' ? 'present' : presenceValue.state === 'away' ? 'away' : 'unknown', ...(typeof presenceValue.confidence === 'number' ? { confidence: presenceValue.confidence } : {}), ...(presenceValue.observedAt ? { observedAt: presenceValue.observedAt } : {}) },
       ...(tasks.find((task) => task.id === objectiveId) ? { activeObjective: tasks.find((task) => task.id === objectiveId)! } : {}), activeTasks: tasks,
-      activeModels, recentModelRuns: modelRuns,
+      activeModels, recentModelRuns: modelRuns, modelUsage: { generatedAt: new Date().toISOString(), models: usageRows },
       activeAgents: jobRows.filter(job=>job.activity_confirmed&&job.started_at).map(job=>({agentId:job.agent_id,requestId:job.job_id,status:'running',startedAt:new Date(job.started_at!).toISOString()})),
       agentJobs: jobRows.map(row => {
         const proposalIds = new Set(row.result?.result.proposals.map(proposal=>proposal.proposalId)??[]);
@@ -145,7 +157,7 @@ export class DesktopGateway {
     };
   }
 
-  async cognize(command:DesktopCognitionCommand,sourceNodeId=this.deps.nodeId):Promise<DesktopCommandResult<CognitionResponse>> { const state=await this.deps.state.view(); if(command.expectedStateVersion!==state.stateVersion)return{ok:false,code:'state_version_conflict',currentStateVersion:state.stateVersion}; const principalId=(state.slices.active_principal.value as {principalId:string|null}).principalId;if(!principalId)return{ok:false,code:'approval_rejected',currentStateVersion:state.stateVersion}; if(this.companion){const response=await this.companion.converse({principalId,nodeId:sourceNodeId},command,command.conversationId);if(response.result)return{ok:true,value:response.result};} const correlationId=this.deps.ids.ulid(); return {ok:true,value:await this.deps.cognition.submit({requestId:command.commandId,principalId,correlationId,input:command.input,agentId:command.agentId??'agents.oracle',task:command.task??'reason',locality:command.locality??'any'})}; }
+  async cognize(command:DesktopCognitionCommand,sourceNodeId=this.deps.nodeId):Promise<DesktopCommandResult<CognitionResponse>> { const state=await this.deps.state.view(); if(command.expectedStateVersion!==state.stateVersion)return{ok:false,code:'state_version_conflict',currentStateVersion:state.stateVersion}; const principalId=(state.slices.active_principal.value as {principalId:string|null}).principalId;if(!principalId)return{ok:false,code:'approval_rejected',currentStateVersion:state.stateVersion}; if(this.companion){const response=await this.companion.converse({principalId,nodeId:sourceNodeId},command,command.conversationId);if(response.result)return{ok:true,value:response.result};} const correlationId=this.deps.ids.ulid(); return {ok:true,value:await this.deps.cognition.submit({requestId:command.commandId,principalId,correlationId,input:command.input,agentId:command.agentId??'agents.oracle',task:command.task??'reason',locality:command.locality??'any',preferredModels:command.preferredModels})}; }
 
   async submit(command: DesktopProposalCommand): Promise<DesktopCommandResult<DesktopProposalResponse>> {
     const state = await this.deps.state.view();

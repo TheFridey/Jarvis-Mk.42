@@ -12,3 +12,7 @@ it('selects the latest completed answer regardless of projection order or long i
 it('ignores responses without an answer',()=>{
   expect(latestConversationAnswer([response('empty','2026-10-06T09:03:00Z','2026-10-06T09:03:30Z','')])).toBeUndefined();
 });
+it('renders an answer-only projection while the detailed result is unavailable',()=>{
+  const partial={requestId:'partial',createdAt:'2026-10-08T09:00:00Z',answer:'Good morning.'} as CognitionResponse;
+  expect(latestConversationAnswer([partial])).toBe(partial);
+});

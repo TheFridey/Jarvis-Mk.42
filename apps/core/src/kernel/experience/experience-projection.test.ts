@@ -6,7 +6,7 @@ describe('ExperienceProjection',()=>{it('coalesces invalidations and maintains b
 
 describe('Experience projection filtering',()=>{
   it('maps canonical activity to the minimum relevant channels',()=>{
-    expect(channelsForEvent('jarvis.cognition.run.started')).toEqual(['cognition','system']);
+    expect(channelsForEvent('jarvis.cognition.run.started')).toEqual(['cognition','agency','system']);
     expect(channelsForEvent('jarvis.agency.invocation.completed')).toEqual(['agency','system']);
     expect(channelsForEvent('jarvis.kernel.health.transitioned')).toEqual(['system','scene','telemetry']);
   });

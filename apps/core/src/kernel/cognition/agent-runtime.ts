@@ -105,6 +105,7 @@ export class AgentRuntime {
       let parsed!:z.SafeParseReturnType<unknown,z.infer<typeof proposal>[]>;
       let spent=0;
       const usages:ModelResponse['usage'][]=[];
+      const byModel:NonNullable<ModelResponse['usage']['byModel']>=[];
       const inferenceStart=Date.now();
       for(let formatAttempt=0;formatAttempt<2;formatAttempt++){
       response = await runAgentWorker({ jobId, request: {...bounded,budget:{...bounded.budget,maxCost:Math.max(0,bounded.budget.maxCost!-spent),maxLatencyMs:Math.max(1,bounded.budget.maxLatencyMs!-(Date.now()-inferenceStart))}}, gateway: this.gateway, signal: controller.signal,
@@ -115,6 +116,7 @@ export class AgentRuntime {
         onRouting: async routing => { await this.jobs?.route(jobId, this.owner, attempt, routing); await onRouting?.(routing); } });
       spent+=response.usage.costEstimate;
       usages.push(response.usage);
+      byModel.push({modelId:response.modelId,usage:{inputTokens:response.usage.inputTokens,outputTokens:response.usage.outputTokens,actualCost:response.usage.actualCost,costEstimate:response.usage.costEstimate}});
       if (spent > bounded.budget.maxCost!) throw new Error('agent cost budget exceeded');
       const envelope = response.output as { proposals?: unknown; evidence?: unknown };
       parsed = z.array(proposal).max(32).safeParse(envelope?.proposals ?? response.output);
@@ -128,7 +130,7 @@ export class AgentRuntime {
       if(!parsed.success)throw new ModelGatewayError('INVALID_RESPONSE','invalid structured model output',false);
       const latencyMs=Date.now()-inferenceStart;
       const knownTotal=(field:'inputTokens'|'cachedTokens'|'outputTokens'|'actualCost')=>usages.every(usage=>usage[field]!==undefined)?usages.reduce((sum,usage)=>sum+usage[field]!,0):undefined;
-      response={...response,usage:{contextUnits:usages.reduce((sum,usage)=>sum+usage.contextUnits,0),outputUnits:usages.reduce((sum,usage)=>sum+usage.outputUnits,0),costEstimate:spent,latencyMs,inputTokens:knownTotal('inputTokens'),cachedTokens:knownTotal('cachedTokens'),outputTokens:knownTotal('outputTokens'),actualCost:knownTotal('actualCost')}};
+      response={...response,usage:{contextUnits:usages.reduce((sum,usage)=>sum+usage.contextUnits,0),outputUnits:usages.reduce((sum,usage)=>sum+usage.outputUnits,0),costEstimate:spent,latencyMs,inputTokens:knownTotal('inputTokens'),cachedTokens:knownTotal('cachedTokens'),outputTokens:knownTotal('outputTokens'),actualCost:knownTotal('actualCost'),limits:response.usage.limits,byModel}};
       const envelope = response.output as { proposals?: unknown; evidence?: unknown };
       for (const p of parsed.data) {
         if (p.correlationId !== request.correlationId || p.provenance.correlationId !== request.correlationId) throw new Error('proposal correlation mismatch');

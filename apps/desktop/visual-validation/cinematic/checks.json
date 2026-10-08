@@ -1,0 +1,50 @@
+{
+  "results": [
+    {
+      "name": "desktop",
+      "renderer": "webgl",
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "interactions": "model focus, follow route, operations, workspace, agent inspector, voice settings passed"
+    },
+    {
+      "name": "laptop",
+      "renderer": "webgl",
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "name": "mobile",
+      "renderer": "webgl",
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "name": "approval",
+      "renderer": "webgl",
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "name": "offline",
+      "renderer": "webgl",
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "name": "fallback",
+      "renderer": "fallback",
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "name": "reduced-motion",
+      "renderer": "webgl",
+      "overflow": false,
+      "errors": []
+    }
+  ],
+  "errors": []
+}
