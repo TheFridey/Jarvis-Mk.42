@@ -23,11 +23,11 @@ function storedQuality():ForgeQuality{try{const value=localStorage.getItem(QUALI
 export interface GpuEnvironmentProps {
   scene: SemanticScene; picture?: JarvisOperatingPicture; liveness: DataLiveness; phase: ExperiencePhase; layout: SpatialLayout;
   models: ModelNode[]; route?: RouteObservation; agents: AgentNode[]; regions: Record<HealthRegion, RegionHealth>;
-  systemDegraded: boolean; criticalRisk: boolean; forceFallback?: boolean;
+  focusModel?: string; systemDegraded: boolean; criticalRisk: boolean; forceFallback?: boolean;
   stage?: FlowStage; choreography: RefObject<ChoreographyState>;
 }
 
-export function GpuEnvironment({scene,picture,liveness,phase,layout,models,route,agents,regions,systemDegraded,criticalRisk,forceFallback=false,stage,choreography}:GpuEnvironmentProps){
+export function GpuEnvironment({scene,picture,liveness,phase,layout,models,route,agents,regions,systemDegraded,criticalRisk,forceFallback=false,stage,choreography,focusModel}:GpuEnvironmentProps){
   const live=liveness.current;
   const activePicture=live?picture:undefined;
   const reduced=Boolean(useReducedMotion());
@@ -41,7 +41,7 @@ export function GpuEnvironment({scene,picture,liveness,phase,layout,models,route
   const policy=useMemo(()=>visualPolicy({picture:activePicture,scene,setting:quality,measuredTier:measured,reducedMotion:reduced,lowPower,disconnected:!live}),[activePicture,scene,quality,measured,reduced,lowPower,live]);
   const core=useMemo(()=>coreSystemTargets(phase,systemDegraded),[phase,systemDegraded]);
   const reducedMotion=reduced||policy.motion===0;
-  const input=useMemo<CosmosInput>(()=>({policy,phase,...(stage?{stage}:{}),core,layout,models,...(route?{route}:{}),agents,regions,current:live,...(liveness.staleSince!==undefined?{staleSince:liveness.staleSince}:{}),criticalRisk,reducedMotion,choreography}),[policy,phase,stage,core,layout,models,route,agents,regions,live,liveness.staleSince,criticalRisk,reducedMotion,choreography]);
+  const input=useMemo<CosmosInput>(()=>({policy,phase,...(focusModel ? { focusModel } : {}),...(stage?{stage}:{}),core,layout,models,...(route?{route}:{}),agents,regions,current:live,...(liveness.staleSince!==undefined?{staleSince:liveness.staleSince}:{}),criticalRisk,reducedMotion,choreography}),[policy,phase,focusModel,stage,core,layout,models,route,agents,regions,live,liveness.staleSince,criticalRisk,reducedMotion,choreography]);
   useEffect(()=>{setWebgl(!forceFallback&&supportsWebGL());const visibility=()=>setHidden(document.hidden);visibility();document.addEventListener('visibilitychange',visibility);return()=>document.removeEventListener('visibilitychange',visibility)},[forceFallback]);
   useEffect(()=>connectAudioEnvelopeEvents(),[]);
   useEffect(()=>{const audio=activePicture?.voiceAudio;const source=audio?.tts==='playing'?'tts':'microphone';const clear=()=>audioEnvelopeStore.publish({schemaVersion:1,source,sequence:Date.now(),observedAt:new Date().toISOString(),amplitude:0,low:0,mid:0,high:0});if(!audio){clear();return;}const age=Date.now()-Date.parse(audio.observedAt);if(!Number.isFinite(age)||age>3000){clear();return;}audioEnvelopeStore.publish({schemaVersion:1,source,sequence:Date.parse(audio.observedAt),observedAt:audio.observedAt,amplitude:source==='tts'?audio.playbackAmplitude:audio.amplitude,low:0,mid:0,high:0});const timer=setTimeout(clear,Math.max(0,3000-age));return()=>clearTimeout(timer);},[activePicture?.voiceAudio]);
