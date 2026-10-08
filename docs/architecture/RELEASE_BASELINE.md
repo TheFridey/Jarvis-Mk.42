@@ -58,6 +58,11 @@ as process-isolated.
    the production default, with an additional fake-clock regression proving
    an unauthenticated connection stays open before that deadline and closes
    at it. Existing revocation and privacy assertions remain intact.
+7. The restore drill inherited operator environment variables and loaded the
+   workstation `.env`, coupling fixture recovery to live integration schemas
+   and credentials. The restored Kernel now receives an OS-only environment
+   allowlist plus explicit qualification settings, with local env-file loading
+   disabled. The real restore, invariants and boot assertions are unchanged.
 
 No architecture assertions were removed or relaxed. No Forge Cosmos visuals,
 layout, branding, palettes, animation, CSS or model-specific visual state changed.
@@ -91,6 +96,12 @@ answers remain fixtures. `pnpm verify` alone is insufficient for a release.
 The infrastructure chaos suite verifies host fault-injection mechanisms;
 Kernel recovery evidence comes from the separate integration tests. Those
 claims must not be conflated.
+Restore qualification sets `JARVIS_LOAD_LOCAL_ENV=0`; normal launches still
+load the root `.env` by default. Qualification never certifies live account
+configuration. An operator file with top-level `readActions` is rejected by
+this main-branch integration schema. That allowlist is not silently discarded:
+schema-compatible provisioning or a separately reviewed compatibility change
+is required before live business qualification.
 
 ## Scenarios requiring separate live verification
 
