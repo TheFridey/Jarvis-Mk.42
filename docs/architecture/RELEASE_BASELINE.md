@@ -28,6 +28,11 @@ source. README-only `packages/*` and `apps/diagnostics` / `apps/relay` seams are
 not independently deployable applications. Current diagnostics HTTP lives in
 Core. Kernel services live under `apps/core/src/kernel`, not the aspirational
 per-component package layout. ADR-0040 records the framework decision.
+Development launchers share the root `.env` loader, which can populate provider
+keys in both process environments. This correction removes Core's code
+dependency on those keys; strict deployment secret partitioning still requires
+separate process environments. It does not certify existing workstation secrets
+as process-isolated.
 
 ## Fixed defects
 

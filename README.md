@@ -28,7 +28,7 @@ and physical microphone qualification.
 
 | Path | Purpose |
 |---|---|
-| `apps/` | Deployable processes. `core` = Kernel. `gateway` = Model Gateway. `voice`/`vision` = perception. `desktop` = Tauri shell. `diagnostics` = operator UI. `relay` = future edge node (empty seam). |
+| `apps/` | Implemented runtimes: `core` = Kernel and diagnostics HTTP; `gateway` = Model Gateway; `voice`/`vision` = perception; `desktop` = Next/Tauri shell; `adapter-host`, `labs`, `display` = isolated workers/sandbox/display. `diagnostics` and `relay` are README-only future seams. |
 | `packages/` | Real workspace libraries plus explicitly labelled README-only extraction seams. Kernel implementations remain under `apps/core/src/kernel/*`; a folder name alone is not an importable package. |
 | `agents/` | Disposable cognitive-worker manifests; the implemented bounded Agent Runtime is in `apps/core/src/kernel/cognition/agent-runtime.ts`. |
 | `capabilities/` | Permissioned effect manifests; selected providers include executable adapters. Every consequential action must pass through the Kernel Executor. |

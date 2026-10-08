@@ -22,7 +22,7 @@ communicates only through contracts and events.
 | Voice perception | `apps/voice` | workstation | Realtime audio loop; must not be blocked by Kernel GC; crash-isolated; raw audio stays local (L25, L27). |
 | Vision perception | `apps/vision` | workstation | Realtime video loop; GPU/native deps; raw frames stay local (L27). |
 | Desktop shell | `apps/desktop` | workstation | Tauri; user-session lifecycle; pure Experience Plane. |
-| Diagnostics | `apps/diagnostics` | workstation | Operator read-only UI over Kernel APIs; independent deploy so it can inspect a sick Kernel. |
+| Diagnostics HTTP | `apps/core/src/kernel/diagnostics` | local server | Implemented inside Core. `apps/diagnostics` is a README-only future operator UI seam, not an independent deployable. |
 | Relay (future) | `apps/relay` | edge | Empty in MK.42. Documented seam for node-facing edge termination when nodes live off-LAN. |
 | Adapter Host | `apps/adapter-host` | local server + workstation | Agency worker runtime (HEPHAESTUS, ADR-0025): one zero-environment Node worker per capability invocation; per-invocation credential handle; typed IPC to the Executor only; no store credential. Isolates a compromised adapter to one scoped, short-lived invocation. |
 | JARVIS LABS | `apps/labs` | local server | Isolated experimentation sandbox (HEPHAESTUS, ADR-0029): ephemeral Docker, synthetic credentials, mock APIs, throwaway PG + scratch FS, default-deny network, resource limits, guaranteed teardown. FORGE builds/tests capability drafts here; no route to real Kernel infra; promotion is human-reviewed and operator-gated. |
