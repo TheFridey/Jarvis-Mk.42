@@ -206,6 +206,7 @@ export class DiagnosticsHttp {
       if (method !== 'GET') return send(405, { error: 'method not allowed' });
       return send(404, { error: 'not found', routes: ['/healthz', '/diagnostics', '/state', '/desktop/snapshot', '/desktop/proposals', '/desktop/approvals'] });
     } catch (err) {
+      if (err instanceof z.ZodError) return send(400,{error:'invalid_request'});
       if (err instanceof DomainAccessError) return send(403,{error:err.code});
       if (err instanceof AgentJobAccessError) return send(403, { error:err.code });
       if (err instanceof ModelGatewayError) {
