@@ -23,6 +23,7 @@ Total removed from the source index: **647 files / 939,039,840 bytes**.
 for review/archive recovery. Files were removed with `git rm --cached` and
 remain on the original workstation. No runtime source or artwork was deleted.
 `preserved-assets.json` protects 109 retained files with `pnpm assets:check`.
+That CI check also rejects generated output tracked under the removed roots.
 
 ## Future evidence and retention
 
