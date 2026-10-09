@@ -17,6 +17,7 @@ export interface DomainScope {
   principalId: string;
   domainId: string;
   kind: DomainKind;
+  domainName?:string;
   purpose: DomainPurpose;
   readableDomainIds: string[];
   /** Explicit cross-domain reads are limited to PUBLIC/INTERNAL material. */

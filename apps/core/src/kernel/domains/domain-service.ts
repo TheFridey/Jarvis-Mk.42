@@ -59,7 +59,7 @@ export class DomainService {
       if (!grants.length) throw new DomainAccessError('explicit cross-domain fusion grant required');
       readableDomainIds.push(sourceId);
     }
-    return { principalId, domainId: domain.id, kind: domain.kind, purpose, readableDomainIds, crossDomainPrivacyCeiling: 'INTERNAL', ...(selection ? { selectionVersion: selection.version, nodeId: req.nodeId } : {}) };
+    return { principalId, domainId: domain.id, kind: domain.kind, domainName:domain.name, purpose, readableDomainIds, crossDomainPrivacyCeiling: 'INTERNAL', ...(selection ? { selectionVersion: selection.version, nodeId: req.nodeId } : {}) };
   }
   async run<T>(principalId: string, req: DomainRequest, correlationId: string, run: (scope: DomainScope) => Promise<T>): Promise<T> {
     const inherited = currentDomainScope();
