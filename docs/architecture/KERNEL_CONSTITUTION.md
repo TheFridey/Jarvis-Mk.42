@@ -11,7 +11,8 @@ requires an ADR.
 
 ## 0. What the Kernel is
 
-`apps/core` — one NestJS process, a **modular monolith**. It is:
+`apps/core` — one TypeScript/Node process with explicit constructor injection,
+a **modular monolith** (ADR-0040). It is:
 
 - the **only** writer of authoritative state (Event Log + Projected State);
 - the **only** caller of the Capability Executor;
@@ -80,7 +81,9 @@ knowledge subsystem — the sole writer to `atlas.*` (ATLAS) and `mnemosyne.*`
 No Kernel component may:
 
 1. Import a model provider SDK, or call an inference endpoint directly. All
-   inference goes through `apps/gateway` via `ModelRequest` (L1, L3).
+   provider inference goes through `apps/gateway` via neutral contracts:
+   `ModelRequest` for cognition and `SpeechRequest` for consent-selected cloud
+   RTC speech (L1, L3; ADR-0040).
 2. Import a capability adapter, or perform an adapter's side effect inline.
    Effects go through the Executor (L18).
 3. Read or write another component's tables. Cross-component data flows through
@@ -110,8 +113,8 @@ No Kernel component may:
   Untyped input is rejected at the edge.
 - **Deterministic policy core.** The Policy Engine is a pure function library
   with property tests; it cannot be made non-deterministic by configuration.
-- **Immutable component wiring at runtime.** The Nest module graph is fixed at
-  build time. Nothing loads Kernel code dynamically. Capabilities, models,
+- **Immutable component wiring at runtime.** The composition root fixes the
+  service graph at startup. Capabilities, models,
   agents, and nodes are *data* the Kernel reads, never code it links.
 - **ADR gate.** §1 and §2 change only through an accepted ADR referencing the
   laws it must not break.

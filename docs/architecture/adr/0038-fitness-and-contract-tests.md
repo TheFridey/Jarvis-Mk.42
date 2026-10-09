@@ -7,6 +7,13 @@ Relates-to: ROADMAP invariant (versioned contracts), EVENT_ARCHITECTURE §9, KER
 
 ## Context
 
+Implementation status (2026-10-08): the workflow now runs every gate, including
+chaos and backup/restore, on pushes and PRs to main. `pnpm verify:full` is the
+complete local equivalent; `pnpm verify` runs only typecheck, lint and unit.
+The real restore script is `scripts/backup-restore-drill.mjs`. Historical
+implementation requirements below are preserved; current evidence and limits
+are in [RELEASE_BASELINE.md](../RELEASE_BASELINE.md).
+
 `AUDIT_MK42_ASCENSION.md` F-TEST-1..4, F-AG-13:
 
 - The only automated architecture-fitness check is `boundary-sweep.test.ts`

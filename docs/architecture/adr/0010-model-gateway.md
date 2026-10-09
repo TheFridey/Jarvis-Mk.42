@@ -5,6 +5,12 @@ Date: 2026-08-31
 Deciders: Principal Architect
 
 ## Context
+
+Implementation extension (ADR-0040, 2026-10-08): cognition uses the
+`ModelRequest` / `ModelResponse` contracts below; cloud RTC speech uses shared
+`SpeechRequest` / `SpeechResponse` contracts on authenticated `/v1/speech`.
+Provider egress confinement is unchanged. See
+[ADR-0040](0040-runtime-and-speech-boundary.md).
 L1: JARVIS is not an LLM. L3: providers are interchangeable. L26: cloud
 intelligence is a resource, not identity. L30: security is architectural. If
 any component can call a provider SDK directly, we get provider coupling,

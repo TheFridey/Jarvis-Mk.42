@@ -1,5 +1,11 @@
 # MK.43 Implementation Notes — The Nervous System
 
+> Historical MK.43 snapshot. Counts, diagnostics routes, self-skipping tests,
+> telemetry and restoration suggestions below are not the current release
+> baseline. [ADR-0040](adr/0040-runtime-and-speech-boundary.md) supersedes the
+> NestJS restoration plan; [RELEASE_BASELINE.md](RELEASE_BASELINE.md) describes
+> the current runtime and mandatory gates.
+
 Records where the **as-built** MK.43 Kernel differs from the GENESIS
 constitution, why, and the path back to the ratified design. Subordinate to
 [`PRINCIPLES.md`](PRINCIPLES.md); nothing here weakens a law.

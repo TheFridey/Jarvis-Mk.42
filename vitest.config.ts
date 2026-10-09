@@ -38,6 +38,10 @@ export default defineConfig({
     testTimeout: isIntegration ? 120_000 : 15_000,
     // vitest 2.x: name the logical project so `--project unit` / `--project integration` select it
     name: isIntegration ? 'integration' : 'unit',
-    ...(isIntegration ? { fileParallelism: integrationWorkers > 1, maxWorkers: integrationWorkers, minWorkers: 1 } : {}),
+    // Bound Windows worker startup/compilation pressure just as integration is
+    // bounded above. CPU-count defaults can starve deadline-sensitive workers
+    // on developer workstations; assertions and per-operation deadlines stay fixed.
+    ...(isIntegration ? { fileParallelism: integrationWorkers > 1, maxWorkers: integrationWorkers, minWorkers: 1 }
+      : process.platform === 'win32' ? { maxWorkers: 2, minWorkers: 1 } : {}),
   },
 });

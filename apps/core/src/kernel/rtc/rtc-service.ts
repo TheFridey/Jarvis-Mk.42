@@ -14,7 +14,6 @@ export class RtcService {
   async health(){try{await this.client.listRooms();return {status:process.platform==='win32'&&!this.speechFailed?'HEALTHY' as const:'DEGRADED' as const,placeholder:false};}catch{return{status:'OFFLINE' as const,placeholder:false};}}
   private async token(room:string,identity:string,agent=false){const token=new AccessToken(this.d.apiKey,this.d.apiSecret,{identity,ttl:15});token.addGrant({roomJoin:true,room,canPublish:true,canSubscribe:agent,canPublishData:false,canPublishSources:[TrackSource.MICROPHONE]});if(!agent)token.addGrant({canSubscribe:true});return token.toJwt();}
   async join(binding:RtcBinding,speechMode:'local'|'cloud'='local'){
-    if(speechMode==='cloud'&&!process.env.OPENAI_API_KEY)throw new Error('Cloud speech is not configured');
     if(!await this.d.validate(binding))throw new Error('RTC binding unavailable');
     if(this.joining.has(binding.sessionId))throw new Error('RTC join already pending');
     if(this.rooms.has(binding.sessionId))await this.leave(binding);

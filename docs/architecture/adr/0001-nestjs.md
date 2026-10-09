@@ -1,6 +1,6 @@
 # ADR-0001: NestJS for the Kernel
 
-Status: Accepted
+Status: Superseded by [ADR-0040](0040-runtime-and-speech-boundary.md)
 Date: 2026-08-31
 Deciders: Principal Architect
 

@@ -22,12 +22,12 @@ communicates only through contracts and events.
 | Voice perception | `apps/voice` | workstation | Realtime audio loop; must not be blocked by Kernel GC; crash-isolated; raw audio stays local (L25, L27). |
 | Vision perception | `apps/vision` | workstation | Realtime video loop; GPU/native deps; raw frames stay local (L27). |
 | Desktop shell | `apps/desktop` | workstation | Tauri; user-session lifecycle; pure Experience Plane. |
-| Diagnostics | `apps/diagnostics` | workstation | Operator read-only UI over Kernel APIs; independent deploy so it can inspect a sick Kernel. |
+| Diagnostics HTTP | `apps/core/src/kernel/diagnostics` | local server | Implemented inside Core. `apps/diagnostics` is a README-only future operator UI seam, not an independent deployable. |
 | Relay (future) | `apps/relay` | edge | Empty in MK.42. Documented seam for node-facing edge termination when nodes live off-LAN. |
 | Adapter Host | `apps/adapter-host` | local server + workstation | Agency worker runtime (HEPHAESTUS, ADR-0025): one zero-environment Node worker per capability invocation; per-invocation credential handle; typed IPC to the Executor only; no store credential. Isolates a compromised adapter to one scoped, short-lived invocation. |
 | JARVIS LABS | `apps/labs` | local server | Isolated experimentation sandbox (HEPHAESTUS, ADR-0029): ephemeral Docker, synthetic credentials, mock APIs, throwaway PG + scratch FS, default-deny network, resource limits, guaranteed teardown. FORGE builds/tests capability drafts here; no route to real Kernel infra; promotion is human-reviewed and operator-gated. |
 
-Everything else is an **in-process Nest module** inside `apps/core`, or a
+Everything else is an **in-process TypeScript service** inside `apps/core`, or a
 **library** in `packages/*`, or an **out-of-process adapter/worker** spawned on
 demand (capability adapters, agents).
 
@@ -56,7 +56,8 @@ clients of the same SDK + Node Protocol.
 
 ## 3. Kernel module boundaries
 
-The 16 components (`KERNEL_CONSTITUTION.md` §1) are Nest modules. Rules:
+The 16 components (`KERNEL_CONSTITUTION.md` §1) are manually injected services
+(ADR-0040), not Nest modules. Rules:
 
 - A module exposes a **service interface** (TypeScript `interface` in
   `packages/contracts` or a local `*.port.ts`) and an **event contribution**
@@ -105,6 +106,12 @@ observation types.
 ## 5. Cognition Plane boundary
 
 ### 5.1 Model Gateway (`apps/gateway`)
+
+Cloud RTC speech also enters here through the authenticated `/v1/speech`
+endpoint and shared `SpeechRequest` / `SpeechResponse` contracts (ADR-0040).
+Provider credentials, wire formats and PCM conversion stay in the speech
+provider adapter. Explicit session audio consent is separate from permission
+to route cognition to a cloud model.
 
 **Does.** Accepts provider-neutral `ModelRequest`; selects a model using
 Model Registry metadata + routing policy (capability match, cost, latency,

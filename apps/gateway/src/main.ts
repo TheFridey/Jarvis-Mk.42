@@ -8,6 +8,7 @@ import { OpenAICompatibleAdapter } from './adapters/openai-compatible.ts';
 import { ModelGateway } from './gateway.ts'; import { ModelRegistry } from './registry.ts';
 import { extractTraceContext, startTelemetry, withSpan, withTraceContext } from '@jarvis/telemetry';
 import { assertGatewayIngressIsSecure, DEVELOPMENT_GATEWAY_TOKEN } from './runtime-config.ts';
+import { speechHttp } from './speech-http.ts';
 const registry=new ModelRegistry(),now=new Date().toISOString();
 function register(id:string,provider:string,adapter:Parameters<ModelRegistry['register']>[1],locality:ModelRegistration['locality'],cost=0){registry.register({id,provider,displayName:id,tasks:['reason','plan','summarize','extract','classify','code'],capabilities:['json','streaming','long_context'],contextLimitUnits:128_000,costPerContextUnit:cost,costPerOutputUnit:cost*3,locality,enabled:true,registeredAt:now},adapter)}
 if(process.env.OPENAI_API_KEY)register(process.env.JARVIS_OPENAI_MODEL??'gpt-6.1-sol','openai',new OpenAIAdapter(process.env.OPENAI_API_KEY),'cloud-ok',.00001);
@@ -24,6 +25,7 @@ assertGatewayIngressIsSecure(host,token);
 startTelemetry({serviceName:'jarvis-model-gateway',serviceVersion:'0.50.0',environment:process.env.NODE_ENV,otlpEndpoint:process.env.JARVIS_OTLP_ENDPOINT,disabled:process.env.JARVIS_TELEMETRY_DISABLED==='true'});
 async function body(req:IncomingMessage){const chunks:Buffer[]=[];let size=0;for await(const c of req){const b=Buffer.from(c);size+=b.length;if(size>2_000_000)throw new Error('request too large');chunks.push(b)}return JSON.parse(Buffer.concat(chunks).toString('utf8'))as ModelRequest}
 const server=createServer(async(req,res)=>{
+ if(req.method==='POST'&&req.url==='/v1/speech'){await speechHttp(req,res,token);return}
  if(req.url==='/health'){res.setHeader('content-type','application/json');res.end(JSON.stringify({models:await gateway.health()}));return}
  if(req.method!=='POST'||!['/v1/generate','/v1/stream','/v1/route'].includes(req.url??'')){res.statusCode=404;res.end(JSON.stringify({error:'not_found'}));return}
  if(req.headers.authorization!==`Bearer ${token}`){res.statusCode=401;res.end(JSON.stringify({error:'unauthorized'}));return}
