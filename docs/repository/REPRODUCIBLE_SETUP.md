@@ -43,8 +43,10 @@ references. `pnpm why -r <package>` shows peer/transitive ownership.
 ## Assets and clean checkout
 
 `pnpm assets:check` verifies SHA-256 pins for 109 retained runtime assets,
-native icons, shader files and static visual references. All 48 curated static
-screenshots keep their existing paths. They are manual review references;
+native icons, shader files and static visual references. Vendor MediaPipe and
+native icon assets have explicit Git byte preservation so Windows `autocrlf`
+cannot alter pinned JS/JSON/XML files during a clean checkout. All 48 curated
+static screenshots keep their existing paths. They are manual review references;
 there is currently **no checked-in automated pixel-comparison runner**.
 The two historical visual check reports remain tracked and do not certify a
 new commit's appearance.
