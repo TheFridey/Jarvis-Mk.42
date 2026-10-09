@@ -57,3 +57,4 @@ export * from './knowledge-agent.ts';
 export * from './business.ts';
 export * from './companion.ts';
 export * from './speech.ts';
+export * from './domain.ts';

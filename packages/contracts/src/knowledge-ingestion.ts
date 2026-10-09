@@ -25,7 +25,7 @@ export type IngestionKind =
 
 /** One item offered to the mediator. The mediator — not the caller — decides
  *  routing, provenance stamping, privacy class, and entity resolution. */
-export interface IngestionItem {
+export interface IngestionItem extends DomainRequest {
   kind: IngestionKind;
   correlationId: CorrelationId;
   principalId: PrincipalId;
@@ -99,3 +99,4 @@ export interface IngestionResult {
 export interface KnowledgeIngestion {
   ingest(item: IngestionItem): Promise<IngestionResult>;
 }
+import type { DomainRequest } from './domain.ts';

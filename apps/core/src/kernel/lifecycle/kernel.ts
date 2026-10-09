@@ -1,3 +1,6 @@
+import { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope, domainFor, domainReadSql } from '../domains/scope.ts';
+import type { DomainInstance } from '@jarvis/contracts';
 import { TelemetryReview } from '../sentinel/telemetry-review.ts';
 import { RtcService } from '../rtc/rtc-service.ts';
 import { SystemTelemetry } from '../telemetry/system-telemetry.ts';
@@ -108,6 +111,7 @@ export interface KernelOverrides {
   noScheduler?: boolean;
   capabilities?: Array<{ manifest: Capability; moduleUrl: string; artifactHash?: string }>;
   bootstrapGrants?: Grant[];
+  domainDefinitions?: Array<Pick<DomainInstance,'id'|'principalId'|'kind'|'name'>>;
   credentialMaterial?: Record<string, string>;
   adapterHost?: AdapterHost;
   integrationRequest?: typeof fetch;
@@ -117,6 +121,7 @@ export interface KernelOverrides {
 }
 
 export interface KernelHandle {
+  readonly domains: DomainService;
   readonly config: KernelConfig;
   readonly clock: Clock;
   readonly ids: IdGen;
@@ -259,7 +264,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     events,
     clock,
     ids,
-    principalId: () => currentPrincipalId,
+    principalId: () => currentDomainScope()?.principalId ?? currentPrincipalId,
   });
 
   const notifications = new NotificationManager({
@@ -280,27 +285,28 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   // Single writer = Knowledge Ingestion mediator (ADR-0020). The Context Compiler
   // is the only fuser of the two.
   const embeddings = new DeterministicEmbeddingClient();
+  const domains = new DomainService(pg.sql);
   const atlasStore = new AtlasStore(pg.sql);
   const mnemosyneStore = new MnemosyneStore(pg.sql);
   const entityResolver = new EntityResolver({ store: atlasStore, embeddings, clock, ids });
-  const atlasQuery = new AtlasQueryService({ store: atlasStore, clock, principalId: () => currentPrincipalId });
-  const memoryRecall = new MemoryRecallService({
+  const atlasQuery = new AtlasQueryService({ domains, store: atlasStore, clock, principalId: () => currentDomainScope()?.principalId ?? currentPrincipalId });
+  const memoryRecall = new MemoryRecallService({ domains,
     sql: pg.sql, store: mnemosyneStore, embeddings, clock, weights: config.knowledge.recallWeights,
   });
-  const knowledgeIngestion = new KnowledgeIngestion({
+  const knowledgeIngestion = new KnowledgeIngestion({ domains,
     atlas: atlasStore, mnemosyne: mnemosyneStore, resolver: entityResolver, embeddings, events, clock, ids,
-    principalId: () => currentPrincipalId,
+    principalId: () => currentDomainScope()?.principalId ?? currentPrincipalId,
   });
   const activeObjectiveIds = async (): Promise<string[]> => {
     const rows = await pg.sql<{ objective_id: string }[]>`
-      select objective_id from projections.objectives where status in ('active','blocked','paused')`;
+      select objective_id from projections.objectives where ${domainReadSql(pg.sql, 'objectives')} and status in ('active','blocked','paused')`;
     return rows.map((r) => r.objective_id);
   };
-  const knowledgeFacade = new KnowledgeAgentFacade({
+  const knowledgeFacade = new KnowledgeAgentFacade({ domains,
     atlasQuery, atlasStore, recall: memoryRecall, ingestion: knowledgeIngestion, resolver: entityResolver, clock,
   });
   const observationPromoter = new ObservationPromoter({ store: atlasStore, clock }, config.knowledge.promotion);
-  const candidateSource = new CandidateSource({ eventStore, ingestion: knowledgeIngestion, sql: pg.sql });
+  const candidateSource = new CandidateSource({ domains,eventStore, ingestion: knowledgeIngestion, sql: pg.sql });
   const consolidator = new Consolidator(
     { store: mnemosyneStore, sink: knowledgeIngestion, embeddings, clock, ids, activeObjectiveIds },
     config.knowledge.consolidation,
@@ -309,7 +315,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
 
   const perception=new PerceptionContext(()=>clock.epochMs());
   const research = new WebResearch({ submit: (request) => cognition.submit(request), allowedAgent: (agentId) => AGENTS[agentId]?.proposalScope.capabilities.includes('capabilities.web') ?? false, now: () => clock.epochMs(), onError: () => { void structuredLog({ component: 'cognition.web-research', node: config.nodeId, event: 'continuation.failed', severity: 'ERROR' }); } });
-  const context = new ContextCompiler({
+  const context = new ContextCompiler({ domains,objectives:()=>objectives.list(currentDomainScope()!.principalId),
     perception:(ref,principalId)=>perception.items(ref,principalId),
     evidence:(ref,principalId)=>research.items(ref,principalId),
     state,
@@ -322,7 +328,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       atlasQuery,
       atlasStore,
       recall: memoryRecall,
-      principalId: () => currentPrincipalId,
+      principalId: () => currentDomainScope()?.principalId ?? currentPrincipalId,
       activeObjectiveIds,
     },
   });
@@ -365,16 +371,17 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   });
   let business: BusinessIntelligence;
   let companion:CompanionService;
-  const agency = new AgencyIngress(executor,async(proposal,result,principalId)=>{await perception.capture(proposal,result,principalId,config.nodeId);await business.capture(proposal,result,principalId);research.capture(proposal,result,principalId);});
+  const agency = new AgencyIngress(executor,async(proposal,result,principalId)=>{await perception.capture(proposal,result,principalId,config.nodeId);await business.capture(proposal,result,principalId);research.capture(proposal,result,principalId);},domains);
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
   const capabilityContracts = (ov.capabilities ?? []).map((entry) => capabilityContract(entry.manifest));
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso(), new AgentJobStore(pg.sql, events), () => capabilityContracts);
-  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research, businessAnswer:async(principalId,text,correlationId)=>{
-    if(/^(?:jarvis[, ]+)?check production[.!]?$/i.test(text.trim())){
+  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ domains, sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research, businessAnswer:async(principalId,text,correlationId)=>{
+    if(currentDomainScope()?.kind==='SYSTEM'&&/^(?:jarvis[, ]+)?check production[.!]?$/i.test(text.trim())){
       const telemetry=await systemTelemetry.snapshot();
       const findings=telemetryMonitor.evaluate(telemetry);
       return {modelId:'sentinel:measured-telemetry',agentId:'agents.sentinel' as const,answer:`Sentinel read-only telemetry as of ${telemetry.generatedAt}. Scope: configured host/exporters, not proof of a remote production deployment.\n${JSON.stringify({readings:telemetry.readings,findings,unknowns:Object.entries(telemetry.readings).filter(([,r])=>r.status!=='available').map(([key])=>key)})}\n${findings.length?'Findings are based on the observed samples above.':'No threshold finding in available samples. Unavailable sources are not certified healthy.'}`};
     }
+    if(!business.ownsDomain(principalId))return undefined;
     const answer=await business.answer(principalId,text,correlationId);if(answer===undefined||!(/\b(morning|situation)\b/i.test(text)))return answer;
     const compiled=await context.compile({principalId,correlationId,intent:text,intentClass:'morning_brief',budgetUnits:4000,maxPrivacyClass:'RESTRICTED'});
     const view=await state.view();const owner=(view.slices.active_principal?.value as {principalId?:string}|undefined)?.principalId;
@@ -384,10 +391,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     const knowledge=compiled.items.filter(item=>['atlas','mnemosyne'].includes(item.sourceType??''));
     return answer+`\n\nJARVIS is ${report.overall.toLowerCase()} as of ${report.generatedAt}.`+(report.criticalIssues.length?` Critical issues: ${report.criticalIssues.join(', ')}.`:'')+(owner===principalId?` ${objective?'An objective is active.':'No active objective.'} ${alertIds?.length??0} active alerts.`:'')+(knowledge.length?' Recorded knowledge is available for a more specific follow-up.':' No relevant recorded knowledge was retrieved.');
   }, deliverContinuation:(response,parentJobId)=>companion.deliverContinuation(response,parentJobId),localModelAvailable: () => config.modelLocalRouteAvailable });
-  const objectives = new ObjectiveEngine({ sql: pg.sql, events, clock, ids });
-  business = new BusinessIntelligence({agency,knowledge:knowledgeIngestion,objectives,context,nodeId:config.nodeId,now:()=>clock.nowIso(),id:()=>ids.ulid(),specialist:input=>cognition.submit({requestId:ids.ulid(),principalId:input.principalId,agentId:input.agentId,objectiveId:input.objectiveId,workflowRef:'nova:'+input.objectiveId,correlationId:input.correlationId,input:input.instruction,task:'summarize',locality:'local',cloudAllowed:false,analysisOnly:true})});
-  const voice = new VoiceGateway({ sessions, mode, cognition, events, principalId: config.bootstrapPrincipalId,referent:(utterance,principalId,nodeId)=>perception.resolve(utterance,principalId,nodeId) });
-  const vision = new VisionGateway({ events, presence, principalId: config.bootstrapPrincipalId,observe:command=>perception.observe(command) });
+  const objectives = new ObjectiveEngine({ domains, sql: pg.sql, events, clock, ids });
+  business = new BusinessIntelligence({domains,domainId:principalId=>ov.bootstrapGrants?.find(g=>g.principalId===principalId&&g.scopes.some(scope=>scope.startsWith('scalesmiths.')))?.domainId,agency,knowledge:knowledgeIngestion,objectives,context,nodeId:config.nodeId,now:()=>clock.nowIso(),id:()=>ids.ulid(),specialist:input=>cognition.submit({requestId:ids.ulid(),principalId:input.principalId,agentId:input.agentId,objectiveId:input.objectiveId,workflowRef:'nova:'+input.objectiveId,correlationId:input.correlationId,input:input.instruction,task:'summarize',locality:'local',cloudAllowed:false,analysisOnly:true})});
+  const voice = new VoiceGateway({ domains, sessions, mode, cognition, events, principalId: config.bootstrapPrincipalId,referent:(utterance,principalId,nodeId)=>perception.resolve(utterance,principalId,nodeId) });
+  const vision = new VisionGateway({ domains, events, presence, principalId: config.bootstrapPrincipalId,observe:command=>perception.observe(command) });
   const sentinel = new SentinelDetectorService();
 
   const outboxRelay = new OutboxRelay(
@@ -466,7 +473,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, business, ids, nodeId: config.nodeId, systemTelemetry, voiceAudio:()=>voice.audioSnapshot(),observeScene:(principalId,nodeId,observation)=>perception.observeScene(principalId,nodeId,observation),referentFocus:()=>perception.focus(config.bootstrapPrincipalId) });
   perception.setSceneProvider(async principalId=>{const snapshot=await desktop.snapshot();if(snapshot.principalId!==principalId)throw new Error('scene principal mismatch');return snapshot.scene;});
   const experience = new ExperienceProjection({ streamId:ids.ulid(), build:()=>desktop.snapshot(), reportError:()=>{void structuredLog({component:'experience-projector',node:config.nodeId,event:'projection.failed',severity:'ERROR'});} });
-  companion=new CompanionService({sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene'])});
+  companion=new CompanionService({domains,sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene'])});
   desktop.setCompanion(companion);
   const offExperienceEvents = events.onAppended((event)=>experience.invalidate(channelsForEvent(event.type)));
   const nodeIngress=new NodeIngress({sql:pg.sql,tx,nodes,store:nodeStore,credentials,accessStore,sessions,events,clock,id:()=>ids.ulid(),status:async()=>({mode:await mode.current(),overallHealth:health.report().overall}),health:async(nodeId,online)=>{health.register({subsystem:`node:${nodeId}`,critical:false});await health.heartbeat({subsystem:`node:${nodeId}`,status:online?'HEALTHY':'OFFLINE',message:online?'authenticated heartbeat':'node unavailable'});},reportError:()=>{void structuredLog({component:'node-ingress',node:config.nodeId,event:'transport.failed',severity:'ERROR'});}});
@@ -478,7 +485,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     const apiKey=process.env.JARVIS_LIVEKIT_API_KEY,apiSecret=process.env.JARVIS_LIVEKIT_API_SECRET;if(!apiKey||!apiSecret)throw new Error('RTC requires local LiveKit credentials');
     rtc=new RtcService({url:process.env.JARVIS_LIVEKIT_URL??'ws://127.0.0.1:7880',apiKey,apiSecret,voice,invalidate:()=>experience.invalidate(['system','telemetry','scene']),validate:async binding=>{const auth=await credentials.authenticate('Bearer '+binding.accessToken,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:['voice.write']});const node=auth?await nodeStore.get(binding.nodeId):null;return Boolean(auth&&auth.principalId===binding.principalId&&node&&!['revoked','isolated','disconnected'].includes(node.status)&&['kernel-local','owned-secure'].includes(node.trustTier)&&!['mobile','display'].includes(node.nodeType));}});
   }
-  const diagnosticsHttp = new DiagnosticsHttp({ rtc,diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
+  const diagnosticsHttp = new DiagnosticsHttp({ domains,objectives, rtc,diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
   notifications.setSurfaceProvider(async()=>[...await diagnosticsHttp.deliverySurfaces(),...await nodeIngress.deliverySurfaces()]);
   notifications.registerSink(record=>diagnosticsHttp.deliverNotification(record));
 
@@ -500,6 +507,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     const harvest = await candidateSource.harvest(knowledgeHarvestCursor);
     knowledgeHarvestCursor = harvest.cursor;
     let promotedFacts = 0;
+    for(const domain of (await domains.list(currentPrincipalId)).filter(domain=>domain.kind!=='SYSTEM'&&domain.status==='active'))await domains.run(currentPrincipalId,{domainId:domain.id},ids.ulid(),async()=>{
     for (const p of await observationPromoter.evaluate([currentPrincipalId])) {
       const corr = `promotion-${p.observationIds[0] ?? 'x'}`;
       const result = await knowledgeIngestion.ingest({
@@ -518,11 +526,17 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         }).catch(() => undefined);
       }
     }
+    });
     const observationsExpired = await atlasStore.expireObservations(clock.nowIso());
     return { candidates: harvest.created, promotedFacts, observationsExpired };
   }
 
   async function runMemoryConsolidate(): Promise<{ runId: string; proposalsEmitted: number; insightsSurfaced: number }> {
+    if(!currentDomainScope()){
+      const results=[];
+      for(const domain of (await domains.list(currentPrincipalId)).filter(domain=>domain.kind!=='SYSTEM'&&domain.status==='active'))results.push(await domains.run(currentPrincipalId,{domainId:domain.id},ids.ulid(),()=>runMemoryConsolidate()));
+      return {runId:results[0]?.runId??ids.ulid(),proposalsEmitted:results.reduce((n,r)=>n+r.proposalsEmitted,0),insightsSurfaced:results.reduce((n,r)=>n+r.insightsSurfaced,0)};
+    }
     const result = await consolidator.run(currentPrincipalId);
     const insightsSurfaced = await knowledgeIngestion.surfaceInsights(currentPrincipalId, [], config.knowledge.consolidation.insightSignificanceFloor);
     await events.emit({
@@ -632,6 +646,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     scheduler,
     notifications,
     context,
+    domains,
     capabilityRegistry,
     permissions,
     approvals,
@@ -700,7 +715,10 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
         registeredCapabilities.push(entry.manifest.id);
         await events.emit({ type: EventNames.CapabilityRegistered, retentionClass: 'AUDIT', privacyClass: 'INTERNAL', subject: { kind: 'capability', id: entry.manifest.id }, actor: { kind: 'system', id: 'capability-registry' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: 'system', payload: { capabilityId: entry.manifest.id, version: entry.manifest.version, registeredBy: 'kernel-bootstrap', artifactHash: entry.artifactHash ?? 'local-module' } });
       }
-      for (const grant of ov.bootstrapGrants ?? []) { if(grant.id.startsWith('integrations:')&&await grantStore.get(grant.id))continue; await permissions.issueGrant(grant); await events.emit({ type: EventNames.GrantIssued, retentionClass: 'SECURITY', privacyClass: 'SENSITIVE', subject: { kind: 'grant', id: grant.id }, actor: { kind: 'system', id: 'permission-manager' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: grant.principalId, payload: { grantId: grant.id, principalId: grant.principalId, version: grant.version, scopes: grant.scopes } }); }
+      await domains.ensure(config.bootstrapPrincipalId);
+      for(const definition of ov.domainDefinitions??[]){try{const existing=await domains.get(definition.principalId,definition.id);if(existing.kind!==definition.kind)throw new Error('configured domain kind mismatch');}catch(error){if(error instanceof Error&&error.message==='domain access denied')await domains.create(definition.principalId,definition);else throw error;}}
+      for(const provider of Object.keys(ov.credentialMaterial??{})){const grant=ov.bootstrapGrants?.find(g=>g.principalId===config.bootstrapPrincipalId&&g.scopes.some(scope=>scope.startsWith(provider+'.')));await pg.sql`insert into agency.secret_references(principal_id,provider,domain_id,secret_ref) values(${config.bootstrapPrincipalId},${provider},${grant?.domainId??domainFor(config.bootstrapPrincipalId)},${'operator-config:'+provider}) on conflict(principal_id,provider) do update set domain_id=excluded.domain_id,secret_ref=excluded.secret_ref`;}
+      for (const grant of ov.bootstrapGrants ?? []) { const existingGrant=await grantStore.get(grant.id);if(grant.id.startsWith('integrations:')&&existingGrant&&existingGrant.domainId===(grant.domainId??domainFor(grant.principalId)))continue; const issuedGrant=await permissions.issueGrant({...grant,version:Math.max(grant.version,(existingGrant?.version??0)+1)}); await events.emit({ type: EventNames.GrantIssued, retentionClass: 'SECURITY', privacyClass: 'SENSITIVE', subject: { kind: 'grant', id: grant.id }, actor: { kind: 'system', id: 'permission-manager' }, correlationId: ids.ulid(), causationId: 'kernel-start', principalId: grant.principalId, payload: { grantId: grant.id, principalId: grant.principalId, version: issuedGrant.version, scopes: issuedGrant.scopes } }); }
 
       // 2. State
       await state.init();

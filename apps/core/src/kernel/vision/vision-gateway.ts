@@ -1,3 +1,4 @@
+import type { DomainService } from '../domains/domain-service.ts';
 import { EventNames, type VisionDiagnostics, type VisionEventCommand, type VisionEventResponse, type VisionSignal } from '@jarvis/contracts';
 import type { AirTouchFrame } from '@jarvis/scene';
 import type { EventManager } from '../event-fabric/event-manager.ts';
@@ -8,7 +9,7 @@ export class VisionGateway {
   private readonly listeners = new Set<(frame: AirTouchFrame) => void>();
   private latestDiagnostics?: VisionDiagnostics;
   private latestSignal?: VisionSignal;
-  constructor(private readonly deps: { events: EventManager; presence: PresenceManager; principalId: string;observe?:(command:VisionEventCommand)=>void }) {}
+  constructor(private readonly deps: { domains?:DomainService; events: EventManager; presence: PresenceManager; principalId: string;observe?:(command:VisionEventCommand)=>void }) {}
   // RC-audit: the static-token `authenticate`/`authorises` pair was removed.
   // All ingress authentication and principal/node binding is enforced by
   // DiagnosticsHttp via SessionCredentialManager; keeping a second, weaker
@@ -18,6 +19,9 @@ export class VisionGateway {
   signal() { return this.latestSignal; }
   async handle(command: VisionEventCommand): Promise<VisionEventResponse> {
     this.validate(command);
+    return this.deps.domains?this.deps.domains.run(command.principalId,{nodeId:command.nodeId},command.commandId,()=>this.handleInner(command)):this.handleInner(command);
+  }
+  private async handleInner(command:VisionEventCommand):Promise<VisionEventResponse>{
     this.deps.observe?.(command);
     this.latestSignal = structuredClone(command.signal);
     if (command.signal.type === 'air-touch') { const signal = command.signal; this.latestDiagnostics = signal.diagnostics; this.listeners.forEach((listener) => listener(signal.frame)); await this.emit(EventNames.VisionAirTouch, command, 'TRANSIENT', signal.frame, signal.frame.confidence); }

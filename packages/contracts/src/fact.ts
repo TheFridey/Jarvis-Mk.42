@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * Fact — a structured belief in ATLAS (docs/architecture/ATLAS_MODEL.md).
  *
@@ -30,7 +31,9 @@ import type { PrivacyClass } from './event.ts';
  *  the rest live in `facts_archive` (ATLAS_MODEL.md §Belief revision). */
 export type FactStatus = 'active' | 'superseded' | 'retracted' | 'expired';
 
-export interface Fact {
+export interface Fact extends DomainOwned {
+  /** Present on persisted facts; optional for pre-domain wire compatibility. */
+  principalId?:PrincipalId;
   id: Ulid;
 
   /** The entity this fact is about. */
@@ -87,7 +90,7 @@ export type EvidenceKind =
   | 'inference_run'
   | 'episode';
 
-export interface Evidence {
+export interface Evidence extends DomainOwned {
   id: Ulid;
   /** What this evidence supports. */
   subjectKind: 'fact' | 'relationship' | 'causal_hypothesis';
@@ -108,7 +111,7 @@ export type ConflictStatus =
   | 'resolved_by_principal'
   | 'accepted_ambiguity';
 
-export interface FactConflict {
+export interface FactConflict extends DomainOwned {
   id: Ulid;
   subjectEntityId: Ulid;
   attribute: string;

@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import type { AuthorityToken, CredentialHandle } from '@jarvis/contracts';
 import type { CredentialMaterialStore } from './material-store.ts';
 import type { Sql } from '@jarvis/persistence';
+import { currentDomainScope } from '../domains/scope.ts';
 export interface InternalCredential { principalId?: string; readOnly: boolean; signRequest: (body: string) => string; use?: <T>(fn: (secret: string) => T) => T; }
 interface Entry { handle: CredentialHandle; credential: InternalCredential; used: boolean; }
 export class CredentialUnavailableError extends Error {}
@@ -14,10 +15,22 @@ export class CredentialBroker {
     if (!authority || Date.parse(authority.expiresAt) <= Date.parse(this.now()) || authority.invocationId !== input.invocationId || authority.mode !== input.mode) throw new Error('invalid, expired, or mismatched authority token');
     const provider = input.capabilityId.replace('capabilities.', '');
     const kind = input.kind ?? 'wrapped-static';
+    let domainId=authority.domainId;
+    if(this.sql){
+      const [invocation]=await this.sql<{domain_id:string;kind:string;purpose:string|null}[]>`select i.domain_id,d.kind,b.purpose from agency.invocations i join identity.domains d on d.id=i.domain_id and d.principal_id=i.principal_id left join identity.domain_bindings b on b.principal_id=i.principal_id and b.correlation_id=i.correlation_id where i.invocation_id=${input.invocationId} and i.principal_id=${authority.principalId} and d.status='active'`;
+      if(!invocation||(domainId&&domainId!==invocation.domain_id))throw new CredentialUnavailableError('credential invocation domain mismatch');
+      domainId=invocation.domain_id;
+      if(currentDomainScope()&&currentDomainScope()?.domainId!==domainId)throw new CredentialUnavailableError('credential request domain mismatch');
+      if(kind!=='none'){
+        const [reference]=await this.sql<{domain_id:string}[]>`select domain_id from agency.secret_references where principal_id=${authority.principalId} and provider=${provider}`;
+        if(!reference||reference.domain_id!==domainId)throw new CredentialUnavailableError('credential domain is not authorised for this invocation');
+        if(invocation.kind==='FINANCIAL'&&invocation.purpose!=='financial')throw new CredentialUnavailableError('financial credentials are unavailable to research or coding');
+      }
+    }
     const material = kind === 'none' ? '' : await this.material.get(provider);
     if (kind !== 'none' && !material) throw new CredentialUnavailableError(`credential material unavailable for ${provider}`);
     const secret = material ?? '';
-    const handle: CredentialHandle = { handleId: randomUUID(), invocationId: input.invocationId, scope: { capabilityId: input.capabilityId, action: input.action, resourceRef: input.resourceRef },
+    const handle: CredentialHandle = { domainId, handleId: randomUUID(), invocationId: input.invocationId, scope: { capabilityId: input.capabilityId, action: input.action, resourceRef: input.resourceRef },
       mode: input.mode, expiresAt: new Date(Date.parse(this.now()) + (input.ttlMs ?? 120_000)).toISOString(), kind };
     const credential: InternalCredential = { principalId: authority.principalId, readOnly: input.mode === 'dry-run', signRequest: (body) => createHmac('sha256', secret).update(`${handle.handleId}:${body}`).digest('hex'),
       ...(handle.kind === 'wrapped-static' ? { use: <T>(fn: (value: string) => T) => fn(secret) } : {}) };
@@ -25,6 +38,6 @@ export class CredentialBroker {
     if (this.sql) await this.sql`insert into agency.credential_grants (id, invocation_id, handle_id, scope, mode, kind, minted_at, expires_at) values (${randomUUID()}, ${handle.invocationId}, ${handle.handleId}, ${JSON.stringify(handle.scope)}, ${handle.mode}, ${handle.kind}, ${this.now()}, ${handle.expiresAt})`;
     return handle;
   }
-  redeem(handleId: string, invocationId?: string): InternalCredential { const entry = this.handles.get(handleId); if (!entry || entry.used || Date.parse(entry.handle.expiresAt) <= Date.parse(this.now()) || (invocationId && entry.handle.invocationId !== invocationId)) throw new Error('invalid or expired credential handle'); entry.used = true; return entry.credential; }
+  redeem(handleId: string, invocationId?: string): InternalCredential { const entry = this.handles.get(handleId); if (!entry || (currentDomainScope()&&(entry.handle.domainId!==currentDomainScope()!.domainId||entry.credential.principalId!==currentDomainScope()!.principalId)) || entry.used || Date.parse(entry.handle.expiresAt) <= Date.parse(this.now()) || (invocationId && entry.handle.invocationId !== invocationId)) throw new Error('invalid or expired credential handle'); entry.used = true; return entry.credential; }
   async revoke(handleId: string) { this.handles.delete(handleId); if (this.sql) await this.sql`update agency.credential_grants set revoked_at=${this.now()} where handle_id=${handleId} and revoked_at is null`; }
 }

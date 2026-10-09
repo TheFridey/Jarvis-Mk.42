@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * MNEMOSYNE durable memory classes (docs/architecture/MNEMOSYNE_MODEL.md).
  *
@@ -19,7 +20,7 @@ import type { Provenance } from './provenance.ts';
 export type MemoryClass = 'episodic' | 'semantic' | 'procedural' | 'preference';
 
 /** A bounded slice of experience. Narrative, lossy, decays. Never authoritative. */
-export interface Episode {
+export interface Episode extends DomainOwned {
   id: Ulid;
   kind: string; // "conversation" | "action_outcome" | "event_sequence" | "consolidation" | ...
   title: string;
@@ -61,7 +62,7 @@ export interface Episode {
 }
 
 /** A durable learned concept or knowledge statement. */
-export interface SemanticMemory {
+export interface SemanticMemory extends DomainOwned {
   id: Ulid;
   statement: string;
   confidence: Confidence;
@@ -84,7 +85,7 @@ export interface ProcedureStep {
 }
 
 /** A repeatable process, e.g. "Deploy ScaleSmiths". */
-export interface Procedure {
+export interface Procedure extends DomainOwned {
   id: Ulid;
   name: string;
   steps: ProcedureStep[];
@@ -100,7 +101,7 @@ export interface Procedure {
  * A non-sensitive interaction preference. `privacyClass` is capped at INTERNAL
  * by the MNEMOSYNE service — sensitive personal facts belong in ATLAS, not here.
  */
-export interface Preference {
+export interface Preference extends DomainOwned {
   id: Ulid;
   key: string; // "notification.style" | "editor" | "verbosity" | ...
   value: unknown;

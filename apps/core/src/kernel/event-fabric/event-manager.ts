@@ -110,6 +110,7 @@ export class EventManager {
       causationId: input.causationId,
       correlationId: input.correlationId,
       principalId: input.principalId,
+      domainId: input.principalId==='system' ? domainFor('system') : currentDomainScope()?.principalId===input.principalId ? domainFor(input.principalId) : undefined,
       privacyClass: input.privacyClass,
       payload: input.payload,
       ...(input.traceId ?? currentTraceId() ? { traceId: input.traceId ?? currentTraceId() } : {}),
@@ -203,3 +204,4 @@ export class EventManager {
   /** Call only after the caller-owned transaction has committed successfully. */
   notifyCommitted(event: Event): void { this.notifyAppended(event); }
 }
+import { currentDomainScope, domainFor } from '../domains/scope.ts';

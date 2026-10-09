@@ -3,7 +3,7 @@ import type { Sql } from '@jarvis/persistence';
 import type { EventManager } from '../event-fabric/event-manager.ts';
 
 export interface AgentJobRow {
-  job_id: string; agent_id: string; principal_id: string; correlation_id: string;
+  job_id: string; agent_id: string; principal_id: string; correlation_id: string; domain_id?:string;
   state: string; attempt: number; request_hash: string; lease_owner: string | null;
   inference_started: boolean; result: unknown;
   error_code: string | null;

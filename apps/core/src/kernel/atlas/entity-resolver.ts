@@ -77,7 +77,7 @@ export class EntityResolver {
     // 4. embedding similarity
     const { vector } = await this.deps.embeddings.embed(name);
     const near = await store.nearestEntities(input.principalId, vector, SIMILARITY_THRESHOLD, 3);
-    if (!/^(scalesmiths|calendar|gmail):/.test(raw) && near.length > 0 && near[0]) {
+    if (!/^[a-z][a-z0-9_-]*:/i.test(raw) && near.length > 0 && near[0]) {
       const hit = near[0];
       for (const k of aliasKeys) await store.addAlias(hit.entity.id, k, input.source ?? 'resolver');
       return { entityId: hit.entity.id, created: false, method: 'embedding', similarity: hit.similarity };

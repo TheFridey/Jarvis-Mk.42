@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * Objective — a persistent goal JARVIS pursues across sessions and restarts
  * (L2). Owned solely by the Objective Engine, which is the single writer of
@@ -35,7 +36,7 @@ export interface SuccessCriterion {
   met: boolean;
 }
 
-export interface Objective {
+export interface Objective extends DomainOwned {
   id: Ulid;
   principalId: PrincipalId;
   parentObjectiveId?: Ulid;

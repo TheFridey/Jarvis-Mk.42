@@ -1,3 +1,4 @@
+import type { DomainOwned, DomainRequest } from './domain.ts';
 /**
  * Context Compiler contracts (deterministic scaffold - COGNITION_MODEL.md sec 4).
  *
@@ -47,7 +48,7 @@ export type ContextSourceType =
   | 'capability_registry'
   | 'derivation';
 
-export interface ContextItem {
+export interface ContextItem extends DomainOwned {
   id: Ulid;
   kind: ContextItemKind;
   /** Short human-readable rendering of the item. */
@@ -69,7 +70,7 @@ export interface ContextItem {
   confidence?: number;
 }
 
-export interface ContextRequest {
+export interface ContextRequest extends DomainRequest {
   /** Public web tasks exclude ambient state, events and knowledge entirely. */
   scope?: 'public-web';
   principalId?:string;
@@ -88,7 +89,7 @@ export interface ContextRequest {
   maxPrivacyClass: PrivacyClass;
 }
 
-export interface ContextPackage {
+export interface ContextPackage extends DomainOwned {
   id: Ulid;
   /** Monotonic per compiler instance; lets consumers detect newer packages. */
   version: number;

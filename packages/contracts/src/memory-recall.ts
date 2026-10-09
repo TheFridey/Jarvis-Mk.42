@@ -1,3 +1,4 @@
+import type { DomainRequest } from './domain.ts';
 /**
  * MNEMOSYNE read service interface (docs/architecture/MNEMOSYNE_MODEL.md §Retrieval,
  * docs/architecture/adr/0023-memory-retrieval-ranking.md).
@@ -30,7 +31,7 @@ export interface RecallWeights {
   sourceAuthority: number;
 }
 
-export interface RecallQuery {
+export interface RecallQuery extends DomainRequest {
   /** Natural-language or structured query text; the service embeds it. */
   text: string;
   /** ATLAS entity ids in scope, for the entity-overlap factor. */

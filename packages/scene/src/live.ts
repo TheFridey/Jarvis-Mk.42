@@ -1,3 +1,4 @@
+import type { DomainRequest } from '@jarvis/contracts';
 import type {
   ApprovalRequest,
   CapabilityInvocationProposal,
@@ -156,7 +157,7 @@ export interface DesktopProposalResponse {
   stateVersion: number;
   result: { invocationId: string; outcome: InvocationOutcome; output?: unknown; verifyReport?: unknown; finishedAt: string };
 }
-export interface DesktopCognitionCommand { commandId: string; expectedStateVersion: number; input: string; preferredModels?:string[]; conversationId?:string; agentId?: AgentId; task?: 'reason'|'plan'|'summarize'|'extract'|'classify'|'code'; locality?: 'local'|'prefer-local'|'any'|'cloud-ok'; }
+export interface DesktopCognitionCommand extends DomainRequest { commandId: string; expectedStateVersion: number; input: string; preferredModels?:string[]; conversationId?:string; agentId?: AgentId; task?: 'reason'|'plan'|'summarize'|'extract'|'classify'|'code'; locality?: 'local'|'prefer-local'|'any'|'cloud-ok'; }
 export interface DesktopAgentCancelCommand { commandId: string; expectedStateVersion: number; jobId: string; }
 export interface DesktopAgentCancelResponse { jobId: string; cancelled: boolean; }
 

@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * ATLAS entities and relationships (docs/architecture/ATLAS_MODEL.md).
  *
@@ -45,7 +46,7 @@ export type EntityType =
   | 'app_window'
   | (string & {}); // open set
 
-export interface Entity {
+export interface Entity extends DomainOwned {
   id: Ulid;
   type: EntityType;
   canonicalName: string;
@@ -91,7 +92,8 @@ export type RelationshipType =
   | 'currently_in'
   | (string & {});
 
-export interface EntityRelationship {
+export interface EntityRelationship extends DomainOwned {
+  principalId?:PrincipalId;
   id: Ulid;
   fromEntityId: Ulid;
   toEntityId: Ulid;

@@ -75,6 +75,8 @@ Trivial | Low | Moderate | High | Severe — and what a reversal would cost.
 | [0039](0039-atlas-mnemosyne-implemented.md) | ATLAS + MNEMOSYNE implemented — Kernel-internal runtime locations, boundaries preserved, deterministic embeddings, privacy-aware routing | Accepted | Moderate |
 | [0040](0040-runtime-and-speech-boundary.md) | Implemented Node runtime and cloud speech Gateway boundary | Accepted | Low |
 
+| [0041](0041-kernel-domain-ownership.md) | Kernel domain ownership and explicit context fusion | Implemented | High |
+
 ## ASCENSION (Stage A) audit
 
 ADR-0031–0038 are the required corrections from the hostile architecture audit

@@ -44,6 +44,7 @@ export const events = eventsSchema.table('events', {
   causationId: text('causation_id').notNull(),
   correlationId: text('correlation_id').notNull(),
   principalId: text('principal_id').notNull(),
+  domainId:text('domain_id').notNull(),
   privacyClass: text('privacy_class').notNull(),
   traceId: text('trace_id'),
   location: jsonb('location'),
@@ -170,3 +171,10 @@ export const jobRuns = schedulerSchema.table('job_runs', {
   finishedAt: timestamp('finished_at', { withTimezone: true }),
   error: text('error'),
 });
+
+// Kernel-owned domain ledger; constraints and triggers live in 0018_domains.sql.
+export const domains=identitySchema.table('domains',{id:text('id').primaryKey(),principalId:text('principal_id').notNull(),kind:text('kind').notNull(),name:text('name').notNull(),status:text('status').notNull().default('active'),version:integer('version').notNull().default(1),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()});
+export const domainSelections=identitySchema.table('domain_selections',{principalId:text('principal_id').notNull(),nodeId:text('node_id').notNull(),domainId:text('domain_id').notNull(),version:integer('version').notNull()});
+export const domainBindings=identitySchema.table('domain_bindings',{principalId:text('principal_id').notNull(),correlationId:text('correlation_id').notNull(),domainId:text('domain_id').notNull(),purpose:text('purpose').notNull()});
+export const domainFusionGrants=identitySchema.table('domain_fusion_grants',{id:text('id').primaryKey(),principalId:text('principal_id').notNull(),sourceDomainId:text('source_domain_id').notNull(),targetDomainId:text('target_domain_id').notNull(),purpose:text('purpose').notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),revokedAt:timestamp('revoked_at',{withTimezone:true})});
+export const secretReferences=pgSchema('agency').table('secret_references',{principalId:text('principal_id').notNull(),provider:text('provider').notNull(),domainId:text('domain_id').notNull(),secretRef:text('secret_ref').notNull()});

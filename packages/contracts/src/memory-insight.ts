@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * MNEMOSYNE morning-insight mechanism (MNEMOSYNE_MODEL.md §Morning Insight).
  *
@@ -13,7 +14,7 @@ import type { Provenance } from './provenance.ts';
 
 export type InsightSignificance = number; // 0..1
 
-export interface Insight {
+export interface Insight extends DomainOwned {
   id: Ulid;
   statement: string;
   significance: InsightSignificance;

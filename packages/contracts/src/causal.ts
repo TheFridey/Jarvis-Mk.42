@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * ATLAS causal-hypothesis foundations (docs/architecture/adr/0021-causal-hypothesis-model.md).
  *
@@ -21,7 +22,7 @@ export type RelationKind =
   | 'hypothesised_cause' // A may have caused B; evidence cited; not proven
   | 'established_cause'; // A caused B; assertion or rule-supported derivation only
 
-export interface CausalHypothesis {
+export interface CausalHypothesis extends DomainOwned {
   id: Ulid;
 
   /** entity id | fact id | event id. */

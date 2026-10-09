@@ -1,19 +1,20 @@
+import { currentDomainScope, domainFor } from '../domains/scope.ts';
 import {randomUUID} from 'node:crypto';
 import type {ContextItemKind,ScreenContext,VisionEventCommand,CapabilityInvocationProposal,InvocationResult} from '@jarvis/contracts';
 import {resolveReference,type SemanticScene,type ResolvedReference} from '@jarvis/scene';
-export interface PerceptionItem {kind:ContextItemKind;content:unknown;privacyClass:'SENSITIVE'|'RESTRICTED';observedAt:string;confidence?:number}
+export interface PerceptionItem {domainId?:string;kind:ContextItemKind;content:unknown;privacyClass:'SENSITIVE'|'RESTRICTED';observedAt:string;confidence?:number}
 export interface ReferentFocus {objectId:string;confidence:number;observedAt:string;expiresAt:string;bounds?:{x:number;y:number;width:number;height:number};monitorId?:string}
-interface SelectedObservation {id:string;principalId:string;nodeId:string;region:{x:number;y:number;width:number;height:number};text:string;imageRef:string;observedAt:string;imageSha256:string}
+interface SelectedObservation {domainId:string;id:string;principalId:string;nodeId:string;region:{x:number;y:number;width:number;height:number};text:string;imageRef:string;observedAt:string;imageSha256:string}
 /** Process-local, bounded derived context. Pixels are never accepted here. */
 export class PerceptionContext {
  private screens=new Map<string,ScreenContext>();private points=new Map<string,Extract<VisionEventCommand['signal'],{type:'air-touch'}>['frame']>();
- private selections=new Map<string,SelectedObservation>();private resolutions=new Map<string,{principalId:string;nodeId:string;items:PerceptionItem[];at:number;focus:ReferentFocus}>();
+ private selections=new Map<string,SelectedObservation>();private resolutions=new Map<string,{domainId:string;principalId:string;nodeId:string;items:PerceptionItem[];at:number;focus:ReferentFocus}>();
  private sceneProvider?:(principalId:string)=>Promise<SemanticScene>;
  private sceneObservations=new Map<string,{focusedId?:string;selectedIds:string[];observedAt:string}>();
  constructor(private now=()=>Date.now()){}
  setSceneProvider(provider:(principalId:string)=>Promise<SemanticScene>){this.sceneProvider=provider;}
  observeScene(principalId:string,nodeId:string,observation:{focusedId?:string;selectedIds:string[]}){const key=this.key(principalId,nodeId);if(this.sceneObservations.size>=64&&!this.sceneObservations.has(key))this.sceneObservations.delete(this.sceneObservations.keys().next().value!);this.sceneObservations.set(key,{...structuredClone(observation),observedAt:new Date(this.now()).toISOString()});}
- private key(principalId:string,nodeId:string){return JSON.stringify([principalId,nodeId]);}
+ private key(principalId:string,nodeId:string){return JSON.stringify([principalId,nodeId,domainFor(principalId)]);}
  observe(command:VisionEventCommand){
   const key=this.key(command.principalId,command.nodeId),signal=command.signal;
   if(this.screens.size>=64&&!this.screens.has(key))this.screens.delete(this.screens.keys().next().value!);
@@ -29,7 +30,7 @@ export class PerceptionContext {
   const region={x:Number(input.x),y:Number(input.y),width:Number(input.width),height:Number(input.height)};
   if(!Object.values(region).every(Number.isFinite)||region.width<=0||region.height<=0)return;
   const key=this.key(principalId,nodeId);if(this.selections.size>=64&&!this.selections.has(key))this.selections.delete(this.selections.keys().next().value!);
-  this.selections.set(key,{id:`screen:selection:${result.invocationId}`,principalId,nodeId,region,text:output.selectedText.slice(0,8000),imageRef:`local-object://capture/${result.invocationId}`,imageSha256:output.imageSha256,observedAt:new Date(this.now()).toISOString()});
+  this.selections.set(key,{domainId:domainFor(principalId),id:`screen:selection:${result.invocationId}`,principalId,nodeId,region,text:output.selectedText.slice(0,8000),imageRef:`local-object://capture/${result.invocationId}`,imageSha256:output.imageSha256,observedAt:new Date(this.now()).toISOString()});
  }
  private fresh(at:string,limit=3000){const age=this.now()-Date.parse(at);return Number.isFinite(age)&&age>=-250&&age<=limit;}
  async resolve(utterance:string,principalId:string,nodeId:string):Promise<{resolution:ResolvedReference;perceptionRef?:string;clarification?:string}>{
@@ -59,9 +60,9 @@ export class PerceptionContext {
   else if(target.startsWith('window:'))return{resolution,clarification:'I resolved the application, but I have not read its pixels. Select the error region and approve capture_region with local text extraction before analysis.'};
   const ref=randomUUID(),focus:ReferentFocus={objectId:target,confidence:resolution.confidence,observedAt:new Date(this.now()).toISOString(),expiresAt:new Date(this.now()+2500).toISOString(),...(object?{bounds:{...object.position,...object.size},monitorId:object.monitorId}:selected?{bounds:selected.region,monitorId:selectionMonitor?.id}:{} )};
   for(const[id,value]of this.resolutions)if(this.now()-value.at>15000)this.resolutions.delete(id);if(this.resolutions.size>=64)this.resolutions.delete(this.resolutions.keys().next().value!);
-  this.resolutions.set(ref,{principalId,nodeId,items,at:this.now(),focus});return{resolution,perceptionRef:ref};
+  this.resolutions.set(ref,{domainId:domainFor(principalId),principalId,nodeId,items:items.map(item=>({...item,domainId:domainFor(principalId)})),at:this.now(),focus});return{resolution,perceptionRef:ref};
  }
- items(ref:string,principalId:string){const value=this.resolutions.get(ref);if(!value||value.principalId!==principalId||this.now()-value.at>15000)throw new Error('perception context expired or not owned');return structuredClone(value.items);}
+ items(ref:string,principalId:string){const value=this.resolutions.get(ref);if(!value||value.principalId!==principalId||(currentDomainScope()&&value.domainId!==domainFor(principalId))||this.now()-value.at>15000)throw new Error('perception context expired or not owned');return structuredClone(value.items);}
  focus(principalId:string){const values=[...this.resolutions.values()].filter(v=>v.principalId===principalId&&Date.parse(v.focus.expiresAt)>this.now());const focus=values.at(-1)?.focus;return focus?structuredClone(focus):undefined;}
 }
 

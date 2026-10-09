@@ -13,6 +13,7 @@ import { EventNames } from '@jarvis/contracts';
 import type { EventStore } from '../event-fabric/event-store.ts';
 import type { Sql } from '@jarvis/persistence';
 import type { KnowledgeIngestion } from './knowledge-ingestion.ts';
+import type { DomainService } from '../domains/domain-service.ts';
 
 const ALLOW_TYPES = new Set<string>([
   EventNames.CognitionCompleted,
@@ -23,7 +24,7 @@ const ALLOW_TYPES = new Set<string>([
 
 export class CandidateSource {
   constructor(
-    private readonly deps: { eventStore: EventStore; ingestion: KnowledgeIngestion; sql: Sql },
+    private readonly deps: { domains?:DomainService;eventStore: EventStore; ingestion: KnowledgeIngestion; sql: Sql },
   ) {}
 
   /** Scan forward from `afterGlobalSeq`; return how many candidates were created
@@ -40,7 +41,7 @@ export class CandidateSource {
         const [dup] = await this.deps.sql<{ id: string }[]>`
           select id from mnemosyne.candidates where source_event_id = ${e.id} limit 1`;
         if (dup) continue;
-        const id = await this.deps.ingestion.recordEventCandidate(e);
+        const id = this.deps.domains ? await this.deps.domains.run(e.principalId,{...(await this.deps.domains.bound(e.principalId,e.correlationId)),domainId:e.domainId},e.correlationId,()=>this.deps.ingestion.recordEventCandidate(e)) : await this.deps.ingestion.recordEventCandidate(e);
         if (id) created++;
       }
       if (page.length < batch) break;

@@ -82,6 +82,7 @@ export const eventSchema = z.object({
   causationId: z.string().min(1),
   correlationId: z.string().min(1),
   principalId: z.string().min(1),
+  domainId: z.string().min(1).optional(),
   privacyClass: privacyClassSchema,
   traceId: z.string().optional(),
   location: z.object({ spaceId: z.string(), ref: z.string().optional() }).optional(),

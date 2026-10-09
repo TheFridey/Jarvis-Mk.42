@@ -1,3 +1,5 @@
+import type { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope, domainFor, domainReadSql } from '../domains/scope.ts';
 import { desktopRoute } from '../cognition/desktop-route.ts';
 import { isPublicWebRequest } from '../cognition/public-web-request.ts';
 import { createHash } from 'node:crypto';
@@ -6,7 +8,7 @@ import type { DesktopKernelSnapshot, DesktopCognitionCommand } from '@jarvis/sce
 import type { Sql } from '@jarvis/persistence';
 import { KeyedMutex } from '../../runtime/mutex.ts';
 
-interface TurnRow { turn_id:string;conversation_id:string;principal_id:string;source_node_id:string;input:string;command_hash:string;cognition_input:string|null;response:CognitionResponse|null;answer:string|null;status:CompanionTurn['status'];created_at:string; }
+interface TurnRow { domain_id:string; turn_id:string;conversation_id:string;principal_id:string;source_node_id:string;input:string;command_hash:string;cognition_input:string|null;response:CognitionResponse|null;answer:string|null;status:CompanionTurn['status'];created_at:string; }
 export function nextMeetingTime(p:DesktopKernelSnapshot):string|null{
   const reading=p.scalesmiths?.readings.meetings;if(reading?.status!=='available'||!Array.isArray(reading.value))return null;
   const now=Date.parse(p.generatedAt);const times=reading.value.flatMap((item:unknown)=>{if(!item||typeof item!=='object')return [];const meeting=item as {status?:string;start?:{dateTime?:string;date?:string}};if(meeting.status==='cancelled')return [];const time=meeting.start?.dateTime??meeting.start?.date;const at=typeof time==='string'?Date.parse(time):NaN;return Number.isFinite(at)&&at>=now?[at]:[];});return times.length?new Date(Math.min(...times)).toISOString():null;
@@ -26,7 +28,7 @@ export class CompanionService {
   private gate=new KeyedMutex();
   private snapshotPending?:Promise<DesktopKernelSnapshot>;
   private snapshot(){return this.snapshotPending??=this.d.snapshot().finally(()=>{this.snapshotPending=undefined;});}
-  constructor(private d:{sql:Sql;snapshot:()=>Promise<DesktopKernelSnapshot>;cognize:(r:CognitionRequest)=>Promise<CognitionResponse>;now:()=>string;id:()=>string;invalidate:()=>void}){}
+  constructor(private d:{domains?:DomainService;sql:Sql;snapshot:()=>Promise<DesktopKernelSnapshot>;cognize:(r:CognitionRequest)=>Promise<CognitionResponse>;now:()=>string;id:()=>string;invalidate:()=>void}){}
   async displays(principalId:string){const rows=await this.d.sql<{node_id:string}[]>`select node_id from nodes.registry where principal_id=${principalId} and node_type='display' and trust_tier in ('owned-mobile','owned-secure') and status='connected' order by node_id limit 16`;return rows.map(row=>({id:row.node_id}));}
   async picture(node:RegisteredNode):Promise<CompanionPicture>{
     const snapshot=await this.snapshot();const picture=companionPicture(snapshot,node);
@@ -44,34 +46,35 @@ export class CompanionService {
     return picture;
   }
   async turns(principalId:string):Promise<CompanionTurn[]>{
-    const rows=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where principal_id=${principalId} order by created_at desc,turn_id desc limit 20`;
+    const rows=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where ${domainReadSql(this.d.sql,'conversation_turns')} and principal_id=${principalId} and domain_id=${domainFor(principalId)} order by created_at desc,turn_id desc limit 20`;
     const selected:CompanionTurn[]=[];let bytes=0;
-    for(const r of rows){const turn:CompanionTurn={id:r.turn_id,conversationId:r.conversation_id,input:r.input.slice(0,2000),answer:r.answer?.slice(0,4000)??null,status:r.status,sourceNodeId:r.source_node_id,createdAt:new Date(r.created_at).toISOString()};const size=Buffer.byteLength(JSON.stringify(turn));if(bytes+size>20000)break;bytes+=size;selected.push(turn);}
+    for(const r of rows){const turn:CompanionTurn={id:r.turn_id,domainId:r.domain_id,conversationId:r.conversation_id,input:r.input.slice(0,2000),answer:r.answer?.slice(0,4000)??null,status:r.status,sourceNodeId:r.source_node_id,createdAt:new Date(r.created_at).toISOString()};const size=Buffer.byteLength(JSON.stringify(turn));if(bytes+size>20000)break;bytes+=size;selected.push(turn);}
     return selected.reverse();
   }
   async deliverContinuation(response:CognitionResponse,parentJobId:string):Promise<CognitionResponse>{
-    const [parent]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${parentJobId} and principal_id=${response.principalId}`;
+    const [parent]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where domain_id=${domainFor(response.principalId)} and turn_id=${parentJobId} and principal_id=${response.principalId}`;
     if(!parent)return response;
     const delivered={...response,conversationId:parent.conversation_id};
     const hash=createHash('sha256').update(JSON.stringify([response.requestId,parentJobId])).digest('hex');
-    await this.d.sql`insert into experience.conversation_turns(turn_id,conversation_id,principal_id,source_node_id,input,command_hash,answer,response,status,created_at,finished_at) values(${response.requestId},${parent.conversation_id},${response.principalId},${parent.source_node_id},${'Follow-up: '+parent.input},${hash},${response.answer??null},${JSON.stringify(delivered)},'completed',${response.createdAt},${response.result.finishedAt??this.d.now()}) on conflict(turn_id) do nothing`;
+    await this.d.sql`insert into experience.conversation_turns(turn_id,conversation_id,principal_id,source_node_id,input,command_hash,answer,response,status,created_at,finished_at,domain_id) values(${response.requestId},${parent.conversation_id},${response.principalId},${parent.source_node_id},${'Follow-up: '+parent.input},${hash},${response.answer??null},${JSON.stringify(delivered)},'completed',${response.createdAt},${response.result.finishedAt??this.d.now()},${parent.domain_id}) on conflict(turn_id) do nothing`;
     this.d.invalidate();return delivered;
   }
-  async converse(node:Pick<RegisteredNode,'nodeId'|'principalId'>,command:DesktopCognitionCommand,conversationId?:string,mobile=false){
+  async converse(node:Pick<RegisteredNode,'nodeId'|'principalId'>,command:DesktopCognitionCommand,conversationId?:string,mobile=false){if(!mobile)command={...command,...desktopRoute(command.input,command)};return this.d.domains?this.d.domains.run(node.principalId,{...command,nodeId:node.nodeId,domainPurpose:command.task==='code'?'coding':isPublicWebRequest(command.input)?'research':command.domainPurpose},mobile?'mobile:'+createHash('sha256').update(node.nodeId+'|'+command.commandId).digest('hex'):command.commandId,()=>this.converseInner(node,command,conversationId,mobile)):this.converseInner(node,command,conversationId,mobile);}
+  private async converseInner(node:Pick<RegisteredNode,'nodeId'|'principalId'>,command:DesktopCognitionCommand,conversationId?:string,mobile=false){
     if(!mobile)command={...command,...desktopRoute(command.input,command)};
     const turnId=mobile?'mobile:'+createHash('sha256').update(node.nodeId+'|'+command.commandId).digest('hex'):command.commandId;
-    const commandHash=createHash('sha256').update(JSON.stringify([command.input,mobile?'agents.oracle':command.agentId??'agents.oracle',mobile?'reason':command.task??'reason',mobile?'local':command.locality??'prefer-local',mobile, mobile?[]:command.preferredModels??[]])).digest('hex');
+    const commandHash=createHash('sha256').update(JSON.stringify([command.input,mobile?'agents.oracle':command.agentId??'agents.oracle',mobile?'reason':command.task??'reason',mobile?'local':command.locality??'prefer-local',mobile, mobile?[]:command.preferredModels??[],domainFor(node.principalId),currentDomainScope()?.purpose??'general',command.sourceDomainIds??[],command.fusionGrantIds??[]])).digest('hex');
     return this.gate.run(turnId,async()=>{
       const [old]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${turnId}`;
-      if(old&&(old.principal_id!==node.principalId||old.source_node_id!==node.nodeId||old.command_hash!==commandHash||(conversationId&&old.conversation_id!==conversationId)))throw new Error('conversation command conflict');
+      if(old&&(old.domain_id!==domainFor(node.principalId)||old.principal_id!==node.principalId||old.source_node_id!==node.nodeId||old.command_hash!==commandHash||(conversationId&&old.conversation_id!==conversationId)))throw new Error('conversation command conflict');
       if(!old){
         const picture=await this.snapshot();if(picture.principalId!==node.principalId||picture.stateVersion!==command.expectedStateVersion)throw new Error('state version conflict');
-        if(conversationId){const [owned]=await this.d.sql<{principal_id:string}[]>`select principal_id from experience.conversation_turns where conversation_id=${conversationId} limit 1`;if(!owned||owned.principal_id!==node.principalId)throw new Error('conversation not found');}
-        await this.d.sql`insert into experience.conversation_turns(turn_id,conversation_id,principal_id,source_node_id,input,command_hash,status,created_at) values(${turnId},${conversationId??this.d.id()},${node.principalId},${node.nodeId},${command.input},${commandHash},'running',${this.d.now()})`;
+        if(conversationId){const [owned]=await this.d.sql<{principal_id:string;domain_id:string}[]>`select principal_id,domain_id from experience.conversation_turns where conversation_id=${conversationId} limit 1`;if(!owned||owned.principal_id!==node.principalId||owned.domain_id!==domainFor(node.principalId))throw new Error('conversation not found');}
+        await this.d.sql`insert into experience.conversation_turns(turn_id,conversation_id,principal_id,source_node_id,input,command_hash,status,created_at,domain_id) values(${turnId},${conversationId??this.d.id()},${node.principalId},${node.nodeId},${command.input},${commandHash},'running',${this.d.now()},${domainFor(node.principalId)})`;
       }
       if(old?.status==='completed')return {turnId,conversationId:old.conversation_id,answer:old.answer,...(old.response?{result:old.response}:{})};
       const [turn]=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where turn_id=${turnId}`;
-      const history=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at desc limit 6`;
+      const history=await this.d.sql<TurnRow[]>`select * from experience.conversation_turns where domain_id=${domainFor(node.principalId)} and conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at desc limit 6`;
       // A recovered input may already contain private history from an older attempt.
       const publicWeb=!mobile&&(!turn!.cognition_input||turn!.cognition_input===command.input)&&isPublicWebRequest(command.input);
       const input=turn!.cognition_input??(history.length&&!publicWeb?JSON.stringify({conversation:history.reverse().map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
@@ -79,7 +82,7 @@ export class CompanionService {
       this.d.invalidate();
       try{
         // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        const response=await this.d.cognize({requestId:turnId,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
+        const response=await this.d.cognize({requestId:turnId,domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),locality:command.locality??'prefer-local',...((mobile||(conversationId&&!publicWeb))?{locality:'local',cloudAllowed:false}:{}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};

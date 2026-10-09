@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * Observation — a perception-produced record of something sensed.
  *
@@ -70,7 +71,7 @@ export interface ObservationRef {
  * corroborating rows and, above threshold, PROPOSES a fact — it never writes one
  * directly (ATLAS_MODEL.md §Observation layer).
  */
-export interface AtlasObservation {
+export interface AtlasObservation extends DomainOwned {
   id: Ulid;
 
   /** The perception signal event this indexes. May already be expired. */
