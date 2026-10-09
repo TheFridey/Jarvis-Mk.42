@@ -19,7 +19,7 @@ describe.skipIf(!dockerOk)('Kernel domain ownership and context boundaries',()=>
   const requests:ModelRequest[]=[];
   beforeAll(async()=>{
     ctx=await setupIt();
-    kernel=ctx.makeKernel({modelGateway:{async generate(req):Promise<ModelResponse>{requests.push(req);return {modelId:'domain-fixture-local',output:{proposals:[{proposalId:'answer-'+req.correlationId,kind:'answer',correlationId:req.correlationId,confidence:1,provenance:provenance(req.correlationId),text:'Domain-scoped fixture response',citations:[]}]},usage:{contextUnits:1,outputUnits:1,costEstimate:0,latencyMs:1},finishReason:'stop',provenance:provenance(req.correlationId)};}}});
+    kernel=ctx.makeKernel({noHttp:false,modelGateway:{async generate(req):Promise<ModelResponse>{requests.push(req);return {modelId:'domain-fixture-local',output:{proposals:[{proposalId:'answer-'+req.correlationId,kind:'answer',correlationId:req.correlationId,confidence:1,provenance:provenance(req.correlationId),text:'Domain-scoped fixture response',citations:[]}]},usage:{contextUnits:1,outputUnits:1,costEstimate:0,latencyMs:1},finishReason:'stop',provenance:provenance(req.correlationId)};}}});
     await kernel.start();
     await kernel.domains.create(principalId,{id:'business-scale',kind:'BUSINESS',name:'ScaleSmiths'});
     await kernel.domains.create(principalId,{id:'project-veterans',kind:'PROJECT',name:'VeteranFinder'});
@@ -93,7 +93,7 @@ describe.skipIf(!dockerOk)('Kernel domain ownership and context boundaries',()=>
     expect(JSON.stringify(requests.at(-1)?.input)).not.toContain('Private project discussion');
   });
   it('filters personal retrieval before business ranking and rejects guessed foreign resource IDs',async()=>{
-    await ctx.pg.sql`insert into mnemosyne.preferences(id,key,value,confidence,privacy_class,principal_id) values('personal-secret','personal.note','"private personal material"',1,'RESTRICTED',${principalId})`;
+    await ctx.pg.sql`insert into mnemosyne.semantic(id,statement,confidence,privacy_class,principal_id,provenance) values('personal-secret','private personal material',1,'RESTRICTED',${principalId},${JSON.stringify(provenance('personal-secret'))})`;
     const business=await kernel.memory.recall({principalId,domainId:'business-scale',text:'personal',k:20,floor:0});
     expect(JSON.stringify(business)).not.toContain('private personal material');
     await expect(kernel.memory.recall({principalId:'other',domainId:'business-scale',text:'personal',k:20,floor:0})).rejects.toThrow();
@@ -116,5 +116,21 @@ describe.skipIf(!dockerOk)('Kernel domain ownership and context boundaries',()=>
       if(purpose==='coding')await expect(mint()).rejects.toThrow('financial credentials');
       else{const handle=await mint();expect(handle.domainId).toBe('finance');expect(JSON.stringify(handle)).not.toContain('controlled-test-secret');await kernel.domains.run(principalId,{domainId:'project-veterans'},'wrong-handle-domain',async()=>{expect(()=>broker.redeem(handle.handleId,handle.invocationId)).toThrow();});expect(broker.redeem(handle.handleId,handle.invocationId).use!(value=>value)).toBe('controlled-test-secret');}
     });
+  });
+  it('admits domain management only through authenticated principal/node authority',async()=>{
+    const base=`http://${kernel.config.diagnosticsHost}:${kernel.diagnosticsPort}`;
+    expect((await fetch(base+'/domains')).status).toBe(401);
+    const exchange=await fetch(base+'/auth/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({credential:kernel.config.bootstrapCredential,nodeId:kernel.config.nodeId,scopes:['desktop.read','desktop.write'],surface:'desktop'})});
+    expect(exchange.status).toBe(201);
+    const issued=await exchange.json() as {accessToken:string;credential:{sessionId:string}};
+    const headers={authorization:`Bearer ${issued.accessToken}`,'content-type':'application/json','x-jarvis-node-id':kernel.config.nodeId,'x-jarvis-session-id':issued.credential.sessionId};
+    const current=await (await fetch(base+'/domains',{headers})).json() as {selection:{version:number};domains:Array<{principalId:string}>};
+    expect(current.domains.every(domain=>domain.principalId===principalId)).toBe(true);
+    expect((await fetch(base+'/domains',{method:'POST',headers,body:JSON.stringify({kind:'PROJECT',name:'Forged owner',principalId:'other'})})).status).toBe(400);
+    const created=await fetch(base+'/domains',{method:'POST',headers,body:JSON.stringify({kind:'PROJECT',name:'Unrelated API activity'})});
+    expect(created.status).toBe(201);const domain=await created.json() as {id:string;principalId:string};expect(domain.principalId).toBe(principalId);
+    expect((await fetch(base+'/domains/select',{method:'POST',headers,body:JSON.stringify({domainId:domain.id,expectedVersion:current.selection.version})})).status).toBe(200);
+    expect((await fetch(base+'/domains/select',{method:'POST',headers,body:JSON.stringify({domainId:domain.id,expectedVersion:current.selection.version})})).status).toBe(403);
+    expect((await fetch(base+'/domains',{headers:{...headers,'x-jarvis-node-id':'another-node'}})).status).toBe(401);
   });
 });
