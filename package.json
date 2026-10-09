@@ -10,6 +10,9 @@
   },
   "type": "module",
   "scripts": {
+    "setup:check": "node scripts/check-setup.mjs",
+    "assets:check": "node scripts/check-preserved-assets.mjs",
+    "deps:audit": "node scripts/audit-dependencies.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit && node scripts/lint.mjs",
     "test": "vitest run",
