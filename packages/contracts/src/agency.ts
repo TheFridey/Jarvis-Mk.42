@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 import type { CorrelationId, PrincipalId, Timestamp, Ulid } from './common.ts';
 import type { EventActor } from './event.ts';
 import type { RiskClass } from './capability.ts';
@@ -38,7 +39,7 @@ export const LEGAL_INVOCATION_TRANSITIONS: Record<InvocationState, InvocationSta
   EXPIRED: [], UNVERIFIED: [], CANCELLED: [], SUCCEEDED: [],
 };
 
-export interface InvocationLifecycle {
+export interface InvocationLifecycle extends DomainOwned {
   invocationId: Ulid;
   proposalId?: string;
   capabilityId: string;
@@ -75,7 +76,7 @@ export interface InvocationLifecycle {
   history: Array<{ state: InvocationState; at: Timestamp; eventId: Ulid }>;
 }
 
-export interface CredentialHandle {
+export interface CredentialHandle extends DomainOwned {
   handleId: string;
   invocationId: Ulid;
   scope: { capabilityId: string; action: string; resourceRef: string };

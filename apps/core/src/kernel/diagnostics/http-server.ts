@@ -29,8 +29,13 @@ import type { BusinessIntelligence } from '../integrations/intelligence.ts';
 import type { CompanionService } from '../experience/companion-service.ts';
 import type { DeliverySurface } from '../notification/surface-routing.ts';
 import type { RtcService } from '../rtc/rtc-service.ts';
+import type { DomainService } from '../domains/domain-service.ts';
+import type { ObjectiveEngine } from '../objective/objective-engine.ts';
+import { DomainAccessError, DomainKinds } from '@jarvis/contracts';
 
 export interface DiagnosticsHttpDeps {
+  domains?:DomainService;
+  objectives?:ObjectiveEngine;
   rtc?:RtcService;
   surfaceConnected?:()=>void;
   companion?:CompanionService;
@@ -141,10 +146,25 @@ export class DiagnosticsHttp {
         if (method !== 'GET') return send(405, { error: 'method not allowed' });
         return send(200, await this.deps.state.view());
       }
+      if(path==='/domains'||path.startsWith('/domains/')){
+        const auth=await this.authorise(req,[method==='GET'?'desktop.read':'desktop.write'],method==='GET'?undefined:'strong');
+        if(!auth)return send(401,{error:'unauthorised'});
+        const node=await this.deps.nodeStore.get(auth.nodeId);
+        if(!node||node.principalId!==auth.principalId||!['owned-secure','kernel-local'].includes(node.trustTier)||['mobile','display'].includes(node.nodeType))return send(403,{error:'trusted personal workstation required'});
+        const domains=this.deps.domains;if(!domains)return send(503,{error:'domains unavailable'});
+        if(path==='/domains'&&method==='GET')return send(200,{domains:await domains.list(auth.principalId),selection:await domains.selected(auth.principalId,auth.nodeId)});
+        if(path==='/domains'&&method==='POST'){const input=z.object({kind:z.enum(DomainKinds),name:z.string().min(1).max(200)}).strict().parse(await this.body<unknown>(req));return send(201,await domains.create(auth.principalId,input));}
+        if(path==='/domains/select'&&method==='POST'){const input=z.object({domainId:z.string().min(1).max(200),expectedVersion:z.number().int().nonnegative()}).strict().parse(await this.body<unknown>(req));return send(200,await domains.switch(auth.principalId,auth.nodeId,input.domainId,input.expectedVersion));}
+        if(path==='/domains/fusion'&&method==='POST'){const input=z.object({sourceDomainId:z.string().min(1).max(200),targetDomainId:z.string().min(1).max(200),purpose:z.enum(['general','research','coding','financial','system']),expiresAt:z.string().datetime()}).strict().parse(await this.body<unknown>(req));return send(201,{id:await domains.fusionGrant(auth.principalId,input)});}
+        if(path==='/domains/fusion/revoke'&&method==='POST'){const input=z.object({id:z.string().min(1).max(200)}).strict().parse(await this.body<unknown>(req));await domains.revokeFusionGrant(auth.principalId,input.id);return send(200,{revoked:true});}
+        if(path==='/domains/objectives'&&method==='GET'){if(!this.deps.objectives)return send(503,{error:'objectives unavailable'});return send(200,await domains.run(auth.principalId,{nodeId:auth.nodeId},this.deps.ids.ulid(),()=>this.deps.objectives!.list(auth.principalId)));}
+        if(path==='/domains/objectives'&&method==='POST'){if(!this.deps.objectives)return send(503,{error:'objectives unavailable'});const input=z.object({statement:z.string().min(1).max(4000),domainId:z.string().min(1).max(200).optional(),domainSelectionVersion:z.number().int().nonnegative().optional()}).strict().parse(await this.body<unknown>(req));const correlationId=this.deps.ids.ulid();return send(201,await domains.run(auth.principalId,{...input,nodeId:auth.nodeId},correlationId,()=>this.deps.objectives!.create({principalId:auth.principalId,statement:input.statement,origin:'principal',correlationId,provenance:{method:'assertion',producedBy:auth.principalId,producedOn:auth.nodeId,producedAt:new Date().toISOString(),correlationId,derivedFromUntrusted:false}})));}
+        return send(405,{error:'method not allowed'});
+      }
       if (path.startsWith('/desktop/')) {
         const scope=path==='/desktop/snapshot'||path==='/desktop/nova/picture'||path==='/desktop/conversations'?'desktop.read':'desktop.write';const auth=await this.authorise(req,[scope],path==='/desktop/approvals'?'strong':undefined);if(!auth) return send(401, { error: 'unauthorised' });
         if(path==='/desktop/wall'&&method==='POST'){const input=z.object({displayNodeId:z.string().min(3).max(128),objectId:z.string().min(1).max(200),expectedSceneVersion:z.number().int().nonnegative()}).strict().parse(await this.body<unknown>(req));if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,await this.deps.companion.present({principalId:auth.principalId},input));}
-        if(path==='/desktop/conversations'&&method==='GET'){if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,await this.deps.companion.turns(auth.principalId));}
+        if(path==='/desktop/conversations'&&method==='GET'){if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,this.deps.domains?await this.deps.domains.run(auth.principalId,{nodeId:auth.nodeId},this.deps.ids.ulid(),()=>this.deps.companion!.turns(auth.principalId)):await this.deps.companion.turns(auth.principalId));}
         if(path==='/desktop/displays'&&method==='GET'){if(!this.deps.companion)return send(503,{error:'companion unavailable'});return send(200,await this.deps.companion.displays(auth.principalId));}
         if(path==='/desktop/perception'&&method==='POST'){const parsed=z.object({focusedId:z.string().min(1).max(200).optional(),selectedIds:z.array(z.string().min(1).max(200)).max(32)}).strict().safeParse(await this.body<unknown>(req));if(!parsed.success)return send(400,{error:'invalid scene observation'});await this.deps.desktop.observeSelection(auth.principalId,auth.nodeId,parsed.data);return send(200,{accepted:true});}
           if (path === '/desktop/snapshot' && method === 'GET') {const picture=await this.deps.desktop.snapshot();return picture.principalId===auth.principalId?send(200,picture):send(403,{error:'principal mismatch'});}
@@ -186,6 +206,7 @@ export class DiagnosticsHttp {
       if (method !== 'GET') return send(405, { error: 'method not allowed' });
       return send(404, { error: 'not found', routes: ['/healthz', '/diagnostics', '/state', '/desktop/snapshot', '/desktop/proposals', '/desktop/approvals'] });
     } catch (err) {
+      if (err instanceof DomainAccessError) return send(403,{error:err.code});
       if (err instanceof AgentJobAccessError) return send(403, { error:err.code });
       if (err instanceof ModelGatewayError) {
         const unavailable=['NO_ROUTE','UNAVAILABLE','TIMEOUT','RATE_LIMITED','AUTHENTICATION','PROVIDER_ERROR'].includes(err.code);

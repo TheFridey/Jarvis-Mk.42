@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * The Event envelope - the atom of the system (L4).
  *
@@ -64,7 +65,7 @@ export interface EventLocation {
  * `type` grammar: `jarvis.<plane>.<domain>.<name>` - lower-case, dot-delimited,
  * stable. A rename is a new type, never an in-place change.
  */
-export interface Event<TPayload = unknown> {
+export interface Event<TPayload = unknown> extends DomainOwned {
   id: Ulid;
   type: string;
   schemaVersion: number;

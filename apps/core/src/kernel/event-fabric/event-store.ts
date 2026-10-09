@@ -32,6 +32,7 @@ interface Row {
   causation_id: string;
   correlation_id: string;
   principal_id: string;
+  domain_id: string;
   privacy_class: string;
   trace_id: string | null;
   location: unknown;
@@ -62,6 +63,7 @@ function rowToEvent(r: Row): StoredEvent {
     causationId: r.causation_id,
     correlationId: r.correlation_id,
     principalId: r.principal_id,
+    domainId: r.domain_id,
     privacyClass: r.privacy_class as Event['privacyClass'],
     ...(r.trace_id ? { traceId: r.trace_id } : {}),
     ...(r.location ? { location: r.location as Event['location'] } : {}),
@@ -91,7 +93,7 @@ export class EventStore {
           source_node, source_component, subject_kind, subject_id,
           actor_kind, actor_id, actor_on_behalf_of, provenance,
           causation_id, correlation_id, principal_id, privacy_class,
-          trace_id, location, confidence, evidence, expires_at, payload, meta
+          trace_id, location, confidence, evidence, expires_at, payload, meta, domain_id
         ) values (
           ${e.id}, ${e.type}, ${e.schemaVersion}, ${e.retentionClass},
           ${e.time}, ${e.recordedAt},
@@ -105,7 +107,7 @@ export class EventStore {
           ${e.evidence ? JSON.stringify(e.evidence) : null},
           ${e.expiresAt ?? null},
           ${JSON.stringify(e.payload)},
-          ${e.meta ? JSON.stringify(e.meta) : null}
+          ${e.meta ? JSON.stringify(e.meta) : null}, ${e.domainId??null}
         )
         on conflict (retention_class, id) do nothing
         returning *

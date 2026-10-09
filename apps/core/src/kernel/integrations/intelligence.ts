@@ -1,3 +1,5 @@
+import type { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope, domainFor } from '../domains/scope.ts';
 import { createHash } from 'node:crypto';
 import type { AgentId, BusinessReading, CapabilityInvocationProposal, CognitionResponse, InvocationResult, KnowledgeIngestion, NovaBriefing, ScaleSmithsOperatingPicture } from '@jarvis/contracts';
 import type { AgencyIngress } from '../agency-ingress/agency-ingress.ts';
@@ -16,8 +18,12 @@ type Snapshot = { data: unknown; at: string; ref: string; failed?: boolean; sour
 type Checkpoint = { capability: string; action: string; input: unknown; value?: unknown; outcome?: string; ref?: string; fetchedAt?: string };
 export class BusinessIntelligence {
   private readonly snapshots = new Map<string, Map<string, Snapshot>>();
-  constructor(private readonly d: { agency: AgencyIngress; knowledge: KnowledgeIngestion; objectives: ObjectiveEngine; context: ContextCompiler; nodeId: string; now:()=>string; id:()=>string; specialist?:(input:{agentId:AgentId;principalId:string;objectiveId:string;instruction:string;correlationId:string})=>Promise<CognitionResponse> }) {}
-  async coordinate(principalId:string,objectiveId:string,agentId:AgentId,instruction:string,correlationId:string){
+  constructor(private readonly d: { domains?:DomainService;domainId?:(principalId:string)=>string|undefined;agency: AgencyIngress; knowledge: KnowledgeIngestion; objectives: ObjectiveEngine; context: ContextCompiler; nodeId: string; now:()=>string; id:()=>string; specialist?:(input:{agentId:AgentId;principalId:string;objectiveId:string;instruction:string;correlationId:string})=>Promise<CognitionResponse> }) {}
+  ownsDomain(principalId:string){return !this.d.domains||Boolean(this.d.domainId?.(principalId)&&currentDomainScope()?.domainId===this.d.domainId(principalId));}
+  private cacheKey(principalId:string,picture=false){return this.d.domains?principalId+'|'+(picture?this.d.domainId?.(principalId)??domainFor(principalId):domainFor(principalId)):principalId;}
+  private inIntegration<T>(principalId:string,correlationId:string,run:()=>Promise<T>){const domainId=this.d.domainId?.(principalId);if(!this.d.domains)return run();if(!domainId)throw new Error('business domain is not configured');return this.d.domains.run(principalId,{domainId},correlationId,run);}
+  async coordinate(principalId:string,objectiveId:string,agentId:AgentId,instruction:string,correlationId:string){return this.inIntegration(principalId,correlationId,()=>this.coordinateInner(principalId,objectiveId,agentId,instruction,correlationId));}
+  private async coordinateInner(principalId:string,objectiveId:string,agentId:AgentId,instruction:string,correlationId:string){
     if(!['agents.hermes','agents.scout','agents.prometheus','agents.atlas','agents.mnemosyne'].includes(agentId))throw new Error('Specialist not in Nova grouping');
     const objective=await this.d.objectives.get(objectiveId);if(!objective||objective.principalId!==principalId||!objective.desiredState.nova)throw new Error('Nova objective principal mismatch');
     if(!this.d.specialist)throw new Error('Specialist runtime unavailable');
@@ -47,18 +53,18 @@ export class BusinessIntelligence {
       const mail=data as {messages?:Array<Record<string,unknown>>;id?:string};
       for(const message of mail.messages??(mail.id?[mail as Record<string,unknown>]:[]))if(typeof message.id==='string')await this.d.knowledge.ingest({kind:'extracted_fact',principalId,correlationId:proposal.correlationId,privacyHint:'RESTRICTED',provenance:{method:'retrieval',producedBy:proposal.invocation.capabilityId,producedOn:this.d.nodeId,producedAt:at,correlationId:proposal.correlationId,derivedFromUntrusted:true,sourceRefs:[ref]},fact:{subjectRef:`gmail:contact-history:${message.id}`,entityType:'contact',attribute:'message_metadata',value:{threadId:message.threadId,internalDate:message.internalDate,headers:(message.payload as {headers?:unknown}|undefined)?.headers},epistemicStatus:'retrieved',confidence:1,validFrom:at,validTo:new Date(Date.parse(at)+15*60_000).toISOString(),evidenceRefs:[ref]}});
     }
-    const cache = this.snapshots.get(principalId) ?? new Map<string,Snapshot>();
+    const cache = this.snapshots.get(this.cacheKey(principalId)) ?? new Map<string,Snapshot>();
     // Individual/client-filtered pages never replace whole-business totals.
     const input = proposal.invocation.input as Record<string,unknown>;
     if(provider === 'scalesmiths' && (input.id || input.clientId || input.cursor || action.endsWith('.update')))return;
     if(provider === 'calendar' && (action !== 'events.read' || input.eventId || input.pageToken))return;
     if(provider === 'email')return; // mailbox contents never become global business context
     const observedAt=provider==='scalesmiths'?scalePageSchema.parse(data).records.reduce((old,row)=>Date.parse(row.observedAt)<Date.parse(old)?row.observedAt:old,at):at;
-    cache.set(`${provider}.${action}`,{data,at:observedAt,ref,sourceRefs:provider==='scalesmiths'?scalePageSchema.parse(data).records.map(row=>row.sourceRef):[]});this.snapshots.set(principalId,cache);
+    cache.set(`${provider}.${action}`,{data,at:observedAt,ref,sourceRefs:provider==='scalesmiths'?scalePageSchema.parse(data).records.map(row=>row.sourceRef):[]});this.snapshots.set(this.cacheKey(principalId),cache);
   }
   picture(principalId: string): ScaleSmithsOperatingPicture {
     const readings:Record<string,BusinessReading> = Object.fromEntries(fields.map(name=>[name,{status:'unavailable',sourceRefs:[],privacy:'RESTRICTED'}]));
-    const cache = this.snapshots.get(principalId);
+    const cache = this.snapshots.get(this.cacheKey(principalId,true));
     const assign = (name:string,snapshot:Snapshot,value:unknown,complete=true) => { readings[name]={status:snapshot.failed||Date.parse(this.d.now())-Date.parse(snapshot.at)>15*60_000?'stale':complete?'available':'partial',value,observedAt:snapshot.at,sourceRefs:[snapshot.ref,...(snapshot.sourceRefs??[])],privacy:'RESTRICTED'}; };
     const page = (area:string):[Snapshot,ScalePage]|undefined => {const s=cache?.get(`scalesmiths.${area}.read`);return s?[s,scalePageSchema.parse(s.data)]:undefined;};
     const list = (area:string,name:string,predicate:(v:Record<string,unknown>)=>boolean=()=>true) => {const p=page(area);if(p)assign(name,p[0],p[1].records.map(r=>({id:r.id,...r.attributes,sourceRef:r.sourceRef})).filter(predicate),p[1].complete);};
@@ -75,12 +81,13 @@ export class BusinessIntelligence {
     const meetings=cache?.get('calendar.events.read');if(meetings){const data=meetings.data as {items?:unknown[];nextPageToken?:string};assign('meetings',meetings,data.items??[],!data.nextPageToken);}
     return {principalId,generatedAt:this.d.now(),readings};
   }
-  async refresh(principalId:string,correlationId:string) {
+  async refresh(principalId:string,correlationId:string){return this.inIntegration(principalId,correlationId,()=>this.refreshInner(principalId,correlationId));}
+  private async refreshInner(principalId:string,correlationId:string) {
     const timeMin=this.d.now(),timeMax=new Date(Date.parse(timeMin)+24*60*60_000).toISOString();
     const reads=[...areas.map(area=>({capability:'scalesmiths',action:`${area}.read`,input:{limit:100}})),{capability:'calendar',action:'events.read',input:{calendarId:'primary',timeMin,timeMax}}];
     const unavailable:string[]=[];
     // Bound concurrent upstream load; each read still has its own Executor authority.
-    for(let i=0;i<reads.length;i+=3) {const group=reads.slice(i,i+3);const results=await Promise.allSettled(group.map(read=>this.read(principalId,correlationId,this.d.id(),read)));for(let j=0;j<results.length;j++){const result=results[j]!;if(result.status==='rejected'||result.value.outcome!=='verified'){const read=group[j]!;unavailable.push(read.action);const old=this.snapshots.get(principalId)?.get(`${read.capability}.${read.action}`);if(old)old.failed=true;}}}
+    for(let i=0;i<reads.length;i+=3) {const group=reads.slice(i,i+3);const results=await Promise.allSettled(group.map(read=>this.read(principalId,correlationId,this.d.id(),read)));for(let j=0;j<results.length;j++){const result=results[j]!;if(result.status==='rejected'||result.value.outcome!=='verified'){const read=group[j]!;unavailable.push(read.action);const old=this.snapshots.get(this.cacheKey(principalId))?.get(`${read.capability}.${read.action}`);if(old)old.failed=true;}}}
     return {picture:this.picture(principalId),unavailable};
   }
   async answer(principalId:string,text:string,correlationId:string):Promise<string|undefined> {
@@ -113,16 +120,19 @@ export class BusinessIntelligence {
     }
     return `ScaleSmiths situation as of ${picture.generatedAt}.${/gone cold/i.test(text)?' Cold means no recorded contact for at least 14 days; leads without a contact date cannot be classified.':''}\n`+names.map(name=>{const r=picture.readings[name]!;return `${name}: ${r.status}${r.value===undefined?'':` — ${JSON.stringify(r.value)}`} (${r.sourceRefs.join(', ')||'no source'}).`;}).join('\n');
   }
-  async clientHistory(principalId:string,clientId:string,correlationId:string){
+  async clientHistory(principalId:string,clientId:string,correlationId:string){return this.inIntegration(principalId,correlationId,()=>this.clientHistoryInner(principalId,clientId,correlationId));}
+  private async clientHistoryInner(principalId:string,clientId:string,correlationId:string){
     const latest=await this.read(principalId,correlationId,this.d.id(),{capability:'scalesmiths',action:'clients.read',input:{id:clientId,limit:100}});
     const memory=await this.d.context.compile({principalId,correlationId,intent:`What changed with scalesmiths:client:${clientId}? Compare recorded evidence with the current client snapshot; do not infer missing history.`,intentClass:'client_history',focusRefs:[`scalesmiths:client:${clientId}`],budgetUnits:8000,maxPrivacyClass:'RESTRICTED'});
     return {privacy:'RESTRICTED',latest:latest.outcome==='verified'?latest.output:undefined,outcome:latest.outcome,recordedHistory:memory.items,unknowns:memory.unknowns,sourceRefs:[`invocation:${latest.invocationId}`]};
   }
-  async createMeeting(principalId:string,input:{calendarId:string;eventId:string;clientId?:string;contactEmail?:string;threadId?:string},correlationId:string) {
+  async createMeeting(principalId:string,input:{calendarId:string;eventId:string;clientId?:string;contactEmail?:string;threadId?:string},correlationId:string){return this.inIntegration(principalId,correlationId,()=>this.createMeetingInner(principalId,input,correlationId));}
+  private async createMeetingInner(principalId:string,input:{calendarId:string;eventId:string;clientId?:string;contactEmail?:string;threadId?:string},correlationId:string) {
     const objective=await this.d.objectives.create({principalId,correlationId,origin:'principal',statement:`Prepare meeting ${input.eventId}`,constraints:['read-only','principal-bound','restricted briefing','missing sources remain unknown'],provenance:{method:'assertion',producedBy:principalId,producedOn:this.d.nodeId,producedAt:this.d.now(),correlationId,derivedFromUntrusted:false},desiredState:{nova:{schemaVersion:1,input,checkpoints:[],privacy:'RESTRICTED'}}});
     await this.d.objectives.transition(objective.id,'active','meeting preparation requested');return this.resumeMeeting(principalId,objective.id);
   }
-  async resumeMeeting(principalId:string,objectiveId:string):Promise<NovaBriefing> {
+  async resumeMeeting(principalId:string,objectiveId:string):Promise<NovaBriefing>{const objective=await this.d.objectives.get(objectiveId);if(!objective||objective.principalId!==principalId)throw new Error('objective principal mismatch');return this.inIntegration(principalId,'resume-domain:'+objectiveId,()=>this.resumeMeetingInner(principalId,objectiveId));}
+  private async resumeMeetingInner(principalId:string,objectiveId:string):Promise<NovaBriefing> {
     return this.d.objectives.exclusive(objectiveId,principalId,async()=>{
       let objective=await this.d.objectives.get(objectiveId);if(!objective||objective.principalId!==principalId)throw new Error('Meeting objective unavailable');
       const state=objective.desiredState.nova as {schemaVersion:number;input:{calendarId:string;eventId:string;clientId?:string;contactEmail?:string;threadId?:string};checkpoints:Checkpoint[];briefing?:NovaBriefing};

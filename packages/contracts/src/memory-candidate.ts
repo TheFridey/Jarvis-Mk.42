@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * MNEMOSYNE memory-candidate pipeline (MNEMOSYNE_MODEL.md §Memory Candidate pipeline).
  *
@@ -36,7 +37,7 @@ export interface CandidateScore {
   composite: number;
 }
 
-export interface MemoryCandidate {
+export interface MemoryCandidate extends DomainOwned {
   id: Ulid;
   sourceEventId: Ulid;
   sourceKind: string; // "event" | "session_outcome" | "objective_outcome"

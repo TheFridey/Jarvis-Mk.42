@@ -39,6 +39,8 @@ import { EntityResolver } from '../atlas/entity-resolver.ts';
 import { reviseBelief, type IncomingFact } from '../atlas/belief-revision.ts';
 import { MnemosyneStore } from '../mnemosyne/stores.ts';
 import type { ConsolidationSink } from '../mnemosyne/consolidation.ts';
+import type { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope } from '../domains/scope.ts';
 
 type EpistemicStatus = IncomingFact['epistemicStatus'];
 
@@ -56,6 +58,7 @@ function capRelationKind(origin: string, requested: RelationKind): RelationKind 
 }
 
 export interface KnowledgeIngestionDeps {
+  domains?: DomainService;
   atlas: AtlasStore;
   mnemosyne: MnemosyneStore;
   resolver: EntityResolver;
@@ -76,6 +79,8 @@ export class KnowledgeIngestion implements KnowledgeIngestionPort, Consolidation
   //  Primary path — IngestionItem
   // ================================================================
   async ingest(item: IngestionItem): Promise<IngestionResult> {
+    if(this.d.domains&&!currentDomainScope())return this.d.domains.run(item.principalId,item,item.correlationId,()=>this.ingest(item));
+    if(currentDomainScope()&&(currentDomainScope()?.principalId!==item.principalId||(item.domainId&&item.domainId!==currentDomainScope()?.domainId)))throw new Error('knowledge domain ownership mismatch');
     const provenance = this.completeProvenance(item.provenance, item.correlationId);
     const privacyClass = this.classifyPrivacy(item, provenance);
     const emitted: Ulid[] = [];

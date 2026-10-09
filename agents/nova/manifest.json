@@ -1,6 +1,6 @@
 {
   "id": "agents.nova", "version": "1.0.0", "displayName": "Nova",
-  "role": "ScaleSmiths business orchestration and evidence-based briefings",
+  "role": "Domain-scoped business orchestration and evidence-based briefings",
   "leasePolicy": { "maxWallTimeMs": 120000, "maxContextUnits": 20000, "maxCostUnits": 50 },
   "proposalScope": { "kinds": ["answer", "plan", "clarification_request", "draft"], "capabilities": [] },
   "modelHints": { "tasks": ["reason", "summarize"], "locality": "prefer-local" },

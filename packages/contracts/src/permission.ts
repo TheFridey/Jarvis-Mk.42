@@ -1,3 +1,4 @@
+import type { DomainOwned } from './domain.ts';
 /**
  * Permission — grants, scopes, and TTL'd authority tokens (L18, L19).
  *
@@ -28,7 +29,7 @@ export const RISK_TO_AUTHORITY: Record<RiskClass, AuthorityTier> = {
   CRITICAL: 'DUAL',
 } as const;
 
-export interface Grant {
+export interface Grant extends DomainOwned {
   id: Ulid;
   principalId: PrincipalId;
   /** Who may exercise it: the principal, or agents acting for them. */
@@ -60,7 +61,7 @@ export type ResourceConstraint =
   | { kind: 'max-amount'; currency: string; value: number };
 
 /** Short-lived, scoped token minted per authorised invocation. */
-export interface AuthorityToken {
+export interface AuthorityToken extends DomainOwned {
   token: string;
   invocationId: Ulid;
   grantId: Ulid;

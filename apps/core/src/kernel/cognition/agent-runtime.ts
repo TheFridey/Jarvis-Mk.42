@@ -1,3 +1,4 @@
+import { currentDomainScope } from '../domains/scope.ts';
 import { z } from 'zod'; import { ModelGatewayError, type AgentManifest, type AgentResult, type ModelRequest, type ModelResponse, type Proposal } from '@jarvis/contracts'; import type { ModelGatewayPort } from './model-client.ts'; import { withSpan } from '@jarvis/telemetry';
 import { readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -153,7 +154,7 @@ export class AgentRuntime {
       const output = {
         response,
         result: {
-          jobId, agentId, principalId: request.principalId,
+          jobId, agentId, domainId:currentDomainScope()?.domainId, principalId: request.principalId,
           correlationId: request.correlationId, status: 'completed' as const, proposals,
           evidence, startedAt: started, finishedAt: this.now(),
         },

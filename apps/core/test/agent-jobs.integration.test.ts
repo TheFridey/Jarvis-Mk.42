@@ -94,11 +94,11 @@ it('cancels queued work durably without inference and rejects another principal'
   }finally{off();await runtime.stop();for(let n=0;n<4;n++)await store.cancel(`cancel-slot-${n}`,'principal-operator')}
 });
 it('reclaims pre-inference history after a real Kernel restart and returns duplicate results without re-inference',async()=>{
-  const req:CognitionRequest={requestId:'restart-job',principalId:'principal-operator',correlationId:'restart-correlation',agentId:'agents.oracle',task:'reason',input:'Recover this bounded request'};
+  const req:CognitionRequest={requestId:'restart-job',domainId:'principal-operator:personal',domainPurpose:'general',principalId:'principal-operator',correlationId:'restart-correlation',agentId:'agents.oracle',task:'reason',input:'Recover this bounded request'};
   const identityHash=cognitionIdentity(req,kernel.config.modelCloudAllowed);
   await store.enqueue({...job(req.requestId),correlationId:req.correlationId,contextUnits:4000,costLimit:50,hash:agentJobIdentity(modelRequest(req.input),AGENTS['agents.oracle']!,identityHash)});
   await store.claim(req.requestId,'dead-parent');
-  await ctx.pg.sql`insert into cognition.runs(request_id,principal_id,correlation_id,agent_id,status,input_hash,task_class,created_at) values(${req.requestId},${req.principalId},${req.correlationId},${req.agentId},'running',${createHash('sha256').update(req.input).digest('hex')},'reason',clock_timestamp())`;
+  await ctx.pg.sql`insert into cognition.runs(request_id,principal_id,correlation_id,agent_id,status,input_hash,task_class,created_at) values(${req.requestId},${req.principalId},${req.correlationId},${req.agentId},'running',${createHash('sha256').update(JSON.stringify([req.input,req.domainId,req.domainPurpose,[],[],null,false])).digest('hex')},'reason',clock_timestamp())`;
   await ctx.pg.sql`update cognition.agent_jobs set lease_expiry=clock_timestamp()-interval '1 second' where job_id=${req.requestId}`;
   await kernel.stop();let calls=0;
   const recovered=ctx.makeKernel({modelGateway:{async generate(request){calls++;return modelResponse(request.correlationId)}}});await recovered.start();

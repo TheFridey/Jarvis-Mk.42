@@ -1,3 +1,4 @@
+import type { DomainOwned, DomainRequest } from './domain.ts';
 import type { CorrelationId, PrincipalId, Timestamp } from './common.ts';
 import type { AgentResult } from './agent-result.ts';
 import type { ModelTask, Locality } from './model.ts';
@@ -8,8 +9,8 @@ export class AgentJobAccessError extends Error {
   constructor() { super('agent job not found for principal'); this.name='AgentJobAccessError'; }
 }
 export interface AgentManifest { id: string; version: string; displayName: string; role: string; leasePolicy: { maxWallTimeMs: number; maxContextUnits: number; maxCostUnits: number }; proposalScope: { kinds: string[]; capabilities: string[] }; modelHints: { tasks: ModelTask[]; locality: Locality }; notes?: string; }
-export interface CognitionRequest { requestId: string; principalId: PrincipalId; correlationId: CorrelationId; input: string; agentId: AgentId; task: ModelTask; locality?: Locality; maxCost?: number; maxLatencyMs?: number; realtime?: boolean; cloudAllowed?: boolean; preferredModels?: string[]; preferredProviders?: string[]; objectiveId?:string; workflowRef?:string; parentJobId?:string; perceptionRef?:string;analysisOnly?:boolean;
+export interface CognitionRequest extends DomainRequest { requestId: string; principalId: PrincipalId; correlationId: CorrelationId; input: string; agentId: AgentId; task: ModelTask; locality?: Locality; maxCost?: number; maxLatencyMs?: number; realtime?: boolean; cloudAllowed?: boolean; preferredModels?: string[]; preferredProviders?: string[]; objectiveId?:string; workflowRef?:string; parentJobId?:string; perceptionRef?:string;analysisOnly?:boolean;
   /** Kernel-held verified capability output (untrusted content) injected as required context. */
   evidenceRef?:string;
   contextScope?:'public-web'; }
-export interface CognitionResponse { requestId: string; principalId: PrincipalId; correlationId: CorrelationId; result: AgentResult; modelId: string; answer?: string; createdAt: Timestamp; conversationId?:string; }
+export interface CognitionResponse extends DomainOwned { requestId: string; principalId: PrincipalId; correlationId: CorrelationId; result: AgentResult; modelId: string; answer?: string; createdAt: Timestamp; conversationId?:string; }

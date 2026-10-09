@@ -7,6 +7,8 @@ For clean Windows/Linux installs, pinned tooling, native prerequisites and
 generated evidence retention, see [reproducible setup](docs/repository/REPRODUCIBLE_SETUP.md)
 and [artifact policy](docs/repository/ARTIFACT_POLICY.md).
 
+For Kernel-owned PERSONAL, BUSINESS, PROJECT, FINANCIAL and SYSTEM contexts, see [domain operation and migration](docs/operations/DOMAINS.md) and [ADR 0041](docs/architecture/adr/0041-kernel-domain-ownership.md). ScaleSmiths is an integration within an owned BUSINESS domain; requests default to PERSONAL.
+
 JARVIS is a persistent, event-driven AI operating layer. A single authoritative Kernel coordinates temporal world knowledge (ATLAS), memory (MNEMOSYNE), provider-neutral model routing, isolated cognitive workers, permissioned agency and realtime desktop/mobile/wall projections. Models are replaceable cognitive resources; identity, state, approvals, execution and verification remain in the Kernel.
 
 The desktop exposes observed model selection, agent jobs, telemetry, conversation, business-source provenance and capability lifecycle through Forge Cosmos and the Operating Picture. Missing or disconnected measurements are unavailable; demo scenes and qualification model fixtures are explicitly labelled. Cognitive completion never implies a verified effect.

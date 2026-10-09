@@ -5,8 +5,8 @@ import type { DesktopKernelSnapshot } from '@jarvis/scene';
 const node={principalId:'owner',nodeType:'display',trustTier:'owned-mobile'} as RegisteredNode;
 it.each([[false,false],[true,false],[false,true]])('isolates desktop public-site work while preserving private inputs (mobile=%s, recovered=%s)',async (mobile,recovered)=>{
   const input='Can you check the live ScaleSmiths site for me and audit where we are at? https://scalesmiths.co.uk';
-  const turn={turn_id:'audit',conversation_id:'conversation',principal_id:'owner',source_node_id:'local-server',cognition_input:recovered?JSON.stringify({conversation:[{user:'private financial history'}],user:input}):null};
-  const results=[[],[{principal_id:'owner'}],[],[turn],[{input:'private financial history',answer:'secret figures'}],...(!recovered?[[]]:[]),[]];
+  const turn={domain_id:'owner:personal',turn_id:'audit',conversation_id:'conversation',principal_id:'owner',source_node_id:'local-server',cognition_input:recovered?JSON.stringify({conversation:[{user:'private financial history'}],user:input}):null};
+  const results=[[],[{principal_id:'owner',domain_id:'owner:personal'}],[],[turn],[{input:'private financial history',answer:'secret figures'}],...(!recovered?[[]]:[]),[]];
   const sql=vi.fn(async()=>results.shift()??[]);
   const cognize=vi.fn(async()=>({answer:'answer',result:{proposals:[]}}));
   const service=new CompanionService({sql,snapshot:async()=>({principalId:'owner',stateVersion:1}),cognize,now:()=> '2026-10-06T09:08:53Z',id:()=> 'new-conversation',invalidate:()=>{}} as unknown as ConstructorParameters<typeof CompanionService>[0]);

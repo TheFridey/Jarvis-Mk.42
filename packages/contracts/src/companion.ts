@@ -1,7 +1,8 @@
+import type { DomainOwned } from './domain.ts';
 import type { NodeDescriptor, RegisteredNode } from './node.ts';
 
 export type CompanionSurface = 'mobile' | 'wall';
-export interface CompanionTurn { id:string; conversationId:string; input:string; answer:string|null; status:'running'|'completed'|'failed'; sourceNodeId:string; createdAt:string; }
+export interface CompanionTurn extends DomainOwned { id:string; conversationId:string; input:string; answer:string|null; status:'running'|'completed'|'failed'; sourceNodeId:string; createdAt:string; }
 export interface CompanionPicture {
   schemaVersion:1; generatedAt:string; stateVersion:number; sceneVersion:number; surface:CompanionSurface;
   mode:string; interaction:string; work:string; health:string; objective:string|null;

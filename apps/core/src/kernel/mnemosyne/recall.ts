@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import type { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope } from '../domains/scope.ts';
 /**
  * `MemoryRecall` implementation (contract: memory-recall.ts, ADR-0023,
  * MNEMOSYNE_MODEL.md §7).
@@ -112,7 +115,7 @@ export class MemoryRecallService implements MemoryRecall {
 
   constructor(
     private readonly deps: {
-      sql: Sql;
+      domains?:DomainService; sql: Sql;
       store: MnemosyneStore;
       embeddings: EmbeddingClient;
       clock: Clock;
@@ -123,6 +126,8 @@ export class MemoryRecallService implements MemoryRecall {
   }
 
   async recall(query: RecallQuery): Promise<{ items: RecalledItem[]; weightsUsed: RecallWeights }> {
+    if(this.deps.domains&&!currentDomainScope())return this.deps.domains.run(query.principalId,query,'recall:'+randomUUID(),()=>this.recall(query));
+    if(currentDomainScope()&&(currentDomainScope()!.principalId!==query.principalId||(query.domainId&&query.domainId!==currentDomainScope()!.domainId)))throw new Error('recall domain ownership mismatch');
     const nowMs = this.deps.clock.epochMs();
     const { vector } = await this.deps.embeddings.embed(query.text);
     const classes = new Set(query.classes ?? ['episodic', 'semantic', 'procedural', 'preference']);
@@ -207,7 +212,7 @@ export class MemoryRecallService implements MemoryRecall {
                (participants || source_event_ids) as refs, salience as importance, confidence,
                provenance->>'method' as method, occurred_to as ts, embedding::text as embedding
         from mnemosyne.episodes
-        where principal_id = ${principalId} and archived_at is null
+        where ${domainReadSql(this.deps.sql, 'episodes')} and principal_id = ${principalId} and domain_id = any(${readableDomains(principalId)}::text[]) and archived_at is null
         order by (case when embedding is null then 1 else 0 end), embedding <=> ${q}, occurred_to desc
         limit ${limit}
       )
@@ -217,7 +222,7 @@ export class MemoryRecallService implements MemoryRecall {
                confidence, provenance->>'method' as method, coalesce(last_reinforced_at, created_at) as ts,
                embedding::text as embedding
         from mnemosyne.semantic
-        where principal_id = ${principalId}
+        where ${domainReadSql(this.deps.sql, 'semantic')} and principal_id = ${principalId} and domain_id = any(${readableDomains(principalId)}::text[])
         order by (case when embedding is null then 1 else 0 end), embedding <=> ${q}, created_at desc
         limit ${limit}
       )`;
@@ -232,3 +237,4 @@ function firstKeyword(text: string): string {
   const w = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((t) => t.length > 3);
   return w[0] ?? text.toLowerCase();
 }
+import { domainReadSql, readableDomains } from '../domains/scope.ts';
