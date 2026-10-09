@@ -36,3 +36,12 @@ __pycache__/
 *.integrations.local.json
 
 /apps/desktop/public/assets/mediapipe/
+
+# Generated qualification output. Curated reference screenshots remain tracked.
+/apps/desktop/visual-validation/motion/
+/artifacts/companion/
+/artifacts/mark42/
+/artifacts/local-runtime/desktop.png
+/test-results/
+/playwright-report/
+/blob-report/

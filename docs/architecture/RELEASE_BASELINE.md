@@ -70,7 +70,7 @@ layout, branding, palettes, animation, CSS or model-specific visual state change
 ## Mandatory verification
 
 Run `pnpm install --frozen-lockfile`, ensure Docker is available, then
-`pnpm verify:full`. The unchanged `.github/workflows/quality.yml` executes the
+`pnpm verify:full`. `.github/workflows/quality.yml` executes the
 following on Ubuntu/Node 22 for every push/PR to main; integration concurrency
 is two workers in CI and defaults to one on Windows. Other Windows suites use
 at most two workers to avoid CPU-count startup overcommit.

@@ -30,9 +30,11 @@ The final incremental build completed in 7 minutes 20 seconds. APK SHA-256: `B2F
 
 Artifacts:
 
-- [Debug APK](../../artifacts/companion/jarvis-companion-debug.apk)
-- [Android lint report](../../artifacts/companion/android-lint.html)
-- [Machine-readable lint report](../../artifacts/companion/android-lint.xml)
+- Generated APK and Android lint reports were removed from source tracking in
+  Prompt 02. Rebuild into `artifacts/companion/` with the documented container
+  script; CI uploads available outputs for 14 days. See the
+  [artifact inventory and policy](../repository/ARTIFACT_POLICY.md). These
+  historical results do not certify a newly rebuilt APK.
 - [Ambient wall](../../artifacts/wall-ambient.png)
 - [Expanded event](../../artifacts/wall-event.png)
 - [Narrow viewport](../../artifacts/wall-narrow.png)

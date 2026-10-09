@@ -1,0 +1,3241 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "f699ab06132bfe3c5a158e6d2845a1a7e75155fd",
+  "files": [
+    {
+      "path": "apps/desktop/out/404.html",
+      "bytes": 6211,
+      "sha256": "b625750417e22ef275bf7dd143d7a9f883139235aab521fec0ada387c31d2ebf"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/18-0f61daf4f0188764.js",
+      "bytes": 173704,
+      "sha256": "0ba934cd005a36f34cfe785de1d62b06100ff4781325d794ec13dee7ba1ea357"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/655.3fc65d6d0da75415.js",
+      "bytes": 740,
+      "sha256": "beae22acd5fceca86b719f8e6d0adbb33a6a7173a91e65f32ab234af99b621bf"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/826.20e7545f83ce1c50.js",
+      "bytes": 5444,
+      "sha256": "b98426ebbc42e3a6073dc5ee4a6e9e247d8d6a7089b124758db0d90e6e09736d"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/87c73c54-24122e7b92478d00.js",
+      "bytes": 173019,
+      "sha256": "0d30e73d8f3c24eee6941dd0861b15e22d943c0aec3bfc571eecfecb0e06b7c3"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/app/_not-found/page-a0cd13edafec0110.js",
+      "bytes": 2669,
+      "sha256": "c7282b3e44b1a1a3dcd14c126f2534e4785c6df0310ece1ec77ee9a198e6389b"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/framework-efd270072c3ad65d.js",
+      "bytes": 189763,
+      "sha256": "fa43cd8604fd7791b5884b85772b9bf38209eea925e92d01d6469bfb9cae2fd6"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/main-91d31264e67ceb82.js",
+      "bytes": 122087,
+      "sha256": "0b8a0b21941fbfed58c0f369378ad8d0720ce795136359898f1947e280ed29b5"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/main-app-7b45ef5797f68ec5.js",
+      "bytes": 554,
+      "sha256": "401611d2eac6d72315a73d719c96ed4fb0263fa9fef507e9663ed3024bffe09e"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/pages/_app-552893fa4c6cf2f7.js",
+      "bytes": 914,
+      "sha256": "64e92d4a9d262fe7e858c6df2488c47af518c8275d71be883d15f57c4399f9af"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/pages/_error-7d5be752d8cdda07.js",
+      "bytes": 5652,
+      "sha256": "793b8efa7e1bd2d9d8447deb3039d79d34b5e5ee6e5a77eec3c4e52b80b4c226"
+    },
+    {
+      "path": "apps/desktop/out/_next/static/chunks/polyfills-42372ed130431b0a.js",
+      "bytes": 112595,
+      "sha256": "bd057b79572a448b76dcacdb7f298ae4d14fe855b42a826a8fd9c6843c0c8edc"
+    },
+    {
+      "path": "apps/desktop/out/icon.svg",
+      "bytes": 314,
+      "sha256": "cc22841f7f22d8c0f34044550b306c83fa78b004458f3c22c34cf7a5ba2eec8d"
+    },
+    {
+      "path": "apps/desktop/out/index.html",
+      "bytes": 11281,
+      "sha256": "6ebcdc9aad746c6c07f4d36879c8a26fcbbb12cecf9b697cc3717843e519a0c5"
+    },
+    {
+      "path": "apps/desktop/out/index.txt",
+      "bytes": 3124,
+      "sha256": "6c9cfe8fc41f390b6e28d5eede52ec855d2b21ae7dc674e42d8cb9316f56e1ec"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/000000-.png",
+      "bytes": 43323,
+      "sha256": "05d27a5882bea75a1f318dcd26ecb8ae702662063e05fc0b47cac9ff11231112"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/000512-0_AMBIENT.png",
+      "bytes": 65952,
+      "sha256": "246613c32f72d3139a87f2d1201736776dba786750dcf356c4d475923a501173"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/001014-0_AMBIENT.png",
+      "bytes": 64895,
+      "sha256": "deac25ef55914e3207efeab0297bdac264f7c25b5cde78329215aa7216e75a33"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/001515-0_AMBIENT.png",
+      "bytes": 66409,
+      "sha256": "419f7b7e81e37920670466bcb58ad80d4ce1c464bf897b3eaa6884aeb2fa89e0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/002016-0_AMBIENT.png",
+      "bytes": 69113,
+      "sha256": "776883d1ee452cc00134a1506fcd6097e029238cb4abd94c49b93df67b0534d7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/002528-0_AMBIENT.png",
+      "bytes": 73742,
+      "sha256": "bdfbff068b64b57bedb72153792cb498da4b6836340f1f35890aef0852ff84e7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/003032-0_AMBIENT.png",
+      "bytes": 78775,
+      "sha256": "df0cae3e573934fa0bd07a60611a575e352bf0b88c2beb24ae331a7060e0d9d1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/003539-0_AMBIENT.png",
+      "bytes": 85954,
+      "sha256": "a23851a2bb03b77125492d41c755422ffdad8637dcea48c7b7b3d2bf34ab0deb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/004039-0_AMBIENT.png",
+      "bytes": 91002,
+      "sha256": "49205e3ba0683c7c2abc866c0f99b0a1dee3fdc5b952adecc2b1fac602fd1df0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/004545-0_AMBIENT.png",
+      "bytes": 98745,
+      "sha256": "1a2c87f009f67ad031e599da2886c049c3377b15dc003927bfe9b036ebd7ed65"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/005047-0_AMBIENT.png",
+      "bytes": 111664,
+      "sha256": "75e41401e977cfdfa04c86010fe8db9fa1d4457d06aaba2ec3dc2b62e09d993c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/005553-0_AMBIENT.png",
+      "bytes": 132970,
+      "sha256": "e15b91e72eff52616c47e97e79c985234429b284d3556ac36c0eef9bcf46d495"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/006058-1_LISTENING.png",
+      "bytes": 1296505,
+      "sha256": "1874ce70343ccdad99971bb49d7e1f1a8f081c96b8083838be022e78616e698d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/006566-1_LISTENING.png",
+      "bytes": 1311937,
+      "sha256": "dfe1a7605f1efd798ceae8787a4c550ed83d6d881036936acd4d3991329eb158"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/007087-1_LISTENING.png",
+      "bytes": 1323222,
+      "sha256": "5a66c6c53c6164e6f1780304b132d0e62c0bbaf013e0ad7242a10574cea99d04"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/007588-1_LISTENING.png",
+      "bytes": 1319374,
+      "sha256": "734c0acbcee38517f05f9b98151d24db1250f2253415775e1a245d9888d098ab"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/008091-1_LISTENING.png",
+      "bytes": 1315570,
+      "sha256": "ec1d58e52f7ed1ea840b00db854bad3adad9f16419b2dad83d005a6bee136b21"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/008593-1_LISTENING.png",
+      "bytes": 1315912,
+      "sha256": "be4e7d163e71ed865485a0c958cf194b7ed76c67e98a3c781a498218930c4353"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/009107-2_THINKING.png",
+      "bytes": 1315955,
+      "sha256": "ae2aa9f852e72451fec26d80edddb10e95b3d65ddad7a2b7210cff0a68d83713"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/009608-2_THINKING.png",
+      "bytes": 1312400,
+      "sha256": "efdd6276d86e8e3c850b56272effd77f68d4fcbfdf34afe742abc1b07a6dcd41"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/010108-2_THINKING.png",
+      "bytes": 643841,
+      "sha256": "14be5ca24f667743ace329fbb8f3a788871bb3ad3e36cbb854662a786e2c3a42"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/010610-2_THINKING.png",
+      "bytes": 648234,
+      "sha256": "e9a9c077e3c5dd268a92558ce0b736387b24e242d27363e47fc4f812b94d0efe"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/011125-2_THINKING.png",
+      "bytes": 648758,
+      "sha256": "83f58475afb942fe7e4acdd28f3e67031379fc5416619a930aff9b504c3299e8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/011641-2_THINKING.png",
+      "bytes": 663409,
+      "sha256": "acefded9a40f290fff75daedf98faf43f8050711a123e9cc425fb15fbcbda4d0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/012154-3_ROUTING.png",
+      "bytes": 665981,
+      "sha256": "efcc5a15b0440ac69c281c6e29403f5b9bf10a46589a4a072bf315d73914a38b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/012666-3_ROUTING.png",
+      "bytes": 669868,
+      "sha256": "38342262831246927d9109f0758060d5c960a35999b0921efc22aa47e3f44181"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/013178-3_ROUTING.png",
+      "bytes": 666794,
+      "sha256": "5cfc3ec570ead63523cf31b5378242f587ea6a05a49ea3435c66dd2d0cb94cf0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/013679-3_ROUTING.png",
+      "bytes": 669571,
+      "sha256": "7b451e9399edf6ce14fc4e9abf0f5dd5d1f9f78cc29500b9630bb4266065cfe1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/014192-3_ROUTING.png",
+      "bytes": 663282,
+      "sha256": "08115c28fc13c6d23d2a0d79264e1b8a5fdb39261a1daecc0f5cb046c4191bd0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/014707-4_MODEL_ACTIVE.png",
+      "bytes": 666232,
+      "sha256": "427f0ccdd2e873b21a2243d255ebed2a1ee86caa4e6066353003bbfe6bc3e704"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/015209-4_MODEL_ACTIVE.png",
+      "bytes": 662317,
+      "sha256": "dfea997d23ef08390723372538381cb0ad28cff8bb428a68ad2b6966bd413932"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/015724-4_MODEL_ACTIVE.png",
+      "bytes": 661523,
+      "sha256": "be265e97bc5fb2b05dcc80445c534dd83e5733655a350de040ad11fdab018d29"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/016238-4_MODEL_ACTIVE.png",
+      "bytes": 663228,
+      "sha256": "618511bc916ea4767cbf710cf741f93b36ee5f6c635fd00b319303e82fd406d8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/016752-4_MODEL_ACTIVE.png",
+      "bytes": 665940,
+      "sha256": "b5ce465b8e0c1726180facbf3f45a43f576bebc8017c6c059bcc158b6ba00064"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/017267-4_MODEL_ACTIVE.png",
+      "bytes": 664852,
+      "sha256": "2142b58ba9c6aa8a61fc63b60a741d18801236fda6f9c0a63689c37aff7c60b8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/017771-4_MODEL_ACTIVE.png",
+      "bytes": 662077,
+      "sha256": "02edabe4e88400920eca9fdf5a275bf515e0f1ca2137f73ef4492d7da9830a82"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/018285-4_MODEL_ACTIVE.png",
+      "bytes": 660713,
+      "sha256": "5415d16a5a0c21ddadcf40d8cfbaca66b31af607473c658f92ad38349050c4b6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/018797-4_MODEL_ACTIVE.png",
+      "bytes": 662414,
+      "sha256": "4b1ea74579d8e735a2b59b795ebe6be3a49a287b7c2aaa5d0f232ea38b8f9184"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/019300-4_MODEL_ACTIVE.png",
+      "bytes": 662521,
+      "sha256": "a84e7d57d471784653ce09cf27c1c3721b3b1439fe9ef754f76974c58739cb34"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/019814-5_RESPONDING.png",
+      "bytes": 632837,
+      "sha256": "fffd8469ecd644a8da5cc1dbcdc68c0da4fb3bc6f80c441d7fb7aeb6b3e51d9c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/020315-5_RESPONDING.png",
+      "bytes": 628347,
+      "sha256": "552c0fe4311d2646247d896c95ed66146021b5ee8bcf40fbf7f07964d09f657d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/020823-5_RESPONDING.png",
+      "bytes": 621942,
+      "sha256": "1223f3eb6d4f3cd6d8e7ae12e2c5bfa6ca95d3222732e2321336c98ff628fda9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/021326-5_RESPONDING.png",
+      "bytes": 620711,
+      "sha256": "bceb903f077b33a21d3f880b44390b0ee7e6c54e4c05011f3d87955814b54b68"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/021827-5_RESPONDING.png",
+      "bytes": 610869,
+      "sha256": "1098e0267c0a1ef3782b52640eb02a9c812e462a4d7cd76f6400bbe43fd76f34"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/022328-5_RESPONDING.png",
+      "bytes": 618647,
+      "sha256": "dc3353d0ead4e7d9c9b5d44c8a480aa5d2cfc8048164a6cc14a5fee9635394a6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/022843-5_RESPONDING.png",
+      "bytes": 619785,
+      "sha256": "9a0a65835649ba2fd3ee9ee0f40cc3ecad81abe1cf2b8c095ce08b9f4088f329"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/023357-5_RESPONDING.png",
+      "bytes": 618017,
+      "sha256": "025335f5971cb03f4bd5674ee5fbb3c7d5310cd7117703755dd8d324a60828ae"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/023861-6_AMBIENT.png",
+      "bytes": 590446,
+      "sha256": "a6312cfb994dcde9a8962847eb723e1412bed03d62a2898ad613605de663aed7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/024369-6_AMBIENT.png",
+      "bytes": 581768,
+      "sha256": "090c9f03780954f5d3de6ba96d292f018a245d747c53a1da3ae4219c60d3e13f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/024870-6_AMBIENT.png",
+      "bytes": 574373,
+      "sha256": "f13744aa15f35a8ed7ebb7a9fe9380911d1e2a014d53436e1f5402784a2529bb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/025372-6_AMBIENT.png",
+      "bytes": 585040,
+      "sha256": "8538de55aa7216a97b6f811bea3b53ceddc97839a08e1886141c923549fec144"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/025873-6_AMBIENT.png",
+      "bytes": 588123,
+      "sha256": "b3c15245af70f69c43d0a0f1d5d4e14b2c5f26067659c0397fd2c89f547f3175"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/026388-6_AMBIENT.png",
+      "bytes": 582224,
+      "sha256": "a6f996cd6e36590cc8a8726d56fcb1847b36f468ed026726658f6196a82340c4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/frames/026893-6_AMBIENT.png",
+      "bytes": 582511,
+      "sha256": "8acec4721680d9a845418c8ff20b75c9a643b253fca8a079217b9abcabe5aa76"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/conversation/page@719c95219f285784d8ccaa5e3c090377.webm",
+      "bytes": 5675063,
+      "sha256": "3dd96e5d29f5000ba4f19a1ee46b4b6aa05029977ba1bf1d9945c17408456ae2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/000000-.png",
+      "bytes": 73442,
+      "sha256": "e3478058be5e0af0c1d541db1f38300522a4ce44edca88753877c9d3f0d7c72a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/000504-0_THINKING.png",
+      "bytes": 1089772,
+      "sha256": "ca73cdcd23a0835cf181348eb89f55285197c10bbe65f98f407f702005a47f3b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/001013-0_THINKING.png",
+      "bytes": 1111558,
+      "sha256": "0db309005853390825d112d0e088904df76914f71fc4f350e81e84afa5e13a06"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/001516-0_THINKING.png",
+      "bytes": 1144092,
+      "sha256": "713085567acbc9052b6d716f349579e532e0f56a3287720a03b4f3a91f258f52"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/002027-0_THINKING.png",
+      "bytes": 1168280,
+      "sha256": "b01243d5b3a330f352c869eb6cdc47768fa4db516972a4f0b5fcac247d0e5e21"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/002530-0_THINKING.png",
+      "bytes": 1187981,
+      "sha256": "416c2184f3348f6edaf92850f5835ee04e7045adb3056f56a0a4eb97c9a374bb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/003039-0_THINKING.png",
+      "bytes": 1203683,
+      "sha256": "700f86ab3469553762b859e762bfc9752bd608c86da81381825d0280915fc615"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/003544-0_THINKING.png",
+      "bytes": 1225332,
+      "sha256": "7992c821b3cffb41c5d1f5a68739243b987146129019a4e3b4bd081ff7fdd336"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/004044-0_THINKING.png",
+      "bytes": 1238766,
+      "sha256": "3b0f53c4c03fdd534b5890f3c107405a379ae360b615d42e3f96fd67a6a98ee5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/004553-0_THINKING.png",
+      "bytes": 1251148,
+      "sha256": "ca3538ee997cf4e29435af88b3887d2021283414c90cfbb3d17c1267062f7ff7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/005057-0_THINKING.png",
+      "bytes": 302166,
+      "sha256": "f09be4c19333d2036344c39310cfa9f8002cdb9c8b72b4335271d08d82909b0d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/005571-0_THINKING.png",
+      "bytes": 365185,
+      "sha256": "b6401813b33cb2a12bd8b7670118391ac71138b04421959a6ee8c60510cab244"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/006081-1_AGENT_WORK.png",
+      "bytes": 401191,
+      "sha256": "af030241249e76f01675e0c950a8dddd006be10b56f002db879b14c8874e83f9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/006584-1_AGENT_WORK.png",
+      "bytes": 462357,
+      "sha256": "8fd0948fe114f1b17cdadafd47ca7c78d2c8a62b93afe840cd171dea70641fe7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/007091-1_AGENT_WORK.png",
+      "bytes": 492773,
+      "sha256": "d59709bcf999d83d24f0ede072680a28e128ea2926db10ff29aa1c537c096388"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/007597-1_AGENT_WORK.png",
+      "bytes": 645540,
+      "sha256": "69088645d1c9a0beac685560c1aa0ca76b169f51890a9bdc93e82e3cb5e33a69"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/008111-1_AGENT_WORK.png",
+      "bytes": 646691,
+      "sha256": "1de429688c3803f7664149dbccb5e8dbc11eb17c1962b634be1aa7f8ff5717be"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/008626-2_EXECUTION.png",
+      "bytes": 644063,
+      "sha256": "410bbb62544048bbc00df61c9b40f007985462810b1889141b7b48a625b957c9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/009126-2_EXECUTION.png",
+      "bytes": 634144,
+      "sha256": "ecefc1dfebcff0a69adc67500d4062ce8c26b922de8baa23d4b87be7dbe93256"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/009642-2_EXECUTION.png",
+      "bytes": 637165,
+      "sha256": "f9d98fa44bdbf1d9d06a665ca135c74796a83646f7990812ca9cf9f75505d61a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/010155-2_EXECUTION.png",
+      "bytes": 631956,
+      "sha256": "33f442c49f02cf41e07db21ad717c2643ba0b9c583aa2e6f5c55f66b30698c72"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/010657-2_EXECUTION.png",
+      "bytes": 634075,
+      "sha256": "40ea94e1fd78f209c81f910daa7f25362e0a2a27c827e1632739a5bee22ed998"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/011170-2_EXECUTION.png",
+      "bytes": 629057,
+      "sha256": "dc8cde67725f18b924b40bfc1d5837222e692f37578b17bd870722365f90d0fe"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/011671-3_APPROVAL.png",
+      "bytes": 639953,
+      "sha256": "764282423aa3c7d559f23995596bc09656405e01e3f6839374ae780f54d8561c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/012173-3_APPROVAL.png",
+      "bytes": 580004,
+      "sha256": "d2d943c8bc74973769dabf25c5752b481d767319bf4169fe85a3e85232386ee8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/012685-3_APPROVAL.png",
+      "bytes": 569239,
+      "sha256": "78c81a9367ebc3c3eac1577508dcd83c0266db453354c8b7caab25f323e8070f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/013190-3_APPROVAL.png",
+      "bytes": 566494,
+      "sha256": "ce9966ecba4bbc47d3c63326cc0c9fb4dac0994ac95ff1515b8c2bc30d3a50b0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/013701-3_APPROVAL.png",
+      "bytes": 566523,
+      "sha256": "8ead2bc3877cb9f6ad52dc01c50ca92a2da6e22cc0cef801b055a2db69a217bd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/014214-3_APPROVAL.png",
+      "bytes": 564657,
+      "sha256": "9166e08b4e1eb55b62908a296bacd7b53d2b407e57b57e6308323dd0186c3251"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/014716-3_APPROVAL.png",
+      "bytes": 565983,
+      "sha256": "812316b5a59ead7a62b8f04e7a92eda10ca32af981479f1c1c6a81241ee862e1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/015217-3_APPROVAL.png",
+      "bytes": 561616,
+      "sha256": "95282dee7aafff5830b878af0304fc3a5588382f613c665d40a64db6fd0f3a22"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/015727-4_EXECUTION.png",
+      "bytes": 628439,
+      "sha256": "b3f2bae59ff61556a7646e8c21329d98c959d265d815e976b12d9983b8167946"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/016240-4_EXECUTION.png",
+      "bytes": 639030,
+      "sha256": "e0cf4c16bd86dbdfc2ec0dbab8d19036b895b0125f9538d5413351f719c249d2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/016740-4_EXECUTION.png",
+      "bytes": 632031,
+      "sha256": "35ce434e9658d3ee5b76a9656b71a27c410111602eeaa1b681638838a5e8e0d6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/017245-4_EXECUTION.png",
+      "bytes": 626409,
+      "sha256": "78566ab202fcf927e1602cb143d5db5e7f6d7c2b68ad1ff2dbf2b8b2c218f8a4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/017757-4_EXECUTION.png",
+      "bytes": 622485,
+      "sha256": "9ffe6c939e9439480428510a66b5671084b10ea17c940107a26d42a3cc04c7de"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/018258-4_EXECUTION.png",
+      "bytes": 625141,
+      "sha256": "e99bdc78b434143390621c601a596d717d8bdb64f46dd56f679307c869adbd70"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/018764-5_VERIFY.png",
+      "bytes": 635823,
+      "sha256": "654ffee981efaea55c6e7126a3773bf9553bae940adbf250876028928938026a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/019273-5_VERIFY.png",
+      "bytes": 629725,
+      "sha256": "b231050f073302fc32a0e201d5a9da27137ea93d5a41d7094c889480182ed4eb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/019787-5_VERIFY.png",
+      "bytes": 623548,
+      "sha256": "3ba6c0f22b88fae88c8e4f79b1e4ac343d669e7cec6dba93715697029002c1af"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/020299-5_VERIFY.png",
+      "bytes": 628176,
+      "sha256": "3a963a56523cba099598cee668b5a816f35f7dfbb960c03ea9ed8ffd33fac23a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/020801-5_VERIFY.png",
+      "bytes": 623654,
+      "sha256": "c34bcbf2a87b5c1e74909ed299792de4a0f514a74b68bcd419cc6e53dafbc9d9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/021314-5_VERIFY.png",
+      "bytes": 624886,
+      "sha256": "58587045fc350b9bd2ba403f6da73fd7ca4996b729139ddf8f51dd9902208bad"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/021815-6_COMPLETE.png",
+      "bytes": 620820,
+      "sha256": "425c05eb7e5872abe03740a172fe30cf2817e56e897c638d7eca6e59e1211b54"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/022316-6_COMPLETE.png",
+      "bytes": 608097,
+      "sha256": "9eac60d17c25fdcfd9c94f9a93b77cf752f0b1da47d694645d57e8fbac6a4107"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/022816-6_COMPLETE.png",
+      "bytes": 617605,
+      "sha256": "303f20166e37f51e30d98ba7ffe15b57131c8e9a1a926dbf37f992f00f94c6c8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/023329-6_COMPLETE.png",
+      "bytes": 610733,
+      "sha256": "c3ee5c5fe44895dc86e8bcaed458513357227f75ae39d4812387d9097a118cc8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/023831-6_COMPLETE.png",
+      "bytes": 616473,
+      "sha256": "7bdf38ac2ca261d50a2e4555ce7ebbc87deb8eb00cc96e993ded01a0025184d8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/024333-6_COMPLETE.png",
+      "bytes": 614645,
+      "sha256": "fe24dea0c51c5abc99b663b58178108213607e87e6d33e4c0c95de7783690706"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/024840-6_COMPLETE.png",
+      "bytes": 602702,
+      "sha256": "7d1425698be4da59c8097429d4cfd7558f221537f34eb802e5268279103678bf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/025513-6_COMPLETE.png",
+      "bytes": 609286,
+      "sha256": "a24beb56bfb1f96ccdafbc3d110c16dbaa86130fcab10f338b8acda704e2f01a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/026013-7_AMBIENT.png",
+      "bytes": 572701,
+      "sha256": "12687d0591732367373a65d24273e027d91a8d887a1e656e72b2c0d516cc8794"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/026520-7_AMBIENT.png",
+      "bytes": 576276,
+      "sha256": "e5c7a0a158df47f0089fc297b990f2b404f1e4b130d96aa4bf92ade81b351f16"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/027022-7_AMBIENT.png",
+      "bytes": 576898,
+      "sha256": "b01e8b2ad048cc980bc624b26bf981b0e457c51e9e06d50a404eceda68ee4b8a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/027525-7_AMBIENT.png",
+      "bytes": 570409,
+      "sha256": "49c1e1609c498aae0ffa42a8fbaf85db625261566e1f885050f56a139ff8b037"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/028039-7_AMBIENT.png",
+      "bytes": 571459,
+      "sha256": "9cbdf016e3d100b9a9e4ef7e04171b3334ae720923f68f9adf32b9619bf9e16f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/frames/028540-7_AMBIENT.png",
+      "bytes": 569673,
+      "sha256": "adcbda3a49ca9341468dcd01168c54af87c4f41031c8bc831f3cb1917221478d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/execution/page@7f03a5a7af3eb8cb335c4fc3685b33df.webm",
+      "bytes": 6918592,
+      "sha256": "9a5dfde4e62a0ede8e7640006b21f64fb5c4e3450c86645419c88adc1088321a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/000000-.png",
+      "bytes": 88477,
+      "sha256": "4c9c2f44aa932715e6a66c94eb5f1fea242a89a8fc3c94f99028c38e629967b7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/000410-0_ROUTING.png",
+      "bytes": 1085533,
+      "sha256": "b0a97210d6f470e1d859ca2f5c260766cb27b52f9e4eee43ea2d2bc99d2051ea"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/000813-0_ROUTING.png",
+      "bytes": 1112267,
+      "sha256": "d43406598f8a5eff4c3a809f5aceeaf4fefc6e682c9f2b0f1ce71c4fa8d25c6e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/001216-0_ROUTING.png",
+      "bytes": 1139152,
+      "sha256": "1f27cd6be4ec0460d16f20331bc9ec599ecafbacadee0f36ff82ec96c0e827ff"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/001895-0_ROUTING.png",
+      "bytes": 1172284,
+      "sha256": "1f4474d3fbad2f48b6b55ffdd9b44be3f3f66cacad3e6ab0d16ba9b9a8d53597"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/002300-0_ROUTING.png",
+      "bytes": 1186478,
+      "sha256": "7fe750beae4862ad0f1635226d50960c88a6152bf45d54e9733dc0db2bbf4f31"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/002709-0_ROUTING.png",
+      "bytes": 1199260,
+      "sha256": "ea50c4bf980e7dd77535ff3daaf7d8a2ddf23f5772a27ccd59c3c704be6f0b1f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/003114-0_ROUTING.png",
+      "bytes": 1221297,
+      "sha256": "fb6d41ebc28832bad5db689dfcae5250697f4e1491c514cf9f5670221fa98c82"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/003520-0_ROUTING.png",
+      "bytes": 1233131,
+      "sha256": "591b015da7bb9ca915253c209959181eff0f285a8f8fdcd6852f89d1e786fb42"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/003925-0_ROUTING.png",
+      "bytes": 1245639,
+      "sha256": "8b221063af50b570a79203ee1eb3fa7d755c4f1011f85bbd0488ea0d29d299ce"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/004329-0_ROUTING.png",
+      "bytes": 1262492,
+      "sha256": "36cae58bbf78b3623889fec5d23a1573d2816c385a3369cbf36770cdc6727a44"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/004733-0_ROUTING.png",
+      "bytes": 294412,
+      "sha256": "4eef0ebb39eb1fd2df4ec03cb4d8e54002831050554b88a0fbf41ae9342fd2c0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/005134-0_ROUTING.png",
+      "bytes": 301895,
+      "sha256": "c397f14e5be134c59e3c96445ce13b797fd81533d17ccd63385343fe4ad64c9e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/005537-0_ROUTING.png",
+      "bytes": 383602,
+      "sha256": "5f9f6cf7a9cff845f230f3d416cf4cb39892b220f63793ff2b0193c6c950704c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/005944-1_PRIMARY_SELECTED.png",
+      "bytes": 383802,
+      "sha256": "f49397cdbb1030c6d59fd033b6c64152c97dc2c9443f6f3aa6ab7663ed28a863"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/006348-1_PRIMARY_SELECTED.png",
+      "bytes": 392748,
+      "sha256": "2c3b97cda45b1accc6879b34e72c3a6aa7a9ceed3fc42670d34c2a7b5c9ebf6e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/006751-1_PRIMARY_SELECTED.png",
+      "bytes": 481204,
+      "sha256": "5ea9dee588bb273dad10537f2bf108f2c5600f752af393f7f7d838032df4015c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/007159-1_PRIMARY_SELECTED.png",
+      "bytes": 482410,
+      "sha256": "bf3191e308ff201dc004f5818de93d77832ba90cec4c64093c833d9d2d027629"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/007566-1_PRIMARY_SELECTED.png",
+      "bytes": 630110,
+      "sha256": "2605f6d6e999ffc1066adf61f7f7330d7059b102dfcb4f2af2effc03dd21de12"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/007972-1_PRIMARY_SELECTED.png",
+      "bytes": 649105,
+      "sha256": "1a6c13e510d807e9da11c0fbe796bf14a3877f16685098cc73bae50ab8dce697"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/008377-1_PRIMARY_SELECTED.png",
+      "bytes": 651392,
+      "sha256": "176fd9bbd4ee6f29c865f918f6866d581a4b888acca05f3da3a54939c5c9933f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/008782-1_PRIMARY_SELECTED.png",
+      "bytes": 651490,
+      "sha256": "6f5ebf3f11ebd0a9fa5fd3b8eb9ea73d74557898e000d6f956d74ee3515e7e59"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/009187-1_PRIMARY_SELECTED.png",
+      "bytes": 654582,
+      "sha256": "bf627d6e993a4e8b3b28f562d042775d04166df3b40b39fe3e8c9f4a80172c08"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/009594-1_PRIMARY_SELECTED.png",
+      "bytes": 650575,
+      "sha256": "c45dcf08b997ecb8ae0b079fa28c73479769af61ba65a0b450eec10c8350f9eb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/009995-2_PRIMARY_FAILURE.png",
+      "bytes": 648875,
+      "sha256": "6e8c1538ec9053cf4f7f105cf5f432b4aa24f8914638b6fc21a34fcd453e236c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/010399-2_PRIMARY_FAILURE.png",
+      "bytes": 651805,
+      "sha256": "d3d030f49783adb98b5f3d7132283f8aca8786e37462afb07183996f22feb70f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/010802-2_PRIMARY_FAILURE.png",
+      "bytes": 654792,
+      "sha256": "89decdff3eaf9d1baf3357587e7349d3774f3977e09f4516240774f92bb24963"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/011208-2_PRIMARY_FAILURE.png",
+      "bytes": 653226,
+      "sha256": "d0a342f832523481a8d65281b345a861bde9777af33e168f89f0af6716519b34"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/011624-2_PRIMARY_FAILURE.png",
+      "bytes": 655739,
+      "sha256": "285907f76362af64d36b889b25c2e9769888d25366da6bd1c23611374ee1693a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/012031-3_FALLBACK.png",
+      "bytes": 658625,
+      "sha256": "2d3d75e751d4a96eb78fbca6ba7427433625207eaa7085f7ae0bedbc0e9657dc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/012438-3_FALLBACK.png",
+      "bytes": 657629,
+      "sha256": "3d6d7d19d88a7597d897889065edefa1b95f59ca1113e08ac067bd9eeb92d229"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/012843-3_FALLBACK.png",
+      "bytes": 662205,
+      "sha256": "05c0f2beff4628dee9b391491da1555cebedd669286044597ae1f474ab946727"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/013246-3_FALLBACK.png",
+      "bytes": 656275,
+      "sha256": "8ed65003e396e2760a1115884e850d8a069d7fc07c0210c429fc7d8cb6a7e73a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/013648-3_FALLBACK.png",
+      "bytes": 659599,
+      "sha256": "62ebd7c4412bdf91f10e1a03b522d5a6c059a8aed249b7580d795a895935d26a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/014050-3_FALLBACK.png",
+      "bytes": 656134,
+      "sha256": "1017d94ef586c82cf3766d1cc968ce8cbf005a9061407f1efca9cd8d1c187820"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/014452-3_FALLBACK.png",
+      "bytes": 645228,
+      "sha256": "6c78d38ed2ae22ff0684a2c8a457e50fcdfaafefde76d8f5317decdfcb2cec5f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/014858-3_FALLBACK.png",
+      "bytes": 653567,
+      "sha256": "93d581b3e81c31b4343b6471a0f90abcc1e1e9745806885d0667341d89c0adaf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/015267-3_FALLBACK.png",
+      "bytes": 652858,
+      "sha256": "f8a9dced8fce80e448a451932f267bc43391421aff153d0622c7e260740a179c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/015672-4_MODEL_ACTIVE.png",
+      "bytes": 657540,
+      "sha256": "e98240c4d5d3aa45c57198d8b663d7a7f4dcbb72c768ced87378378e46214eee"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/016081-4_MODEL_ACTIVE.png",
+      "bytes": 663050,
+      "sha256": "dcc40b815d9121a899221952e07b4cc79dc6c32f39210a1962e94cc6aefa568e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/016484-4_MODEL_ACTIVE.png",
+      "bytes": 662637,
+      "sha256": "c5bae2b68c661bd8f7a203f3a334b5f1baa325e40b52d45edd9fcefce25aab46"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/016890-4_MODEL_ACTIVE.png",
+      "bytes": 663535,
+      "sha256": "a9295ccdf3f1abb6b3bb11144545f4686c827204393e65d29a71da0a436fe53f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/017295-4_MODEL_ACTIVE.png",
+      "bytes": 663242,
+      "sha256": "226a75228903ceaed137df05ce32b86e9e58e2daa4368db4faf6a18944258510"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/017702-4_MODEL_ACTIVE.png",
+      "bytes": 660024,
+      "sha256": "427dfaa271055e6099cc4fecc7b52f3d7c61b1a906547efe3869b40a2032f0c1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/018106-4_MODEL_ACTIVE.png",
+      "bytes": 660827,
+      "sha256": "0ddf6b74eefbf6dfb2f6cc97bda965ad1cbca61ceb8f881f04a905ed995c071d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/018514-4_MODEL_ACTIVE.png",
+      "bytes": 646014,
+      "sha256": "00375835aabd342b7fcda6b68d4d67aee635aedb2548f69099196602a623b259"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/frames/018919-4_MODEL_ACTIVE.png",
+      "bytes": 665871,
+      "sha256": "f3b28bebdf0b51336f9ba0127b89102a841ea16d9f4463af156fb19f0091aed3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/fallback/page@a7689b33996ef3769cef722d0c65f6a3.webm",
+      "bytes": 4578481,
+      "sha256": "15c50c74a9b2f37a79b9cf9b2597d633a6b0014d62d57e7a446213159f955e69"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/000000-.png",
+      "bytes": 96789,
+      "sha256": "14ffdcd0a0c5ea8b4a1a3038a6791e5b66905b75e227e6fdbcf1e5917b59bd65"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/000798-0_LIVE.png",
+      "bytes": 1112919,
+      "sha256": "94d1d14009f59527daf63904c75dae022014822eb82df24754e2d5af4c6b3cb4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/001301-0_LIVE.png",
+      "bytes": 1142300,
+      "sha256": "9519f62e64ba2d3cd1e21e4550c4bc9bcd58711919f50f16570c94e43092beb0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/001806-0_LIVE.png",
+      "bytes": 1167114,
+      "sha256": "16e364fae4d7aa650cba4702c77c20aa74ef578334f2668a168586de6605483a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/002317-0_LIVE.png",
+      "bytes": 1198439,
+      "sha256": "44227ad38340d35369ef1b179f3b95d0e3af25956db760f517195605b292c665"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/002829-0_LIVE.png",
+      "bytes": 1214555,
+      "sha256": "8f837bcb7d4c8da1f9ec1efa7598bdec047cc018eb6e04320d09afdca55aa70c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/003345-0_LIVE.png",
+      "bytes": 1236175,
+      "sha256": "a9bb98dd53c1f27dd7e5514a5f3e821a06eee85197eaef312d2013752150bf12"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/003853-0_LIVE.png",
+      "bytes": 1240011,
+      "sha256": "3007198674445a13cd88bf89f9028007ad2716672f8e6229c7b762096cb64d05"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/004354-0_LIVE.png",
+      "bytes": 1267453,
+      "sha256": "ea48643e7090213998339dff1d55985a1beacbea02daf034dbf899a5a48f4883"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/004912-0_LIVE.png",
+      "bytes": 280433,
+      "sha256": "0835377e4838bc5fb797e2bdc57f12bc03d10463f6657f31a06afc5ca097c14c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/005415-0_LIVE.png",
+      "bytes": 325784,
+      "sha256": "67ece8ece10d2a3569f83dba2ea4799c36a228ffb5d207b35ccf1e9656f97c14"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/005922-0_LIVE.png",
+      "bytes": 386086,
+      "sha256": "b4df5fc09da425fc32368c165a44a1393f7f7c135f46e481d42ebb9ccb196fda"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/006422-0_LIVE.png",
+      "bytes": 422262,
+      "sha256": "6cd88fd723393cc0648787c15fe25c351187b5ce77381a39870414fe15e24f26"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/006930-1_STALE.png",
+      "bytes": 288206,
+      "sha256": "bae0307d87a48f8cab9968cffd7b968473cded694af0541f26e48e66b58bf0d4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/007440-1_STALE.png",
+      "bytes": 200028,
+      "sha256": "760cc71672e91e8943fa46049f946e0d90d2f2f9f59a1feceb28be957496c63a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/007944-1_STALE.png",
+      "bytes": 154934,
+      "sha256": "5f91ec6df7e7db2009226dfe2cec75a8e5a2497a35fba526880097974eb85d3e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/008445-1_STALE.png",
+      "bytes": 133554,
+      "sha256": "0018bf664786367c37a8c3a0a79340499ea6f1bce490b4ae4988281caa8fc3b0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/008952-1_STALE.png",
+      "bytes": 118490,
+      "sha256": "7e0623989b06e8c98090ab546312314834e966b3c7ce3e3db495e3d806a15814"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/009453-1_STALE.png",
+      "bytes": 117199,
+      "sha256": "a86bda45b623084f7b2a53611315b61ee339686f9bea25cfe60ca58271270ade"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/009954-1_STALE.png",
+      "bytes": 108595,
+      "sha256": "7e042a6989710f99616f6df4ed0499746dd81668a96fe9e267bbe9bbd9a53270"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/010460-1_STALE.png",
+      "bytes": 107014,
+      "sha256": "fcef57f356f6dc47ee3a2a27a3a29b4932ab64fd89f1ca029a681faf588da925"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/010975-1_STALE.png",
+      "bytes": 103836,
+      "sha256": "8e7b574b5006f1256f8bc27702c8e2b542bf56ff60c5939c287029762af84073"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/011475-1_STALE.png",
+      "bytes": 104037,
+      "sha256": "2bb84ad6b22cb653a1daf52492d3250d61768bea9172f91c44cace25f869d183"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/011980-2_COMM_LOSS.png",
+      "bytes": 103450,
+      "sha256": "8fe3978a20f6015284ad6652e9d3b6d071c3f6425e8ec31b8684dff7543a00fb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/012488-2_COMM_LOSS.png",
+      "bytes": 102714,
+      "sha256": "c46998d02ac49fd61f4fe3201ea3240fe95b8a615a9d2f448eb76c6b787b299d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/012995-2_COMM_LOSS.png",
+      "bytes": 102111,
+      "sha256": "874671f9e330e352f78fe18c4336ac7104824461115508ced5d5fb05eef149e4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/013502-2_COMM_LOSS.png",
+      "bytes": 101737,
+      "sha256": "a90fc4f821c6639b2f9f7205119439734236491c35124a193e3e1dfee4b1334d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/014007-2_COMM_LOSS.png",
+      "bytes": 101781,
+      "sha256": "f6a43583b96d121db9725008dc7d3f703c9877472099d6b477c21bf6966d0e3f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/014509-2_COMM_LOSS.png",
+      "bytes": 101792,
+      "sha256": "eafac29862e0c26dbb98af686f4f8ec5730ca7006f2f6a9690e9611bacdc3d0f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/015022-2_COMM_LOSS.png",
+      "bytes": 101752,
+      "sha256": "70e84b81a4b8fdb4629d5659fab2e3c5f7366763ff3ac379e4d62e4191fdb997"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/frames/015536-2_COMM_LOSS.png",
+      "bytes": 101570,
+      "sha256": "5c5255bb3ffa9fdf19eb571d2853e844257980317309c6a5230646dd3e772591"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1280x800/liveness/page@d5eedca221552693f5765794aadd67ca.webm",
+      "bytes": 2683644,
+      "sha256": "d0eb4cc81ca10d215441f60d6aa75a152b9b95af11f7756afab94167dcecbbe9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/000000-.png",
+      "bytes": 50295,
+      "sha256": "c4fc9e370efb5f62f50dff39e55ef082676f747d9a7fb7910de20702d9970831"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/000501-0_AMBIENT.png",
+      "bytes": 87437,
+      "sha256": "7d5a6cb2eea46ee880f3a7d9d97104c933a3a23475f33610752472de3b5b26e0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/001002-0_AMBIENT.png",
+      "bytes": 87382,
+      "sha256": "cdeed60cb5257db2dc67800f8529955e2f23477e71500fac7a564e42c95773a2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/001505-0_AMBIENT.png",
+      "bytes": 88519,
+      "sha256": "a5b8487abd4e254507e5d8bcd68e5db36bbb04643c88b8abf5c3d898b4be7680"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/002015-0_AMBIENT.png",
+      "bytes": 94019,
+      "sha256": "f995052fa460af3668f6013d42f638dc448d397e5cdce4a04517e0a8d43402b3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/002520-0_AMBIENT.png",
+      "bytes": 101278,
+      "sha256": "d15c49061ac0518c5b44913f19471f723d1ed446e26e9409751ed504cc2cd785"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/003035-0_AMBIENT.png",
+      "bytes": 109655,
+      "sha256": "5e804bdcbf24d8f14979a878606709f180f7650546580eb7792ffdd69121701e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/003549-0_AMBIENT.png",
+      "bytes": 121733,
+      "sha256": "1bf799a8f7af6b68bc4fbb945532cccdc767ad9bf358e4c52fa0e983c177acc7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/004058-0_AMBIENT.png",
+      "bytes": 131070,
+      "sha256": "00d45f24453337062085850682f113393cc203bdef36e474da4d6af9aca9b183"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/004564-0_AMBIENT.png",
+      "bytes": 148050,
+      "sha256": "fb963f2c878b027850e1882cbb82ab81274fb52973f5485d82b3a4817d70353a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/005071-0_AMBIENT.png",
+      "bytes": 168159,
+      "sha256": "a2c7c3eab6578ca8290fd1d07a44f830ab7481f3fdfa14dc30b150e5736e8ea3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/005578-0_AMBIENT.png",
+      "bytes": 222694,
+      "sha256": "a27c2555b145b06d86e243f9de3f27593017cd88234a9c552af732d39d5181fc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/006091-1_LISTENING.png",
+      "bytes": 2591149,
+      "sha256": "1110104184d242be6222d5a66cf9a96fcc8d87977d8d2ec7b8b0488552fac367"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/006613-1_LISTENING.png",
+      "bytes": 2608052,
+      "sha256": "d2921d746bca13deb944b0a062808c4c0f6e268c7792a44300672f72933a748d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/007211-1_LISTENING.png",
+      "bytes": 2650262,
+      "sha256": "6a9476dee669c15571ddf271b6c136a2c7b85988345b801316d5134346164f5a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/007715-1_LISTENING.png",
+      "bytes": 2654535,
+      "sha256": "c621346a366ae7fab66c1ed791aee1c2396ae9bb06fe895aef8ebe187b712104"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/008225-1_LISTENING.png",
+      "bytes": 2648185,
+      "sha256": "4a4f638d495bfdefcfcb47415d4e59c1af87a4ca26c96ba78c4b997bb7fa7910"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/008726-2_THINKING.png",
+      "bytes": 2650716,
+      "sha256": "443ae2dd14defafdf12793ba0e497ee7dde2839d1a2ced10978742b0816b904f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/009227-2_THINKING.png",
+      "bytes": 2656976,
+      "sha256": "4147b292e2faaa491c57421c0bcded04591d5b852cd6110dc653935eb1fbacd8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/009735-2_THINKING.png",
+      "bytes": 2657859,
+      "sha256": "20d5381ec3cfb38597cab0931dbb32a14d200359fa01530094837807115297ce"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/010251-2_THINKING.png",
+      "bytes": 1219340,
+      "sha256": "4502c51622d9fdf2bd215cbbed54e0aafea68388fbc602b5388391c9d39002c5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/010761-2_THINKING.png",
+      "bytes": 1219991,
+      "sha256": "99f94a21e59862f6a7d0d94e6fcc0f65a5a7c57b583ddfa9850a23d294e3efac"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/011276-2_THINKING.png",
+      "bytes": 1216258,
+      "sha256": "51e23c99531c6af371ee5f6df26593ec69321e548fabc36b81b95a2b847fbcd5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/011789-3_ROUTING.png",
+      "bytes": 1238710,
+      "sha256": "e6c07fc180a0553ab6c47cef9d3eafa72f35aeb00627e5e736c4686db280c8e6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/012325-3_ROUTING.png",
+      "bytes": 1229558,
+      "sha256": "55e1a89e35e509ab28bc99f1d9537e7a3fe7df3fe6752791a17918ac9ff693ed"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/012851-3_ROUTING.png",
+      "bytes": 1244669,
+      "sha256": "ba3a4375def382f170e7237fbca0ccc57b5fb97dd33fb4731ba8f8f99e5566b9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/013479-3_ROUTING.png",
+      "bytes": 1232913,
+      "sha256": "79cc57827003bcbfa0956eca52be19a4cab29975e7973f9c23348ae3b7f2852b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/013982-3_ROUTING.png",
+      "bytes": 1229902,
+      "sha256": "5e9c894d2e684c12ecab564dac270b55632ec32b24eb14d3319f44a59c224a82"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/014891-4_MODEL_ACTIVE.png",
+      "bytes": 1238445,
+      "sha256": "4c233c5d5d68461f35e74f57f689064308820ba782cfc572718edac55e70551e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/015747-4_MODEL_ACTIVE.png",
+      "bytes": 1232351,
+      "sha256": "209260fa73ca8d4bb2234efe4578ed57c0931d6114008b70a901038064001921"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/017169-4_MODEL_ACTIVE.png",
+      "bytes": 1224366,
+      "sha256": "de6d12ce70324da7737937e8f6dc420bbd2c2635301240b6edfacb554fdf7561"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/017987-4_MODEL_ACTIVE.png",
+      "bytes": 1231080,
+      "sha256": "1b5778b90da78d320c19d25c98a08f4a92381d071c34ea1ab5216ea624ac3840"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/018487-4_MODEL_ACTIVE.png",
+      "bytes": 1224454,
+      "sha256": "6416b6cb1c9d71a14fa58fe444aded3e561790af7c59c752266332b6c7f6ec14"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/018990-4_MODEL_ACTIVE.png",
+      "bytes": 1236169,
+      "sha256": "6196a27681eed8860d8a800046fcc7db94bd38c46e85f71ff9ebd78da2ff5be9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/019494-4_MODEL_ACTIVE.png",
+      "bytes": 1219841,
+      "sha256": "8837abae7007d8d276f4d081aa99eed40f190d3e6399d5d6bf77ed05fd552e22"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/019996-5_RESPONDING.png",
+      "bytes": 1199546,
+      "sha256": "888081576427120df12625cf2537e63c47c75eb1b6177fb38f40ef1adbc10ea7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/020504-5_RESPONDING.png",
+      "bytes": 1193686,
+      "sha256": "7eda6780223a0e5a136c0de544f85b3cde0e680c57712be8a50518dd4e8e6458"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/021019-5_RESPONDING.png",
+      "bytes": 1178963,
+      "sha256": "a0424b033cf1750eeed43795b9bde2bf908cf890aa21756f0f6f5be99327e18d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/021529-5_RESPONDING.png",
+      "bytes": 1183012,
+      "sha256": "a6e9de5d3310f68a3f523c7ba358824a6d98d9324f5b250b92741847c89aae62"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/022034-5_RESPONDING.png",
+      "bytes": 1178549,
+      "sha256": "6f01505443489a6c5d03eecda26a16f5b16f22059c64fcfd83f9949581ffe1c9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/023521-5_RESPONDING.png",
+      "bytes": 1174702,
+      "sha256": "e4345bcf2838db1f7e19c236304d5c540ed9369f2e2a550fb3095e1c78e5e904"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/024021-6_AMBIENT.png",
+      "bytes": 1142691,
+      "sha256": "070960921a0c7fa6f8e8bea41d5a24c7ad0de77051b6444520a130dc84c0ac21"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/024525-6_AMBIENT.png",
+      "bytes": 1117067,
+      "sha256": "be56a7805b4b757327745f56828e9c2bc9a10338196716afa4a54895cc001f5b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/025027-6_AMBIENT.png",
+      "bytes": 1112093,
+      "sha256": "fece3deb86b348ccc87391c812ecf90a4ebbe63c0f85dc302cb2e85c2dad6343"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/025539-6_AMBIENT.png",
+      "bytes": 1112107,
+      "sha256": "1b4da4ad5f2623d87887b628fb216c704c608fbb61443cd1101a1970f4a374a6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/026050-6_AMBIENT.png",
+      "bytes": 1129791,
+      "sha256": "99a4c75f301e545f79bd9508c6353ffce4951a5d6426249f8993f7283fff9f99"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/frames/026565-6_AMBIENT.png",
+      "bytes": 1121634,
+      "sha256": "dbd86247fa2d3497ee0eb16591a4ea4ec89d39bed55843ab6e3403129c663340"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/conversation/page@f260029e2cbf0e85b9f00468673a7d9c.webm",
+      "bytes": 7902494,
+      "sha256": "1164f91484fb4ab70b2d808a867a05316d6a936c1e5617bcf495831c57a983c6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/000000-.png",
+      "bytes": 93041,
+      "sha256": "055790fc91c2619b8cef0bf0cce866353fade39e248933a9189399a3c502a484"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/000502-0_THINKING.png",
+      "bytes": 2060105,
+      "sha256": "0039e7cd3bad3667bb9b4bf8988ae536e1a8960740342d9bd5dbe0c8ff4c05d7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/001150-0_THINKING.png",
+      "bytes": 2139729,
+      "sha256": "b13a897d465aeb1770cb582ca363006d13b28b1859c35262ff2954ff6c0bf0ff"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/001659-0_THINKING.png",
+      "bytes": 2200641,
+      "sha256": "fca452ff09e4cc0022100dd955924964e4e22fc06a13a9824d740f61fa435047"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/002171-0_THINKING.png",
+      "bytes": 2251405,
+      "sha256": "880bfd08d69b7bbcee32f55241af83a8abd3434597121af732d0d2dc9b3a0fef"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/002681-0_THINKING.png",
+      "bytes": 2322680,
+      "sha256": "4f56fc7375a347cdd18dd5f7099e29dde6b56363615edbc5e6ed5f2690689c80"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/003225-0_THINKING.png",
+      "bytes": 2361416,
+      "sha256": "ca210b0209ac2e5e9136dd751ace1923afacec6fc96b7ff01b3603b4af4d50f6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/003730-0_THINKING.png",
+      "bytes": 2390300,
+      "sha256": "76a0228823241deb6805653a1eb64f28d39e8e68200c26c279e37e26b630decc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/004233-0_THINKING.png",
+      "bytes": 2464589,
+      "sha256": "5896dbc6bae1bed34df7bb0abedc65354da8db8c1c839190d152ce09717156d5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/004733-0_THINKING.png",
+      "bytes": 2493959,
+      "sha256": "72fb1d68341293595ac0aa172381f3f3edd6929ec7985b4fa63bac414eef7979"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/005235-0_THINKING.png",
+      "bytes": 497395,
+      "sha256": "c42ddbbd900f639cd2814a9b00b91d1cf64ae9ff832ab5abbcbc74e4174161e4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/005737-1_AGENT_WORK.png",
+      "bytes": 565009,
+      "sha256": "aba4b5c12d049f4f2724adf8e0fbf2de6fe4303801efdc3fa7c08bf20541ab8d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/006264-1_AGENT_WORK.png",
+      "bytes": 660631,
+      "sha256": "6022ff7af64c0651a614b5b55ee26d4d347e2e038b6426ed9937f254e4149789"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/006765-1_AGENT_WORK.png",
+      "bytes": 825509,
+      "sha256": "71389fd9ab05c1153239e87061089def65257a63bfcf5826ab33ded030aa6aaf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/007278-1_AGENT_WORK.png",
+      "bytes": 850391,
+      "sha256": "2c8e15abc1919a88ee79c34a543c3e88c419f7b53a6cfa9e451d76302f75a594"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/007783-1_AGENT_WORK.png",
+      "bytes": 1214954,
+      "sha256": "49ee5e90350cb6e69455cb3bf15ca9b16c2f5cdb92165649b0529278191a02c1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/008289-1_AGENT_WORK.png",
+      "bytes": 1219529,
+      "sha256": "f5230dadcd6d92e3669ae8d99409492b39b84c6760b890d69cbcc0d5ab40d909"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/008792-2_EXECUTION.png",
+      "bytes": 1205857,
+      "sha256": "0e89e8e8b55132dcba07baa8ddd95b79784f2c0d65b90b8b8dbf72ca93b9b368"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/009307-2_EXECUTION.png",
+      "bytes": 1206945,
+      "sha256": "c0b7fa496b0e8553e2190695aa112a23b4d04add8c1fd53d66c04ae63f0fa655"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/009820-2_EXECUTION.png",
+      "bytes": 1202395,
+      "sha256": "e3554e463d06afbee27b197c624d82f627c24d62c72f813581fd377f950af9ff"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/010332-2_EXECUTION.png",
+      "bytes": 1203646,
+      "sha256": "d2af240f913efde5ea65b5ac606a1cf6156d9a0741bd2d812c8ed55d6a550c92"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/010838-2_EXECUTION.png",
+      "bytes": 1189268,
+      "sha256": "8a1eda33a687e6e065e81f8425a427a87f96a1ac6b01bb9f698782a4f54b5b00"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/011342-2_EXECUTION.png",
+      "bytes": 1193963,
+      "sha256": "4cab875ac4e55d61f587cb45c313e473b4b6aa7cd210fd29e53de2fdaa5a2e17"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/011852-3_APPROVAL.png",
+      "bytes": 1166499,
+      "sha256": "2d02b9aebe4552d544b9751c946e8227da6e258b8afe9346c0fd5dc6608e3671"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/012357-3_APPROVAL.png",
+      "bytes": 1146484,
+      "sha256": "e67ab689fc238be6b8fe75e71de05b7a755aeb7db7a2e756a25a8050b4b8bbe0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/012871-3_APPROVAL.png",
+      "bytes": 1136248,
+      "sha256": "57731d1003dbbe125e7c07062e3b21cac8b885396daace6ac55d2b365fcc0c9a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/013372-3_APPROVAL.png",
+      "bytes": 1134903,
+      "sha256": "b1d4932603fe7dacf56a81f5a7849e2063edd195c68fcb48ac73ff021b73397f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/013883-3_APPROVAL.png",
+      "bytes": 1128243,
+      "sha256": "04b429f062bf41a7ad02615f123846e2981f60e51b0260b3e1a2fb8beb07a607"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/014386-3_APPROVAL.png",
+      "bytes": 1126192,
+      "sha256": "077b847f13f20a8870245a100a90212c9c552d7c333ae593ffe62214a1b1ca21"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/014887-3_APPROVAL.png",
+      "bytes": 1132500,
+      "sha256": "1309cdcaac8ca739bff84d7cdd5b5b7533e64e4c320604f816dad837407fb35d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/015399-3_APPROVAL.png",
+      "bytes": 1123348,
+      "sha256": "fd7676282ec447a85d5c9f3dcfe0624c72ba8ccfd17f42062ec6d89ef9c35224"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/015900-4_EXECUTION.png",
+      "bytes": 1180005,
+      "sha256": "145e46720824effd088a2c79772bf9cf50d93d4b311ace6ff1d5e11616bf184b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/016404-4_EXECUTION.png",
+      "bytes": 1185555,
+      "sha256": "2a9360fc7cc40d8b4912bdfdfe8a38e5ed602cd7b53649610e225493f001ba33"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/016940-4_EXECUTION.png",
+      "bytes": 1186975,
+      "sha256": "3598d0bd54bb8fa64df8d51e3f18865d79c9049b7df558df6b6a93e1f94e2106"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/017451-4_EXECUTION.png",
+      "bytes": 1188979,
+      "sha256": "e6ba9e9dd8c024e4c710d09c3d4c26bf0d3fadd941b447682b852d99e433a680"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/017953-4_EXECUTION.png",
+      "bytes": 1183377,
+      "sha256": "b3b54bec00be0b9a9d16b0969485d83e5e290f49f35e67095105472a406c8969"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/018461-4_EXECUTION.png",
+      "bytes": 1182631,
+      "sha256": "aef8f6281870d1b5fcacdce2fd2c87cdb04b81bb982c1331bbe40e94ae571215"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/018965-5_VERIFY.png",
+      "bytes": 1186815,
+      "sha256": "e9d2cbcbf61d0811cafb0b7e1e735988bddd1802d042135a6389f5b20f5d2aff"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/019466-5_VERIFY.png",
+      "bytes": 1176960,
+      "sha256": "f3be5277394f571214d694ab435c4e700dddf06f11ed47d4a4230c0902581ee9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/019971-5_VERIFY.png",
+      "bytes": 1183130,
+      "sha256": "7eb2876b660e6a13368705c677781223356190721797c00e6c85964ea1911085"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/020486-5_VERIFY.png",
+      "bytes": 1173053,
+      "sha256": "f2201bb4b57cff36faf944cb7b715f74e8d428bf32f2358abc896afeefb24341"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/021000-5_VERIFY.png",
+      "bytes": 1178080,
+      "sha256": "4cd3ef155f9db219510a538514cf271a4868d1495db5f67d3690031c7f444246"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/021514-5_VERIFY.png",
+      "bytes": 1172785,
+      "sha256": "0722edd10e95427085bd724384dc63b35e1ddd2a3f3665b2b578d88756849c7e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/022016-6_COMPLETE.png",
+      "bytes": 1175889,
+      "sha256": "2e5aed2a17d06ee199e7f0e6469c0aa2194962e409d6bdec401f293f64674de8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/022541-6_COMPLETE.png",
+      "bytes": 1169726,
+      "sha256": "df94099c4093b98a7dd87323a68ef17dd6712b5beeb34457c02126ca8a8be8c1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/023050-6_COMPLETE.png",
+      "bytes": 1162403,
+      "sha256": "6f1dd71315b218c4bc96741292c76bdf6e4754f2e02668949f770477aa39860b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/023554-6_COMPLETE.png",
+      "bytes": 1154999,
+      "sha256": "0848c34e7c261075cfa0273ec825e026215450cd041e4a3169e02e78ba09ed8b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/024061-6_COMPLETE.png",
+      "bytes": 1180727,
+      "sha256": "6c343745769b899f39267be01e29d81df4e2ebd5d791e0314855c385e3c75b32"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/024563-6_COMPLETE.png",
+      "bytes": 1167098,
+      "sha256": "dbf4731fdedbd721eb4908abea8bf1178cbe092ad8b764bdedb4533c82f296b2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/025068-6_COMPLETE.png",
+      "bytes": 1156625,
+      "sha256": "12039bf3fa0e6c0be9807c848c92676aa46513047d7cd0812f75581297eb2211"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/025581-7_AMBIENT.png",
+      "bytes": 1121861,
+      "sha256": "79967c3419be156ae87e36879438306f5a3f2249090a778ceaf36fc30b637f2c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/026096-7_AMBIENT.png",
+      "bytes": 1114918,
+      "sha256": "39062b6d0e81415a6708140d2d49fddf9c018a57c0c9b577ecafdf891f5c92e4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/026597-7_AMBIENT.png",
+      "bytes": 1121140,
+      "sha256": "ea76650bc03faae33ec46d913c13dd46ff28b39ce33154143c31e6791444bde9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/027099-7_AMBIENT.png",
+      "bytes": 1118392,
+      "sha256": "8e1537d05197fba34b3197a4f1fa7f58b4215bcbacfea9fde4cede857100d246"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/027613-7_AMBIENT.png",
+      "bytes": 1117742,
+      "sha256": "a8df8dcc269e9d878a4923920fdf56127667ec50e297d0689d14abf362883968"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/028113-7_AMBIENT.png",
+      "bytes": 1107576,
+      "sha256": "d44eeed6f4bb53051d8ffcf1cbcf6ab0f0a3873b94742e69b5c311358dd12899"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/frames/028614-7_AMBIENT.png",
+      "bytes": 1105590,
+      "sha256": "40add7ed1e22d8fa430163adbb84697adb854380fbfae3398f3421bedd78a0bc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/execution/page@7ff08ef1102fecc7b6f153cd42a24840.webm",
+      "bytes": 7894882,
+      "sha256": "3aab520dafcf4b7840a6b2f7ee0c91e6da9b6e490ebb025e8d02ad08fe30da5a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/000000-.png",
+      "bytes": 94829,
+      "sha256": "e298dba29d3e185971cb4b0ba25bc24aebdb54b98e2a033baa198205f2fa7ada"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/000400-0_ROUTING.png",
+      "bytes": 2015900,
+      "sha256": "503868f4f35e717d5ed248ea463c459987b05fef94d4897ea04cc90e5a1975ff"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/000922-0_ROUTING.png",
+      "bytes": 2108913,
+      "sha256": "d181299c24c5f8fef657b473708c0d9202d8563cac486b13e7b0244e48bc97c8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/001420-0_ROUTING.png",
+      "bytes": 2186078,
+      "sha256": "2fda6c14a56871188353880a02e827cf29630870e6f6b128a3b386e418560582"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/002759-0_ROUTING.png",
+      "bytes": 2348344,
+      "sha256": "c02ede7ee7a484c6ef00aab330877b6761db4febea517f325e28796eac209adb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/003241-0_ROUTING.png",
+      "bytes": 2382039,
+      "sha256": "925b123497cb48e622205db6748080393c3beedd47baafb1bb7cf8bf794c6833"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/003751-0_ROUTING.png",
+      "bytes": 2420734,
+      "sha256": "7e770a41ebe164af5f71c03713116361119629e8259dbb935280162e403c71a9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/004243-0_ROUTING.png",
+      "bytes": 2473059,
+      "sha256": "d55dd0393b9a4ccae398098468e78f9149381f9bebad67df784c1e10998a2c30"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/004731-0_ROUTING.png",
+      "bytes": 2512748,
+      "sha256": "7d405a99e6ff1638de73d3a3ba9453892caa0c48754880034dadad46713ab8d8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/005224-0_ROUTING.png",
+      "bytes": 483507,
+      "sha256": "aafaa026553e38a397de12700d6eedeb277f31bd260f916332c4c440147ee0f4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/005639-1_PRIMARY_SELECTED.png",
+      "bytes": 566612,
+      "sha256": "915204a188c775487648eb57a8fc29b7b334bb1b4abca5c481fee6a501019c66"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/006042-1_PRIMARY_SELECTED.png",
+      "bytes": 616719,
+      "sha256": "642edf6d1510942a15d171dbe10c0e851dc5856de28591c62a23495b21e8b414"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/006447-1_PRIMARY_SELECTED.png",
+      "bytes": 766212,
+      "sha256": "f782d681ff734fc036c68589c99eb6d6db7e8809bde14e9f70074c06f0aec394"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/006856-1_PRIMARY_SELECTED.png",
+      "bytes": 803437,
+      "sha256": "3feebef274c543ef06b0f4e07b2ccc22ab29eb61aad754b0e02acd0bd5620254"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/007262-1_PRIMARY_SELECTED.png",
+      "bytes": 815356,
+      "sha256": "26b6121f0d84b7e22aeb80dcbc94768eecf9d2836349537bb332996775712f53"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/007671-1_PRIMARY_SELECTED.png",
+      "bytes": 1215325,
+      "sha256": "8ecbe191e6273975bc42f63a1f5e7fcfab9f02609bc4dd19391d5cdc8c41e882"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/008354-1_PRIMARY_SELECTED.png",
+      "bytes": 1213646,
+      "sha256": "78c574653131053eb5c28cbb261225cadc1cf188545c3597770a265fccb0c3b8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/008821-1_PRIMARY_SELECTED.png",
+      "bytes": 1215577,
+      "sha256": "08d89b3c8d71fd3d0b77196d38b83fe199c9e611c2cdfcdef8245cd71d6a80c9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/009305-1_PRIMARY_SELECTED.png",
+      "bytes": 1221159,
+      "sha256": "76f21288ee9d730453dc95bb3b9c9b3c041a6f4cc33a16a13ca45678a2b10be3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/009792-2_PRIMARY_FAILURE.png",
+      "bytes": 1211791,
+      "sha256": "d6b3f74a33e4f9f203547ed88a6eca3442e1011d98f0bdc01a58b2380ed5cafc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/010276-2_PRIMARY_FAILURE.png",
+      "bytes": 1213983,
+      "sha256": "f12f4c18724e15e748f0f398717989788f1a5297a3a1476ed5b5e3b10d21a4cd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/010737-2_PRIMARY_FAILURE.png",
+      "bytes": 1221032,
+      "sha256": "bd16a019a03d0e93912824b85167f23b88c1214f3b3964fb8f82ae38e5786b0a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/011214-2_PRIMARY_FAILURE.png",
+      "bytes": 1222633,
+      "sha256": "6c77dc3e74ad788b9a98cc3a28c61ecd24b81508080273c1c02da3a608b2a64f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/011705-3_FALLBACK.png",
+      "bytes": 1228716,
+      "sha256": "93a1910479931c0f7ac560762b2b483eb120927c378e6a383fbfaaa6ca69c32f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/012194-3_FALLBACK.png",
+      "bytes": 1227663,
+      "sha256": "7a22e8a3e17288c242a7123dd224519909d9a451129524414a55b7319b7a8a7e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/012671-3_FALLBACK.png",
+      "bytes": 1228183,
+      "sha256": "cecc33431549efc60f684c21472965b45fefca451a16889f290a7dbd0824274e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/013141-3_FALLBACK.png",
+      "bytes": 1235835,
+      "sha256": "ad48efc3e5bbc04a0caaa82db8595c98223eee83c928dd5d83fb3e452bdf16a9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/014018-3_FALLBACK.png",
+      "bytes": 1235096,
+      "sha256": "9b51e393eb294f6b8ac6dea49fcbb8e79f2831bbafbc1514491879b28b970002"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/014504-3_FALLBACK.png",
+      "bytes": 1236637,
+      "sha256": "24e2cde4cd2ac0444c83b5e22091d9ba50a6c0d975079207f99195494a0669af"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/014979-3_FALLBACK.png",
+      "bytes": 1226505,
+      "sha256": "15b7387eddd6531f9e07d5d2f09efe0b2c3276bf80e12cc5c4b5ff3e7bca4640"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/015443-3_FALLBACK.png",
+      "bytes": 1217410,
+      "sha256": "ac317ef97450fe00876dd24b25aaf948ef500f49fd5d011adc0b72f00c937a52"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/015943-4_MODEL_ACTIVE.png",
+      "bytes": 1224428,
+      "sha256": "5f4a10da76f56f3e166a09895ec4c2cad403dbf35da3f3bc61ecaf600ec9c552"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/016422-4_MODEL_ACTIVE.png",
+      "bytes": 1229157,
+      "sha256": "76b8076d4e0c8dfdbcd81768fbad5737953c98eb1d868f730f81bee6096a317d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/016912-4_MODEL_ACTIVE.png",
+      "bytes": 1232894,
+      "sha256": "40ac5574ee477edc859fdb56ee679fcecf9beb7aaf0a94c60cc10029631ed400"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/017387-4_MODEL_ACTIVE.png",
+      "bytes": 1238886,
+      "sha256": "6016ae49011f01c1ec3fed35bf0b996f95ffce3fdd9cd40496ed0975d6ffc434"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/017872-4_MODEL_ACTIVE.png",
+      "bytes": 1224009,
+      "sha256": "769a725c4368561a4b172e814edcaa2dde3c6dc1890b5cda75ef14bb16f9adea"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/018359-4_MODEL_ACTIVE.png",
+      "bytes": 1237991,
+      "sha256": "15b62332a97f8caf981b29f3ba6368064be71d6689905796d3fda881cc269903"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/frames/018833-4_MODEL_ACTIVE.png",
+      "bytes": 1238238,
+      "sha256": "d0b4115ac4c609a73887d98a8c3c1c38586904799f03aab46c82a2f10c2d081a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/fallback/page@115424c6fa04ec8c2f2abf871b9d9558.webm",
+      "bytes": 5725848,
+      "sha256": "154610c71ed4dcdf75ac2d07d67572b9fab12979d6bd91e26fef2ae363ab5dc2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/000000-.png",
+      "bytes": 2063713,
+      "sha256": "947ea4b3eb45eb753702afecb036b574530b0609189a5fe5410764bc1e62f527"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/001179-0_LIVE.png",
+      "bytes": 2151596,
+      "sha256": "42448411f5f20e694a4dc1cbae41eac9a692bb4cfdce66af3dec5e08784f8630"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/001688-0_LIVE.png",
+      "bytes": 2217571,
+      "sha256": "96a4c5ac347da21eb8cb5fe343fe70d931bfde2a7a84af988d6a5529b4f9f724"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/002211-0_LIVE.png",
+      "bytes": 2268083,
+      "sha256": "e04c0152b7a641ec90b7a2caaa522f0cfca71aaabdc060d481269e27b757ae3a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/002712-0_LIVE.png",
+      "bytes": 2340772,
+      "sha256": "f1f8648c8b4f866739b316ce4a1d08cdf4e1063c16f2f4a244a43dc7f3851668"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/003225-0_LIVE.png",
+      "bytes": 2379185,
+      "sha256": "5d390bbfd1060be6ebf60b4f692f0e57662764e53c27e702706d7d5aeb6d9a70"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/003729-0_LIVE.png",
+      "bytes": 2429710,
+      "sha256": "81caa4bf7c14d0a50026b0728946d11f3649e18434463a26cab84b3f99e433a8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/004231-0_LIVE.png",
+      "bytes": 2490867,
+      "sha256": "ca977901ad2f92e08eafb10cc39fbb9fa303e13b3d078fe2889ed60db3ab6fdd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/004739-0_LIVE.png",
+      "bytes": 2523547,
+      "sha256": "02c5d4febd671598be4377f0a7bf3a456239890ae5f674f2b01d6a9ad4d06679"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/005240-0_LIVE.png",
+      "bytes": 460007,
+      "sha256": "ab30027624bca88a2924344081f582008a340a168322cf73b7db7c05951c56ce"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/005751-0_LIVE.png",
+      "bytes": 530793,
+      "sha256": "c20641abd6ba2ff73f79e2627157e7fa9b5d903a9476f4808d71885bcb6bcd47"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/006264-0_LIVE.png",
+      "bytes": 644559,
+      "sha256": "6b057ed83f06e4f099bb024d047f0a64a2f9cf6da93165da7eedd580a61108c7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/006766-1_STALE.png",
+      "bytes": 591141,
+      "sha256": "f8c8a02ff74797b704df923e237bf8fbc2e458f6e567a4ad31b8c73c39b47baf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/007273-1_STALE.png",
+      "bytes": 325912,
+      "sha256": "54d179878fbbd99bd5249fa790b6684d3dfb952cf69281c32d825d6ad0c39184"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/007780-1_STALE.png",
+      "bytes": 207148,
+      "sha256": "245c0340a1518a064070acc730afdf6f98ac1cd2a402f0486b608ef787021b0b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/008289-1_STALE.png",
+      "bytes": 180370,
+      "sha256": "947d3b8566a57ce062f1c7fed5fe6f7002e4be83a7db129fd2792b6f7dd7148b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/008796-1_STALE.png",
+      "bytes": 158318,
+      "sha256": "1112ee3ca3e3c738777df81938642bdbe949b71a872bfb7824831810db8ded36"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/009307-1_STALE.png",
+      "bytes": 149616,
+      "sha256": "b85aba40ead1c84fc3d88f657638f652b282ce5ca3c70eaeccb15526a66cbeaf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/009809-1_STALE.png",
+      "bytes": 136200,
+      "sha256": "ac665159b5b233badf1dc8f0486e7a16e4f768fa855552f58ec2923c265830ad"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/010316-1_STALE.png",
+      "bytes": 130980,
+      "sha256": "2f62e816feb8874f3327836d0a9a4bf732ffa065cd56e4e81eed8d38d85c27b9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/010816-1_STALE.png",
+      "bytes": 126204,
+      "sha256": "87e10066998ab1370e474eb44a018cc1804724f6f40ec5994ba86ae2e1aca7d6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/011317-1_STALE.png",
+      "bytes": 126789,
+      "sha256": "1701861da5fd6308f476929ab8d3147589123c8a791c886d3c53f80986bb1e97"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/011828-2_COMM_LOSS.png",
+      "bytes": 123819,
+      "sha256": "236ce19fc7bf2853eb7b2f2d8dc53584f87b6d5efbdb4dbd0f4328c187386f7c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/012327-2_COMM_LOSS.png",
+      "bytes": 123129,
+      "sha256": "caec136054f536de78b2de41c0da40909ea1f504db2dd8eb751bca91aa48f2dd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/012828-2_COMM_LOSS.png",
+      "bytes": 122136,
+      "sha256": "9bb772b4e633105c94e66eb121368751f86a645698dae838b96d8c4ff75d3f3c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/013342-2_COMM_LOSS.png",
+      "bytes": 120953,
+      "sha256": "edf0374a21c1fcab976e7d0d4e77f99eb55dfdfa17520adb2394953d196dd780"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/013855-2_COMM_LOSS.png",
+      "bytes": 120780,
+      "sha256": "446be8903ee5195f8cd2dcb3d900aa3cf8c72d0db3ab684fb8526d9286a8b932"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/014355-2_COMM_LOSS.png",
+      "bytes": 120874,
+      "sha256": "96cd790f60fdd5d689b560c7e4e4010cd97701c8c648e24c0bc45fa22524b815"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/014859-2_COMM_LOSS.png",
+      "bytes": 120620,
+      "sha256": "a44b6a1f33fd3c23f84693d05bfb0e45068b961a4f77a372cd61ac47022fe76b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/015361-2_COMM_LOSS.png",
+      "bytes": 120461,
+      "sha256": "f9154d7e3ef09ead696b13e906e0643c4dd627a79e8ad72f80c330e86442bfe1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/frames/015877-2_COMM_LOSS.png",
+      "bytes": 120638,
+      "sha256": "469773e5a5bf4c17eca09a71ac00fd9610c2c73c8b89d2b981cc09350405fe95"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/1920x1080/liveness/page@f4c3d1a6c18e3d3d29e030f0641a4d77.webm",
+      "bytes": 3738374,
+      "sha256": "28e3867d10afb5a7098d8f959a6e78731dabb1c92ca8f51edc64537246d6b72e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/000000-.png",
+      "bytes": 61678,
+      "sha256": "e8271be1cbf104ae6f26940c4754d899091fdc5bb2ee080013d9bc8147323831"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/000504-0_AMBIENT.png",
+      "bytes": 120925,
+      "sha256": "d5e7256d08b83ac9f23143780365972b89decff6b5da569e2628c6ca0ee13e1f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/001015-0_AMBIENT.png",
+      "bytes": 121867,
+      "sha256": "1eab6f78c9bad71e071a970a17e1f213cdcf9e2bcc82d429afe72698e9d87f86"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/001527-0_AMBIENT.png",
+      "bytes": 126433,
+      "sha256": "150bf0aabdf2f3f7d78bbb113505c97e7d2d055f77f2cff83d063665907cd441"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/002034-0_AMBIENT.png",
+      "bytes": 133516,
+      "sha256": "4efafca3a5d6019e4cfab08f73acd83f6f4c40a0f6604bfd21e7d0cb85aa3185"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/002545-0_AMBIENT.png",
+      "bytes": 145108,
+      "sha256": "7d5573a23c8ee4486e6bfb1289a2e2be72776bb02982c2384ad6a234fec1a335"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/003046-0_AMBIENT.png",
+      "bytes": 157580,
+      "sha256": "a72aec7ca37c5e39b30822623af299bbe72d1be94155b63d0f1d16e6982c30dd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/003547-0_AMBIENT.png",
+      "bytes": 176442,
+      "sha256": "f585bb269e227ff7346e2255e9e38a1ed3fd225cc845303ab10a6172d6e06be4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/004051-0_AMBIENT.png",
+      "bytes": 189792,
+      "sha256": "bfb6ace5acc72260a47f66b7013aa34c89b5cdde1124d9c2fd26a8284df1fc55"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/004563-0_AMBIENT.png",
+      "bytes": 219269,
+      "sha256": "a4b7342da8bbec550e7684f7341c41d036c1f4cf36cbe5f6a1d6c327419f072a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/005064-0_AMBIENT.png",
+      "bytes": 255097,
+      "sha256": "dba05e9bb9d1ec142fa4079a812bff2a6169cc1dbb9892605edf631389f02846"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/005566-0_AMBIENT.png",
+      "bytes": 322005,
+      "sha256": "70e1d7060c12c38b4768692075aa6f8b9566123c191699c17620cdf4b9f10183"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/006072-1_LISTENING.png",
+      "bytes": 4548911,
+      "sha256": "c6ffd646f03ee51acf84cf4b4a553ec0f2791ef82d431608863119adfdd4bb7c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/006935-1_LISTENING.png",
+      "bytes": 4668918,
+      "sha256": "d23dbc6c5a2c4c226070735ef3d7e845e2ef6bde1b77d191ff8cc6639a4408a3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/007948-1_LISTENING.png",
+      "bytes": 4679108,
+      "sha256": "3ada6d4a1d02a982e21378fc1a74825df629d019d5c68a8b8fdc24be6fa19eae"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/008754-2_THINKING.png",
+      "bytes": 4695146,
+      "sha256": "d458ecb7cc861396318eae10633dc5691e120df791ff17b195a4a261d28142d6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/009586-2_THINKING.png",
+      "bytes": 4682607,
+      "sha256": "1febdeb63b0147b60146764c5fc7d2048670fdaa4604e982f32673ea5ca0abbf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/010382-2_THINKING.png",
+      "bytes": 4655954,
+      "sha256": "115a4c7d01e55dfb39c307aac8d883df26de8b6a592bc2f4d5c451531695a512"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/011270-2_THINKING.png",
+      "bytes": 4677985,
+      "sha256": "cb080c68d764fdf7c2c87463e6f5de3283cdc213db73adf6d03e8cff86b6ef93"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/012110-3_ROUTING.png",
+      "bytes": 2137130,
+      "sha256": "a89b4a710ddc0afe5a84325078d6d7484ac5060dcb635269471b41bb213381b8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/012963-3_ROUTING.png",
+      "bytes": 2124252,
+      "sha256": "cd55631ad57ad417ee286a43fa8175cd9b6e5096f2d913992e5e1d7ac8c195a3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/013810-3_ROUTING.png",
+      "bytes": 2123861,
+      "sha256": "a2ea02b972339f20c870b3b64203be78da891a6074a8eac00e7eaae94fbab473"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/014629-3_ROUTING.png",
+      "bytes": 2139476,
+      "sha256": "4b1461d70322df5689a3bb9cf0bf4ca3f2664afcab4d1bf665ec52174a251544"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/015451-4_MODEL_ACTIVE.png",
+      "bytes": 2121995,
+      "sha256": "7403ee8d264feeaa30722a53ff763f4b396d91e9877303f50eb74530f0045f5f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/016269-4_MODEL_ACTIVE.png",
+      "bytes": 2121110,
+      "sha256": "4fe1e69a89188ac1cab0762c31c81a55e6ae7bc16860eb11b183c9fdcc749f0b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/017115-4_MODEL_ACTIVE.png",
+      "bytes": 2112031,
+      "sha256": "e08420131708215b1c4c12f16bc3506c51e04ec8496422ef6b32ff6cd75c1eb5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/017931-4_MODEL_ACTIVE.png",
+      "bytes": 2123390,
+      "sha256": "8c802b961f80bbc7f88e7bb2e831b47aee32ea6352762f483967f57a3dca8d75"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/018750-4_MODEL_ACTIVE.png",
+      "bytes": 2110979,
+      "sha256": "61d0cb9bf64fd6847f2cf5bb94ff524ebf543a527b04dc61acacbae7e9aae590"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/019562-4_MODEL_ACTIVE.png",
+      "bytes": 2129263,
+      "sha256": "1ee07a9523f0b001dfb5a69084fa1fe68b191a27a11e7777566d6c805622afbd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/020385-5_RESPONDING.png",
+      "bytes": 2073788,
+      "sha256": "e869b3b85bd5b4b996170a7e130642ce1032febb539a7dc2fcb835f0a1d208c0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/021221-5_RESPONDING.png",
+      "bytes": 2038174,
+      "sha256": "0d1c35c8ae50d6eaf10806d763dd10328440799201f646870cf72eea106d3c37"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/022024-5_RESPONDING.png",
+      "bytes": 2035789,
+      "sha256": "09041e02bd9e255a34d2738549a34d2869be107786955fe3583de229ac44af83"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/022837-5_RESPONDING.png",
+      "bytes": 2027873,
+      "sha256": "5c84bcfdb04fc960a017fd8e33154153445e07170bfb1a773961aa810e9babe8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/023641-6_AMBIENT.png",
+      "bytes": 2014310,
+      "sha256": "4965764853905eaec813dc8184e3ac870b37ffcb46e5af12421a8b196309eb30"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/024587-6_AMBIENT.png",
+      "bytes": 1968669,
+      "sha256": "ad85f58e3af0518145aee1620f6bba318a9ac2e0895765e970306e5371129efd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/025415-6_AMBIENT.png",
+      "bytes": 1937302,
+      "sha256": "b60bfce9dad467e574ac081ca1606a07d64f974161c264c8d8da734ce8b5a186"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/026214-6_AMBIENT.png",
+      "bytes": 1925243,
+      "sha256": "8b8159c8a04c3476aa1fcf29fddcf1e64ce0940df1b23409c98f467988aa24b9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/frames/026994-6_AMBIENT.png",
+      "bytes": 1940187,
+      "sha256": "fed6531357a8a5b627c12855a03753b807ca88d6fe20d8470a9333e4027a21b4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/conversation/page@72a7d6fb42faa50130c2ef32d7182741.webm",
+      "bytes": 5983544,
+      "sha256": "c0a85ea1c26bae87d83704659b421ca266291177fd21667f700827b607b5520f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/000000-.png",
+      "bytes": 3539012,
+      "sha256": "e29e42e020f387531fd321e517cd60eb8f5541efcbb8fcfa3e1160aefadd6006"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/001422-0_THINKING.png",
+      "bytes": 3808171,
+      "sha256": "2b97ed86078ee0856bc0432ab3137b109f33d501ecae9cd07d6721889e249fb0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/002335-0_THINKING.png",
+      "bytes": 4019555,
+      "sha256": "68fb7e89428080e684a94166f70ee242833378f141b4e90994db08ff7f55e68f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/003207-0_THINKING.png",
+      "bytes": 4181500,
+      "sha256": "f0508747059ceafc0d925f370198c8ce848644bc8a6982659365a491f000e316"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/004122-0_THINKING.png",
+      "bytes": 4317822,
+      "sha256": "037f4c6ebe1dc5e847320dd7939ac75b811779986f8a7ef2aae81f6ef64c571f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/005016-0_THINKING.png",
+      "bytes": 4429941,
+      "sha256": "bd4adac81768952882604eccb4e790c11e21191c3c91910aaab7133fef9ddaa1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/006101-1_AGENT_WORK.png",
+      "bytes": 4532806,
+      "sha256": "095edcf213dad5939db1524510f3a407f2ee48aa1850e59107aeb466db913bca"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/006929-1_AGENT_WORK.png",
+      "bytes": 4625087,
+      "sha256": "2bc787dc263b0f1ae398ffb24de01ba0321dcd7ecfd3e192613f08054e9dd4dd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/007757-1_AGENT_WORK.png",
+      "bytes": 2098920,
+      "sha256": "a0f34fb419476d6603643901aaae9ce30a0f67222c2ca201a3833173b2c0fd83"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/008648-1_AGENT_WORK.png",
+      "bytes": 2092352,
+      "sha256": "786d285fd9421f4915f424d76470ea6e8a1815b5bc71c1d06545466b05852f04"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/009468-2_EXECUTION.png",
+      "bytes": 2118033,
+      "sha256": "4a66a094595051827f631d854a138dfd4f54a6c46f12db8e9c34c79da5b01ca6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/010287-2_EXECUTION.png",
+      "bytes": 2080419,
+      "sha256": "48fd3ca63361541e984bb340f4fb46841a7a6114afe6a34a8c3dce4d4485f3cc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/011091-2_EXECUTION.png",
+      "bytes": 2023892,
+      "sha256": "919a8dc59b5876e93efb7ee0513f2a6d30ef45501a2967ad97fdadb872b945ec"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/011871-3_APPROVAL.png",
+      "bytes": 2071004,
+      "sha256": "31245a9f8a7d9655d099a2afc1900d6c068453f7c692e1a63d3cb8988703b227"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/012663-3_APPROVAL.png",
+      "bytes": 1997824,
+      "sha256": "70504912777fde85ea07a09eacfc8d5fad1672903fbbe79f8dbe013e3a067c88"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/013450-3_APPROVAL.png",
+      "bytes": 1987648,
+      "sha256": "1502337f74d749c0b2b696f78d0f2430ce04bb8723ac9de57627c5b9ee53b032"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/014228-3_APPROVAL.png",
+      "bytes": 1994395,
+      "sha256": "6079b321372975f45be2f6c95cca4ea1239207fbe21582f5e6e1dd776f52aadf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/015026-3_APPROVAL.png",
+      "bytes": 1974669,
+      "sha256": "5c000a543332ece4f88ba7052ba2d0caef76fe0104548a78440437a64f8bf5df"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/015813-4_EXECUTION.png",
+      "bytes": 2016700,
+      "sha256": "5571f1541388d181460f0f6aab2bbbadeee5753b9e51c1f3a345e3dff314aefa"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/016624-4_EXECUTION.png",
+      "bytes": 2050499,
+      "sha256": "6515325009c24cb56f70846724ff26b663885b798f3bf9dd42f2be0133cfff69"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/017438-4_EXECUTION.png",
+      "bytes": 2051769,
+      "sha256": "8182f640abc113a4538537a4b4d0e8483368e1dec602c6e27cbfa2d6fc51dc5f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/018241-4_EXECUTION.png",
+      "bytes": 2045651,
+      "sha256": "8574617e3a428b2990bfaba713241a592661a2cb28aab696134b03ad4f321862"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/019051-5_VERIFY.png",
+      "bytes": 2061642,
+      "sha256": "9830972e2eba902e680e8cc45bce89bc120c88d29cfa9e48de5b2ca2d32017ce"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/019868-5_VERIFY.png",
+      "bytes": 2048004,
+      "sha256": "64d690b909519eaeab0d986fb076354a8e6c468711ee2144a20729ee79e93be6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/020669-5_VERIFY.png",
+      "bytes": 2029499,
+      "sha256": "a1de42a17dd3c126fa7f5c06e5502fb403713747379d1b7e50b5871dff2f2ebf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/021450-5_VERIFY.png",
+      "bytes": 2020410,
+      "sha256": "20e829b828a094e5831cab1b2957e7545e1752f46973d98651099f05f74bf419"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/022255-6_COMPLETE.png",
+      "bytes": 2027448,
+      "sha256": "6cca8deaf9464f3973977c6a9e8e3ee4f0f0f7cc6db2cbb42857db8c8b608598"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/023063-6_COMPLETE.png",
+      "bytes": 2012687,
+      "sha256": "851ed7182c110ec27b645d97f1f18b647628481dd768aa9475e6aaa3a7613dbb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/023854-6_COMPLETE.png",
+      "bytes": 1990340,
+      "sha256": "ef42cb12320b46ef9357038194626e6ce2599cdd005ba36507152fa83fe0e31a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/024661-6_COMPLETE.png",
+      "bytes": 2029603,
+      "sha256": "6f632c46164bf3432dd9103cc29794165de5244919937f56a7c774cbedebad6c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/025509-6_COMPLETE.png",
+      "bytes": 2014600,
+      "sha256": "3519a6b87d16d75842600fb84b351e259fe4f932785ac761969bdb35eede6e51"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/026302-7_AMBIENT.png",
+      "bytes": 1932130,
+      "sha256": "7b5797f74381185b6330d8476f1bc3f5a91d6ff829fd593570a028d540b4d6cb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/027104-7_AMBIENT.png",
+      "bytes": 1945044,
+      "sha256": "8ea842830c08ec2bf83350bc55382ca9c703a7cf719323df90d97ef3ec148250"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/027897-7_AMBIENT.png",
+      "bytes": 1920100,
+      "sha256": "5cb02f4a3ab320d83cdb8e683c7ada45633c500a695331f1944a49b784be6920"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/frames/028681-7_AMBIENT.png",
+      "bytes": 1941739,
+      "sha256": "9d5fff02a55a442e5e0daddce87fa8c5c183a8267ebaf8ddfefdabb688ecc923"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/execution/page@e762af17e97f2a1512709254a5844ff3.webm",
+      "bytes": 6419574,
+      "sha256": "2de1c8a4546a8c61b48ac0700a777ee605e86e3e6ea109c20bd1462cec74bad7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/000000-.png",
+      "bytes": 119749,
+      "sha256": "2b51bf8203d7f16e178c65a1786c4a6c87a60a8d7f0155008d2fca8265857c36"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/000408-0_ROUTING.png",
+      "bytes": 3638004,
+      "sha256": "8b34667fc1efb39610965be43e2e7bcface9128e76ef01f69a0e9ed587863bb8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/001651-0_ROUTING.png",
+      "bytes": 3878608,
+      "sha256": "e1221d30c78e34592a28bce877345fc337b2de9bd12ec567362572a7f1ccac2c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/002597-0_ROUTING.png",
+      "bytes": 4103368,
+      "sha256": "6c41908d5aec2f30c48c18ed8d566be4dcf77388559f2291b452e925d0040c9b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/003530-0_ROUTING.png",
+      "bytes": 4271873,
+      "sha256": "cdd58408d4f9a2371b4adbf5a0897e5d61a6aa4799a856d2be54bdf5ec8061c0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/004415-0_ROUTING.png",
+      "bytes": 4395826,
+      "sha256": "04a55bd81bcbcd6f854d46b0437f3f0cd19ea35a37dfceba4e1a1ca04edebc40"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/005298-0_ROUTING.png",
+      "bytes": 4492650,
+      "sha256": "4c6205ed349ad9c51d0506e97c66ac43787412ea34bd8261e198440110704295"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/006135-1_PRIMARY_SELECTED.png",
+      "bytes": 4592346,
+      "sha256": "3ebdfbfc07a90fdd3d23068353fd1e2fabbb741a6b10f07692d49fb9dc03dc1c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/007060-1_PRIMARY_SELECTED.png",
+      "bytes": 4677567,
+      "sha256": "3bdfe1ff57f926bba196873efe4e464a406a62c87027ec29b6e160ebb4c61b7d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/007877-1_PRIMARY_SELECTED.png",
+      "bytes": 2104260,
+      "sha256": "46d5c5c95bbc686921c75bd307c590be7875d7fa882f56aecee8fed918a6603d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/008933-1_PRIMARY_SELECTED.png",
+      "bytes": 2111117,
+      "sha256": "b7eb15173adcd172a63625038114e96972ccfbfba6b1379ebecf5e7543f3d7d9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/009756-2_PRIMARY_FAILURE.png",
+      "bytes": 2112420,
+      "sha256": "6c7db829f88ff7e8d38167c1a07424eab05d567e8b0aed182d58bb06344cb718"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/010577-2_PRIMARY_FAILURE.png",
+      "bytes": 2055978,
+      "sha256": "6587ce6fa3dabcbb97c25b3703a5dd390fddfded05006ccb5f2208c5d4660842"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/011375-2_PRIMARY_FAILURE.png",
+      "bytes": 2111472,
+      "sha256": "1043f0152a52f5e453368d60e1d52f5b8abcd6c1c04f7948509ca8f53e38a559"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/012202-3_FALLBACK.png",
+      "bytes": 2120835,
+      "sha256": "57bdf90159ffe547b71807d585d3810f3f713f9379d97a70a91131afc934da6c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/013027-3_FALLBACK.png",
+      "bytes": 2128491,
+      "sha256": "e7b0891e7bc674f208b81b058ff11113c9c70ccc72a1c6908f94fd9e35d3d852"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/013847-3_FALLBACK.png",
+      "bytes": 2123772,
+      "sha256": "9d5b79126b4af9cd8eb6d7c0b39f0836b90ae272f2d73a5c54850b463d4f87b3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/014697-3_FALLBACK.png",
+      "bytes": 2119413,
+      "sha256": "5b145beba6bd7f0407aecd3ee9cc3c94ec0929aa3653d6c249d5c4a4a984f42a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/015510-3_FALLBACK.png",
+      "bytes": 2098717,
+      "sha256": "9b7863ad3fbb0a7fcd6bb291660e9e63b485e102a735e70514441e2c41361e00"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/016331-4_MODEL_ACTIVE.png",
+      "bytes": 2124698,
+      "sha256": "a1b50d1ae2a33e27c26cbb53e23028d949795a11c3af053b327df45a904ade7b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/017149-4_MODEL_ACTIVE.png",
+      "bytes": 2127578,
+      "sha256": "5071ad991fba377f1e3252bd081b704d8687158a299bcfd44a383f4f99eb1cae"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/017970-4_MODEL_ACTIVE.png",
+      "bytes": 2119023,
+      "sha256": "24052c2c38a0e1b876d23424b2ec2432e9b0379ab4062374e1c62d324756d057"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/frames/018803-4_MODEL_ACTIVE.png",
+      "bytes": 2115554,
+      "sha256": "4b7bd6e199b4fcac3731a80df0c829aba0b2a7be5b3a216d4c1b8e9f8e1a3057"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/fallback/page@7f5e7ff40698321eb1a21ae41e8c40f5.webm",
+      "bytes": 5282589,
+      "sha256": "95d870d06bce7acafd61895fd56ac28aceb32e1a24030d3af9385f63d300a209"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/000000-.png",
+      "bytes": 129643,
+      "sha256": "a7c1160d6c28f5175791abded1492c43801244c36c401ed2ab684c498e99ac8e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/000502-0_LIVE.png",
+      "bytes": 3621286,
+      "sha256": "caf19ef83364ef67cc41ff3777e935afeea8b80d94b56208ad561c6fae9ac995"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/002154-0_LIVE.png",
+      "bytes": 3977633,
+      "sha256": "6e694d9f951082c9883ece34c5f746a094a873fa0abe6c4f0df6be8a125ba2d9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/003122-0_LIVE.png",
+      "bytes": 4205408,
+      "sha256": "84069426924d8f772d1f159513a30b5a74165ad5050f5e94bdc3a406d5c7d615"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/003997-0_LIVE.png",
+      "bytes": 4352848,
+      "sha256": "a3b7f0c73c74da588d1569cb15d57daaa2305fb0a1f1c442fb455b0b7ed065b2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/004857-0_LIVE.png",
+      "bytes": 4461693,
+      "sha256": "26542306a79b6b8c5c547ab81a768d420648f58404ac43697ca6382cdece848f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/005728-0_LIVE.png",
+      "bytes": 4530319,
+      "sha256": "d2449aeedf73bf6896980a035fae87a36f60c1e80b3a1ed906c8b4bca74698fc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/006585-0_LIVE.png",
+      "bytes": 1261365,
+      "sha256": "10f34dc0f3586c3d4d9663e6f03619a488e21b2658ee9a644fbb405c48eb27ff"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/007126-1_STALE.png",
+      "bytes": 760297,
+      "sha256": "7b6fb133f8e07f91ebe32d4545b9cf56199ba1e6079c6d94f4fc61b92691794f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/007854-1_STALE.png",
+      "bytes": 240943,
+      "sha256": "1c780a027759d4d88abcc43a9d9f0712c8c4a08843d8a5c29281fea33faae7e9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/008357-1_STALE.png",
+      "bytes": 261941,
+      "sha256": "724dcf2f3691629fc028e28088704c076f047f28488eec6075fdae0c16dc6099"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/008858-1_STALE.png",
+      "bytes": 211704,
+      "sha256": "de990f89f630cc307e06eadd227fe65c0f6ad4c7163208bbb660d8baa3811338"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/009364-1_STALE.png",
+      "bytes": 202862,
+      "sha256": "21ab596c6c08ffdaa4905be904c485fec77a96037cf1c29bce7c1f4f5e6f32a5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/009866-1_STALE.png",
+      "bytes": 181915,
+      "sha256": "6804c55dcf345fb9ea931b0df93bae6a65c19b0b136347c00069ba530bbed5a7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/010372-1_STALE.png",
+      "bytes": 174932,
+      "sha256": "f147b410f3426338497e84da4c4ec3f9992c94c730138b719f2a611917647fc3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/010876-1_STALE.png",
+      "bytes": 167466,
+      "sha256": "24011a5f157dbd124e0dbed567b5806f4c5d0c41d072dbd0905772f9145e6725"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/011389-1_STALE.png",
+      "bytes": 166218,
+      "sha256": "a27c465c32e2254c4da93d6a4c78adbf9da0d320d7d3a2cc4d5f7ebffd67ef3c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/011890-2_COMM_LOSS.png",
+      "bytes": 166204,
+      "sha256": "6aac737b8b21d0d10c553c8464efd26dc821e838cbbdae2e06504df9a355b954"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/012399-2_COMM_LOSS.png",
+      "bytes": 163839,
+      "sha256": "17d8b4273f403e2f6246fd378cd4a24a06e14e3632d83191867e537dc627a6f2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/012901-2_COMM_LOSS.png",
+      "bytes": 162973,
+      "sha256": "85af5ee66642f5144c76cf46cefc2c42f022e0dd1a463489a73b0e6b52b88ef2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/013417-2_COMM_LOSS.png",
+      "bytes": 160430,
+      "sha256": "8662bbe39a3fb819061fcefe46f547e778787f5c955fff8d987378a0dcf7a4ab"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/013930-2_COMM_LOSS.png",
+      "bytes": 160239,
+      "sha256": "f87d97456f0229c462d4cd8daa2ebe6a2fa1ee8895bdb9f98f1055e8f66cade8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/014444-2_COMM_LOSS.png",
+      "bytes": 160066,
+      "sha256": "03b798beaefe6db952dadb815b9982593e929b953c2af8e7e599dd9919f22cca"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/014945-2_COMM_LOSS.png",
+      "bytes": 160336,
+      "sha256": "7655ffac4af281ea42de8d5cba252c2b1c364dc757fcc3cfe96f8a4b3ae5e969"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/015460-2_COMM_LOSS.png",
+      "bytes": 160112,
+      "sha256": "9f9a2cae4a867678689fa9285a5dedd4e8a784643b2800248317369bb82f2487"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/frames/015962-2_COMM_LOSS.png",
+      "bytes": 160401,
+      "sha256": "3d2dca69e021065cac9a200c35f6d9574726bdc3f113a1f4d6ff8a3cd93bee61"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/2560x1440/liveness/page@ed4a603e6bcd8c45cc2ff31eee23155a.webm",
+      "bytes": 3926403,
+      "sha256": "fe1e0b17903b4267c8b8166ada6421494347fd86a41e34ec0c4815bf3942d5b3"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/000000-.png",
+      "bytes": 66007,
+      "sha256": "3bd84a072938e4a6b023cc9be2355378f97c88bb71fa67a84e35b0fadc84478d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/000506-0_AMBIENT.png",
+      "bytes": 126198,
+      "sha256": "0d60d8b078befd45511e9bf1860463425eb5f1cbb74e951cdfc6992ed6052c5c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/001022-0_AMBIENT.png",
+      "bytes": 126347,
+      "sha256": "2b799783f2c649fc91d06730ddc713e247951c2db6ed054c9699716a746c3eb2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/001537-0_AMBIENT.png",
+      "bytes": 131740,
+      "sha256": "c768d108d52f139fa91a737bfd487f5292bd61935a1a84aad7c700d88f5193bf"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/002038-0_AMBIENT.png",
+      "bytes": 139636,
+      "sha256": "4f0ad095dfc9831bc71b0962f964b6d26c3ef05a46cb2211c01f5b380d8df53b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/002542-0_AMBIENT.png",
+      "bytes": 154756,
+      "sha256": "a9b65553485773dde4a0edf8a790f76e1d708f537b5020bd46c72143491e5e5f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/003052-0_AMBIENT.png",
+      "bytes": 163436,
+      "sha256": "9dc9b303e438435c71697e0a45119d4d94cd2636351e7b72d86070b6cb8eb97f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/003559-0_AMBIENT.png",
+      "bytes": 183821,
+      "sha256": "82b8de6af31bf05dc3345390644a4ba7b0de1b587ad8870d0e98e889a1a42d41"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/004072-0_AMBIENT.png",
+      "bytes": 205966,
+      "sha256": "e188517ef163331080c43fcba93cfe260ab2b9f744b2519764ce631a412dc383"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/004572-0_AMBIENT.png",
+      "bytes": 228176,
+      "sha256": "38fe31d1449031c1a5a7471665d2288da8be459e0608cda0bbc7f9c10d8388b4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/005082-0_AMBIENT.png",
+      "bytes": 263176,
+      "sha256": "4e724e7551b3f157272dabda197696a3fc44383f8cfe208fa3a9f936503ba39a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/005597-0_AMBIENT.png",
+      "bytes": 5772160,
+      "sha256": "552a3475ac7ad867e3e87a115bf7d19eb6c8a01fc7c981df8c45e647577cef28"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/006865-1_LISTENING.png",
+      "bytes": 6080934,
+      "sha256": "0017dd77fc19d445e2ec84583d5fa672d71d331822d8ba5f3c0a2c3a8f5c6d8a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/008028-1_LISTENING.png",
+      "bytes": 6165661,
+      "sha256": "ba94c951a15dfdf6bfdfade876e52e909c00ef966e288cff29a2e19f8b78df5e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/009155-2_THINKING.png",
+      "bytes": 6210685,
+      "sha256": "1c56c5204c6c09db962eb17aff4342b6dae45054fc0def66f572ec7773903468"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/010241-2_THINKING.png",
+      "bytes": 6216907,
+      "sha256": "34798ecd17a0316b9b9ae0ac961ddd61ddab5159b05d9f17ae0bf03a543621d5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/011279-2_THINKING.png",
+      "bytes": 6224046,
+      "sha256": "1c145fb7dff27336ad201ac8e80bc89ad324864700b761c7be3a4f22273eb737"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/012343-3_ROUTING.png",
+      "bytes": 6240317,
+      "sha256": "44067f36cf4ebc63d4984d36fa70c684992a3429e9a1defe5058bfa47117b965"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/013496-3_ROUTING.png",
+      "bytes": 2571247,
+      "sha256": "500a296c0f3e950973c9335c2ea2b02005de9126d3993e32c1a557ba90b2ecf6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/014496-3_ROUTING.png",
+      "bytes": 2568947,
+      "sha256": "22a0275dfd71d24be701f60f62cbc346edfecafa4c1ba7630053685873bb8fa5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/015485-4_MODEL_ACTIVE.png",
+      "bytes": 2543341,
+      "sha256": "3e69911010657cd6f7c73f9efa707d79a7933dbf956fd71fce25ef9b93b3b4c2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/016447-4_MODEL_ACTIVE.png",
+      "bytes": 2557962,
+      "sha256": "67a9fdc735dbc3526cb1c25490f79e636bf8124536c857cad83b69545bdff516"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/017431-4_MODEL_ACTIVE.png",
+      "bytes": 2552377,
+      "sha256": "c77a402ed6fa7f52a909263c6476b8e7f3a5e2d5f7954a996ace3c5f1d0c78e2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/018399-4_MODEL_ACTIVE.png",
+      "bytes": 2546272,
+      "sha256": "3819e7ff699ac56eafe29e69d4d88fcd6655db54475e2a3d77539c7ae3fc3d04"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/019803-5_RESPONDING.png",
+      "bytes": 2487629,
+      "sha256": "df10272ed7b99209f304ef57a1a73512335ef052551866888d7e4c730a5215a1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/020746-5_RESPONDING.png",
+      "bytes": 2458479,
+      "sha256": "38fbe182a1d09ff6d3e64bffb689d70f9e4be9f63f480151feaacd5146f01391"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/021694-5_RESPONDING.png",
+      "bytes": 2450928,
+      "sha256": "24ae1afc95ee6e6f5d1c93fb588a4dc71ffe19df6860b4e1fa94992314485bb2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/022649-5_RESPONDING.png",
+      "bytes": 2441468,
+      "sha256": "97b095a79ef2c26b61538a4bc21fb7440ae8fcd7f875dd95d4af8d70176483f0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/023629-6_AMBIENT.png",
+      "bytes": 2424082,
+      "sha256": "fd8474511adb354357b5f0b6a6b9f7eadaf5ee8d030107953d815d3f38e58d73"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/024619-6_AMBIENT.png",
+      "bytes": 2360002,
+      "sha256": "e6f1fa4fbb57b7f5c79bafc83aa7c66c3c2111d013426f3f40866dc179fdabc2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/025605-6_AMBIENT.png",
+      "bytes": 2328675,
+      "sha256": "226e2e4343f56bb7908d5482ba667386bac4bb4fff8636022ba541f99e3c5762"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/frames/026524-6_AMBIENT.png",
+      "bytes": 2333060,
+      "sha256": "3a1ca5a2625c38aa0a0e185935a872309af5117105a01607276d5b1a779d9f45"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/conversation/page@7ba1302085853698e07525bf5b596f5e.webm",
+      "bytes": 3375374,
+      "sha256": "b592b96b55f6d023fe89d1bcc29f76b1d1af4e8cd7d94a5efe385a8b8d87d806"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/000000-.png",
+      "bytes": 117935,
+      "sha256": "aac380ba6fb97c3504f27b18d0579b395502c4a933bc86339e0e8f5a962a9a24"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/000502-0_THINKING.png",
+      "bytes": 3729451,
+      "sha256": "4d40eee104da376091de4219c52d758db96f4a9996131c47686e6a1aa1aff021"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/001433-0_THINKING.png",
+      "bytes": 4235108,
+      "sha256": "662f610466fbd7311a87d3f2ff8e0d873e831ab15922e8d18887ff2c2278bd24"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/002349-0_THINKING.png",
+      "bytes": 4719574,
+      "sha256": "a0298de6d4aed159337ae3a148e51cb2eb4226bcf98251524a1a1d55aed7b59c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/003392-0_THINKING.png",
+      "bytes": 5165013,
+      "sha256": "ddcf98ac4c2eb1a45052d83274dad9bea79841c9737ac7833578d24c3239fd8b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/004517-0_THINKING.png",
+      "bytes": 5490323,
+      "sha256": "ced4548ed4b624cf93f5aefe17e8ae18e5f05ab8f045a4bebfe11dd818657f73"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/005700-1_AGENT_WORK.png",
+      "bytes": 5848852,
+      "sha256": "0afaebce79fb864dcc7eb9ab2aec3719b4d20576311909a0f43a6a64fec651fa"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/006832-1_AGENT_WORK.png",
+      "bytes": 6071365,
+      "sha256": "c817d44c6852c5de3e4515d53e87515faa08f9b2ff3115aaaba33394b76a0d13"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/007954-1_AGENT_WORK.png",
+      "bytes": 6222334,
+      "sha256": "42d21cad88a65f24522c8f6cd4662298e2e88e81a74e695a0f7560453a464a50"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/009042-2_EXECUTION.png",
+      "bytes": 2533655,
+      "sha256": "0ecb5c021152618d851c870ac4acd4111010fa71db71c4c9a26a4d859c86f4d7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/010097-2_EXECUTION.png",
+      "bytes": 2522736,
+      "sha256": "fade67ca21f2ad9a2f17cc37ab10b92340a2c87f01563aa76633ca252783010f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/011297-2_EXECUTION.png",
+      "bytes": 2533736,
+      "sha256": "e2017c6ca9080ec404d83557f5491d437bce85184e21a16aa1a0c02323fa047c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/012284-3_APPROVAL.png",
+      "bytes": 2522357,
+      "sha256": "9cb394a637e8f28fbd26a13bc66962b78239ed5426581f1e2d6269bbf227e55a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/013292-3_APPROVAL.png",
+      "bytes": 2456745,
+      "sha256": "667ba6b672b948291d9d80a4029df9a8e47075e6f79453024fa0b0ebfd6fbcfe"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/014255-3_APPROVAL.png",
+      "bytes": 2435435,
+      "sha256": "daa998d55234fd4b6ed0299fa3340a152c7eeae650c9e0b60da99df4ab4c99ba"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/015193-3_APPROVAL.png",
+      "bytes": 2414182,
+      "sha256": "d1e0d90ab7fd5bd068d604a16d02c436899c8d86dbf238c970042fc641ec4574"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/016148-4_EXECUTION.png",
+      "bytes": 2450515,
+      "sha256": "1daea6764f2f2070cdb17c918f26bfac6addb5486f19bd3e04e02137c3a14eb0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/017100-4_EXECUTION.png",
+      "bytes": 2477943,
+      "sha256": "040a671719b3471b6cf1719eb2a521bb6970f8298c5c2b2b343411d63c6497fa"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/018077-4_EXECUTION.png",
+      "bytes": 2507158,
+      "sha256": "310e611ca5d1e76cd018c140b8d21531e734fbf80f304bd5edbbf6b0f20b0374"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/019053-5_VERIFY.png",
+      "bytes": 2506155,
+      "sha256": "7da0d16594ee1d2401169cb82e7faf87470d6fcce8e5b2232cc270684c29e6f5"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/020022-5_VERIFY.png",
+      "bytes": 2482886,
+      "sha256": "8370c05f66ec146ad30a33af40b195d3c7350ca99ca5f69a2d98ccec7edde1e0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/020989-5_VERIFY.png",
+      "bytes": 2469400,
+      "sha256": "c090ae15acd83646d975328d8955ae5b67c108f3d114a7da863c3a2064a07cbb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/021949-6_COMPLETE.png",
+      "bytes": 2456644,
+      "sha256": "7ea8b7c75ca5729bf4b9f90b0b687cc89d99a437600a693f37017a46eae568a8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/022890-6_COMPLETE.png",
+      "bytes": 2433179,
+      "sha256": "4e954a9208ae2eda953509689e06a85c56c8c1a9a8594fb870b07206e4e61dc8"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/023832-6_COMPLETE.png",
+      "bytes": 2403017,
+      "sha256": "c00ab17bf63c6238862eda55446ffdf127e704d25a36c1d49f0b15b44e1e5c71"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/024774-6_COMPLETE.png",
+      "bytes": 2414841,
+      "sha256": "065f5e48b5bb01a4ef184eff41aa7c61d579693a8ef4b97f6523b540953648c6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/025730-7_AMBIENT.png",
+      "bytes": 2357429,
+      "sha256": "2cf8ee3d1ca17955ac8bcb2fd59d47902a61104653cce28bb542e3a9f3a4f141"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/026663-7_AMBIENT.png",
+      "bytes": 2322351,
+      "sha256": "0ce8e856d2237bc5de9a64029b3a77bcb4193f6aad32b12d61fe1498264e22a7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/027601-7_AMBIENT.png",
+      "bytes": 2340720,
+      "sha256": "c106d826a49294795985e09e9b8fd486412bef52ec1ac4db6bf0a2db3f1cf477"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/frames/028546-7_AMBIENT.png",
+      "bytes": 2330005,
+      "sha256": "fe06c6cfb04f036353a873f6deead80aec5c4a43492f31c4d80072fd04daf9c6"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/execution/page@71a3a12b57044fdb1eee1a4774c0eafa.webm",
+      "bytes": 4574389,
+      "sha256": "70a6f99a85483e15eab37c1d3f6f237cdb26960435cd29b4a11cb325ede931be"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/000000-.png",
+      "bytes": 122723,
+      "sha256": "8edb6f617f171f81b36c84ca77192597396edf6c9699dd6ae47cd8e023a784dd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/000459-0_ROUTING.png",
+      "bytes": 3699702,
+      "sha256": "b24059f49c1f036ce7fdcdd81b8e3eb4bc33df9531445e73d9ba9c0ced312029"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/001395-0_ROUTING.png",
+      "bytes": 4200334,
+      "sha256": "1a7ffc780dff4cc43807aeca81eb865feaa1a6f244f4a2b6a71349e2dd7e1f65"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/002302-0_ROUTING.png",
+      "bytes": 4691840,
+      "sha256": "fd1f2a86cca19ba05e2728d9c7ab1b6b504c299658c7d26fccafc4ca4f7b957b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/003332-0_ROUTING.png",
+      "bytes": 5130600,
+      "sha256": "f39f4f1669003853ff6cca2e74b31c0ec4b02ab2e372d87bdcb4d65d45d1c275"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/004445-0_ROUTING.png",
+      "bytes": 5492609,
+      "sha256": "7c1b9779f6cb5f4c7b43a6cb58cef4893edb6f2c4b7f82991d55d7702ace9754"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/005638-1_PRIMARY_SELECTED.png",
+      "bytes": 5846972,
+      "sha256": "f780a2b3df32d5d56b5befb1a802637a48440bc6d8f5655eb5cb86314c633f9d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/006756-1_PRIMARY_SELECTED.png",
+      "bytes": 6043913,
+      "sha256": "66dd3c3c7fac782deecf4012b68739022edfde3282444a257baa813b555a0a3f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/007903-1_PRIMARY_SELECTED.png",
+      "bytes": 6240350,
+      "sha256": "06c106d4b9a8940e0e9290543940433a1abe99214c4093f990bbabdca4612e49"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/010024-2_PRIMARY_FAILURE.png",
+      "bytes": 2543718,
+      "sha256": "48b23d68ee6b01342313998a8f166b653432b397b9b73d6d6051dbb14fac97db"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/010980-2_PRIMARY_FAILURE.png",
+      "bytes": 2549020,
+      "sha256": "1af1db5aac8e7dbac956bf3a18e4516b01a80004e801230a65b2fef6cace127f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/011967-3_FALLBACK.png",
+      "bytes": 2555823,
+      "sha256": "c01703601048723a3c674a98d6b533612325889b884ea16b248118fce176e59c"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/012938-3_FALLBACK.png",
+      "bytes": 2546696,
+      "sha256": "9cf40cc4c76d3e6cf45ac7cb787e5bcfb09fe8fd9598cb3d09c9418e7cab448b"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/013927-3_FALLBACK.png",
+      "bytes": 2539376,
+      "sha256": "ee6e432bc2de38b1a2e271b6a3910e0b3fb9e8bb7990df399e888088d3866a01"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/014905-3_FALLBACK.png",
+      "bytes": 2544405,
+      "sha256": "b3849e2d0f99cb305353b7d5dd59d966888a3c958097d611717a1064278243de"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/015903-4_MODEL_ACTIVE.png",
+      "bytes": 2542410,
+      "sha256": "3c8b5f550a59f4f7c32a1496c0de47f5f20a012cbec474df929c073d63b094eb"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/016865-4_MODEL_ACTIVE.png",
+      "bytes": 2537553,
+      "sha256": "16cc5f5d62a267c4fecf0d3afd751e9f5210f2a5c32c612dc1c4c120c74abdc2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/017836-4_MODEL_ACTIVE.png",
+      "bytes": 2527236,
+      "sha256": "21b0768147746cd984e6a5e6e3343737b382798a2bd39c81af90b647aa9f3575"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/frames/018787-4_MODEL_ACTIVE.png",
+      "bytes": 2552129,
+      "sha256": "e4b566f2c4f90041a8e20e6b9222daff831eb7efc8ca435fe829965aab45adbd"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/fallback/page@b978be4692044d658caf0d21af6dd4e8.webm",
+      "bytes": 3605680,
+      "sha256": "76013c837b98bce8dbb7e0eb71ed14a2601360cea59ae11b2889248ce5d97fc4"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/000000-.png",
+      "bytes": 133358,
+      "sha256": "958e1b644394a671d355c08fce91f6caca07f704f13aab96c9bbedc3d7f525b9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/000509-0_LIVE.png",
+      "bytes": 3730912,
+      "sha256": "002ce98b49c52bcb6b52a250d9591f71321670302baef2bd5c0c309a2746fe84"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/001447-0_LIVE.png",
+      "bytes": 4257706,
+      "sha256": "b213a5e8b97e484e9b5716256148a7b035ee4aa0a26b5f05a693d58c9340b9b7"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/002380-0_LIVE.png",
+      "bytes": 4742892,
+      "sha256": "1b6f3a3a1cc8cde074aa133ea45b009b3dec6b084b9f7ded3add95f260fa44a1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/003422-0_LIVE.png",
+      "bytes": 5181640,
+      "sha256": "a77018d0437c4dcdf35cbd139bb6310849ac263d8fff0b541e050e5be3ea138a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/004504-0_LIVE.png",
+      "bytes": 5512016,
+      "sha256": "594faec7c38633a843ab4b37a2cd801a3de92174054d124aee1073ddadc6c0c2"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/005672-0_LIVE.png",
+      "bytes": 5866464,
+      "sha256": "bbba11bb90fd1b73bf6d1608f7f9e5f5a3e2e5ccea3036fd12f145929535653a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/007302-1_STALE.png",
+      "bytes": 313488,
+      "sha256": "7a1964fa6ab1dfbc9e2c38521a501ef719dbb63a1bfd56320de27310d2dbb6ec"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/007810-1_STALE.png",
+      "bytes": 217275,
+      "sha256": "9c92bc36ea947f27417c5b6a8e15295d47e59185d46021b6e8ad2ce62b23e92d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/008312-1_STALE.png",
+      "bytes": 206522,
+      "sha256": "b249ad203959b873420c478f635df58ff98590c48ac5c7b3e0bc7ab6d05d6d1a"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/008826-1_STALE.png",
+      "bytes": 190215,
+      "sha256": "041848236670898bfa28639a2d200908abb1619f99ada47e44d9c29a0197d051"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/009340-1_STALE.png",
+      "bytes": 179580,
+      "sha256": "2923f1c7846cecec5cf164f7de39d73be036f81b368c3b73be7749b1c124ac20"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/009848-1_STALE.png",
+      "bytes": 175289,
+      "sha256": "28110e65f50e9373cf2745f11ae217ae8568db9035d89cd7899b0e587224c95d"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/010351-1_STALE.png",
+      "bytes": 173338,
+      "sha256": "ef560c838067c09aaa8699b812a5bfaabc98b822e4480160e6d6cb3c1377278f"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/010857-1_STALE.png",
+      "bytes": 172346,
+      "sha256": "4b19fabf8cc2cdc42d21dcd7e100641ddabb622fd0659551764f2d952579c7e9"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/011364-1_STALE.png",
+      "bytes": 171528,
+      "sha256": "020558a20461e2dea35916700eb79b25bc2289e3adaf6ec15bb76d646ffef71e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/011876-2_COMM_LOSS.png",
+      "bytes": 170350,
+      "sha256": "2cd5c0264d3a63c14ee1fb1dfd4e545665faab1f8f8cd170e3c4fbf5287cfd69"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/012392-2_COMM_LOSS.png",
+      "bytes": 169267,
+      "sha256": "192b28edc5e2a4ba419ce9c51b707ac95af06176018dccbfb431d4cbe443aef1"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/012904-2_COMM_LOSS.png",
+      "bytes": 169063,
+      "sha256": "dd99efefd82c3848f2b196aea8aa39dc56a93c10e740570fb630123e0df16312"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/013413-2_COMM_LOSS.png",
+      "bytes": 169542,
+      "sha256": "130df256c219f45dfe6386b715fb3c075379bb005d93dd1bd28dab8d304c1775"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/013917-2_COMM_LOSS.png",
+      "bytes": 169424,
+      "sha256": "f9031b7bcc63685d54e000deca013504c2b66520a8370dd42809965f16087644"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/014419-2_COMM_LOSS.png",
+      "bytes": 169470,
+      "sha256": "87456ee8e55699b358eb362091596b1bf2b83353d03cca1b2beaed964929c1bc"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/014933-2_COMM_LOSS.png",
+      "bytes": 169584,
+      "sha256": "f85ca5ed71ee5b2302ac5df5e100b1f072454514f89271be09136272efb1a241"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/015437-2_COMM_LOSS.png",
+      "bytes": 169433,
+      "sha256": "46e13948c51edf35b7cae7fc5ae8f3bd946160b711f0490a7b3912408bb83ff0"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/frames/015950-2_COMM_LOSS.png",
+      "bytes": 169617,
+      "sha256": "ad5a91d68c6185bb318838c7ad03e1b8be5e24bb6d39468f78e7c0f58c5de06e"
+    },
+    {
+      "path": "apps/desktop/visual-validation/motion/3440x1440/liveness/page@cb460990d24dd0531e499849254fb324.webm",
+      "bytes": 2298662,
+      "sha256": "74a89af887759f0c9f85b09dfcabdfd47347842760d4d71b45395278d88b8274"
+    },
+    {
+      "path": "artifacts/companion/android-lint.html",
+      "bytes": 87054,
+      "sha256": "28fca040b14614fae87526e3d4df224535f9a59aee5a42d0926767752b1ec873"
+    },
+    {
+      "path": "artifacts/companion/android-lint.xml",
+      "bytes": 22075,
+      "sha256": "bc4bc69afeaf13cf922689fdfa4e6c44ff800a751fb48b4c311f640035414285"
+    },
+    {
+      "path": "artifacts/companion/jarvis-companion-debug.apk",
+      "bytes": 3686327,
+      "sha256": "b2fb4f922bcfe93f723150a930ba6fe3e2284c1f1a4aa5ee558974e617e68228"
+    },
+    {
+      "path": "artifacts/local-runtime/desktop.png",
+      "bytes": 241335,
+      "sha256": "52225ba232a499c84f626351d1fbac873e3520965ee1cfda98e3928954f708b2"
+    },
+    {
+      "path": "artifacts/mark42/browser-performance-active.json",
+      "bytes": 8193,
+      "sha256": "b76e957b244de654ae581dfbf2b304764aefabc643de4fb6fd037a297b5db473"
+    },
+    {
+      "path": "artifacts/mark42/browser-performance-dev.json",
+      "bytes": 4571,
+      "sha256": "b857a2c2f7c00e4704a8ec21b10e855767f7a1566fccfa8f4635c5f407a5276d"
+    },
+    {
+      "path": "artifacts/mark42/browser-performance.json",
+      "bytes": 6532,
+      "sha256": "47fa993fc6c1bea02946253784de3a9b14e27e9d9b66fa1a30f232a598c62556"
+    },
+    {
+      "path": "artifacts/mark42/dependency-recovery.json",
+      "bytes": 1322,
+      "sha256": "2e21619fc9b4e836888e64742e3053f93c3257334203a8556c4245ae00f7502a"
+    },
+    {
+      "path": "artifacts/mark42/desktop-disconnected-final.png",
+      "bytes": 248533,
+      "sha256": "867cd8f76965ea09cf938095292c365689048ee81043cfb8aa064d5e9cef928e"
+    },
+    {
+      "path": "artifacts/mark42/desktop-live.png",
+      "bytes": 253471,
+      "sha256": "2da8ff0c70dc59dfba234f5da4a96aebd888021adac8154ed3cdc2230fb7895e"
+    },
+    {
+      "path": "artifacts/mark42/desktop-offline-polished.png",
+      "bytes": 370126,
+      "sha256": "9973884700cb010fdfa595e402373f9083a2e90f145ffbf1d05dd7def5b4348e"
+    },
+    {
+      "path": "artifacts/mark42/desktop-offline.png",
+      "bytes": 388154,
+      "sha256": "0fb522ad0bd9c23d327be99909eec2367c510523a944ff5b7244cee1b254915e"
+    },
+    {
+      "path": "artifacts/mark42/desktop-production-final.png",
+      "bytes": 250767,
+      "sha256": "69f175bd58a4ab305a24c6770d4685eda0fa71757c9cbc53a0903156fb6037b1"
+    },
+    {
+      "path": "artifacts/mark42/desktop-production-live.png",
+      "bytes": 248850,
+      "sha256": "f58661bf79f97392d8c7a85faddcc48e67b76ea01c5dd8127c25bb1ae5bc1f98"
+    },
+    {
+      "path": "artifacts/mark42/desktop-production.png",
+      "bytes": 252695,
+      "sha256": "363e65d9d6ccf4214b4ecdee4a0305c78e7cd5f62b68a87ecc63f8745dd2edb3"
+    },
+    {
+      "path": "artifacts/mark42/focused-integration.json",
+      "bytes": 7982,
+      "sha256": "bf2f09a462d2f0650eab65bc9cd6b5c7fd154ede7f8fcf5955c27a76bdcefd50"
+    },
+    {
+      "path": "artifacts/mark42/gpu-performance-active.json",
+      "bytes": 8337,
+      "sha256": "f867714eec7444389f3870f985b485f95b3261ba8a818f7b74820b757ad0c5a9"
+    },
+    {
+      "path": "artifacts/mark42/gpu-performance-idle.json",
+      "bytes": 8338,
+      "sha256": "5564a69996ded00f152217741c8478c87f17277ef1a824b36aeb9d59a211a05e"
+    },
+    {
+      "path": "artifacts/mark42/integration-gate.json",
+      "bytes": 2,
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "path": "artifacts/mark42/integration-retry-before-recovery-wait.json",
+      "bytes": 45706,
+      "sha256": "993639361c2809c1391958445d2d5238c97b4c6bfca36e674f11ae07eeb4f31c"
+    },
+    {
+      "path": "artifacts/mark42/model-fallback-final.png",
+      "bytes": 238618,
+      "sha256": "53e619800a652038eed4b98f4820a26cbfaedd8aaf3c978f7fc691e0ef53e215"
+    },
+    {
+      "path": "artifacts/mark42/model-fallback-production.png",
+      "bytes": 252184,
+      "sha256": "2ebf34228a197027b94098ec6875a79fd21ba7f8fb7dee3d7cc7a58b5d8b15b8"
+    },
+    {
+      "path": "artifacts/mark42/model-fallback.png",
+      "bytes": 250140,
+      "sha256": "bb3607394a36e46765d48483e43af8a5a207d6733f25b6003850df5821b06cc9"
+    },
+    {
+      "path": "artifacts/mark42/runtime-qualification-baseline.json",
+      "bytes": 2103,
+      "sha256": "e50ac20e4e24e7832c9f733eb5b1a77f60868d3f25b31ded38c00edf7ba7774d"
+    },
+    {
+      "path": "artifacts/mark42/runtime-qualification-measured.json",
+      "bytes": 2105,
+      "sha256": "2928866aaade725c4c3f9df6907130f3c665f6873278ea47d7be27f8f748609c"
+    },
+    {
+      "path": "artifacts/mark42/runtime-qualification.json",
+      "bytes": 2108,
+      "sha256": "db867e87293383a5fc6d5cba9887e2cc634b89eff1b55db64cd386481a5a6d68"
+    }
+  ]
+}

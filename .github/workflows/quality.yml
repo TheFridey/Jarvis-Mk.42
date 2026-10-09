@@ -21,9 +21,11 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:check --installed --full
+      - run: pnpm assets:check
       - run: docker pull pgvector/pgvector:pg16
       - run: pnpm typecheck
       - run: pnpm lint
@@ -37,3 +39,47 @@ jobs:
       - run: pnpm test:chaos
       - run: pnpm backup:drill
       - run: pnpm build:desktop
+      - name: Retain generated qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualification-linux-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            artifacts/mark42/
+            artifacts/companion/
+            artifacts/hardware-validation/
+            apps/desktop/visual-validation/motion/
+            test-results/
+            playwright-report/
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:check --installed
+      - run: pnpm assets:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build:desktop
+      - name: Retain Windows browser qualification output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualification-windows-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            apps/desktop/visual-validation/motion/
+            test-results/
+            playwright-report/
