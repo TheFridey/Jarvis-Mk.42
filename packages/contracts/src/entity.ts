@@ -93,6 +93,7 @@ export type RelationshipType =
   | (string & {});
 
 export interface EntityRelationship extends DomainOwned {
+  principalId?:PrincipalId;
   id: Ulid;
   fromEntityId: Ulid;
   toEntityId: Ulid;

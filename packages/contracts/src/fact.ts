@@ -32,6 +32,8 @@ import type { PrivacyClass } from './event.ts';
 export type FactStatus = 'active' | 'superseded' | 'retracted' | 'expired';
 
 export interface Fact extends DomainOwned {
+  /** Present on persisted facts; optional for pre-domain wire compatibility. */
+  principalId?:PrincipalId;
   id: Ulid;
 
   /** The entity this fact is about. */

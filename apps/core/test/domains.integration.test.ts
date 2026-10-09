@@ -100,6 +100,8 @@ describe.skipIf(!dockerOk)('Kernel domain ownership and context boundaries',()=>
     const [entity]=await ctx.pg.sql<{id:string}[]>`select id from atlas.entities where domain_id='business-scale' limit 1`;
     await kernel.domains.run(principalId,{domainId:'project-veterans'},'foreign-id-test',async()=>{
       expect(await new AtlasStore(ctx.pg.sql).getEntity(entity!.id)).toBeUndefined();
+      await expect(new AtlasStore(ctx.pg.sql).addAlias(entity!.id,'unauthorised-alias','test')).rejects.toThrow('domain write');
+      expect((await ctx.pg.sql`select alias from atlas.entity_aliases where entity_id=${entity!.id} and alias='unauthorised-alias'`)).toEqual([]);
       await expect(kernel.objectives.create({principalId,parentObjectiveId:(await ctx.pg.sql<{objective_id:string}[]>`select objective_id from projections.objectives where domain_id='business-scale' limit 1`)[0]!.objective_id,statement:'Invalid child',origin:'principal',correlationId:'foreign-id-test',provenance:provenance('foreign-id-test')})).rejects.toThrow('cross-domain parent');
     });
   });

@@ -1,4 +1,4 @@
-import { domainFor, domainReadSql, domainWriteSql, readableDomains } from '../domains/scope.ts';
+import { currentDomainScope, domainFor, domainReadSql, domainWriteSql, readableDomains } from '../domains/scope.ts';
 /**
  * ATLAS persistence — raw SQL over the `atlas.*` schema (ATLAS_MODEL.md §2,
  * migration 0005_atlas.sql).
@@ -87,14 +87,14 @@ function toEntity(r: EntityRow, aliases: string[]): Entity {
 }
 function toRel(r: RelRow): EntityRelationship {
   return {
-    id: r.id, fromEntityId: r.from_entity_id, toEntityId: r.to_entity_id, type: r.type as RelationshipType,
+    id: r.id,domainId:r.domain_id,principalId:r.principal_id, fromEntityId: r.from_entity_id, toEntityId: r.to_entity_id, type: r.type as RelationshipType,
     provenance: r.provenance, confidence: r.confidence, validFrom: iso(r.valid_from),
     ...(r.valid_to ? { validTo: iso(r.valid_to) } : {}), observedAt: iso(r.observed_at),
   };
 }
 function toFact(r: FactRow): Fact {
   return {
-    id: r.id, subjectEntityId: r.subject_entity_id, attribute: r.attribute, value: r.value,
+    id: r.id,domainId:r.domain_id,principalId:r.principal_id, subjectEntityId: r.subject_entity_id, attribute: r.attribute, value: r.value,
     epistemicStatus: r.epistemic_status, provenance: r.provenance, confidence: r.confidence,
     validFrom: iso(r.valid_from), ...(r.valid_to ? { validTo: iso(r.valid_to) } : {}),
     ...(r.predicate ? { predicate: r.predicate } : {}), status: r.status, privacyClass: r.privacy_class,
@@ -178,6 +178,7 @@ export class AtlasStore {
   }
 
   async addAlias(entityId: Ulid, alias: string, source: string): Promise<void> {
+    const scope=currentDomainScope();if(scope){const entity=await this.getEntity(entityId);if(!entity||entity.domainId!==scope.domainId||entity.principalId!==scope.principalId)throw new Error('alias domain write denied');}
     await this.sql`
       insert into atlas.entity_aliases (entity_id, alias, source)
       values (${entityId}, ${alias}, ${source}) on conflict do nothing`;
