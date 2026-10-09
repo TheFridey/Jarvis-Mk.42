@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import type { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope } from '../domains/scope.ts';
 /**
  * `KnowledgeAgentFacade` — the ONLY way ORACLE / SCOUT / FORGE touch ATLAS and
  * MNEMOSYNE (contract: knowledge-agent.ts, ADR-0020 §Agent integration).
@@ -36,7 +39,7 @@ function capEpistemicStatus(requested: EpistemicStatus): EpistemicStatus {
 export class KnowledgeAgentFacade implements KnowledgeAgentFacadePort {
   constructor(
     private readonly d: {
-      atlasQuery: AtlasQueryService;
+      domains?:DomainService; atlasQuery: AtlasQueryService;
       atlasStore: AtlasStore;
       recall: MemoryRecallService;
       ingestion: KnowledgeIngestion;
@@ -46,6 +49,8 @@ export class KnowledgeAgentFacade implements KnowledgeAgentFacadePort {
   ) {}
 
   async query(q: KnowledgeQuery): Promise<KnowledgeQueryResult> {
+    if(this.d.domains&&!currentDomainScope())return this.d.domains.run(q.principalId,q,'knowledge-query:'+randomUUID(),()=>this.query(q));
+    const scope=currentDomainScope();if(scope&&(scope.principalId!==q.principalId||(q.domainId&&q.domainId!==scope.domainId)))throw new Error('knowledge query ownership mismatch');
     const k = Math.min(Math.max(1, q.k), MAX_K);
     const entityIds = [...(q.entityIds ?? [])];
     // read-only entity search from the free text if the caller gave none
@@ -75,12 +80,18 @@ export class KnowledgeAgentFacade implements KnowledgeAgentFacadePort {
     return { facts: facts.slice(0, k), relationships: relationships.slice(0, k), memories: recalled.items, unknowns };
   }
 
-  async explain(factId: Ulid, _principalId: string): Promise<KnowledgeQueryResult> {
+  async explain(factId: Ulid, principalId: string): Promise<KnowledgeQueryResult> {
+    if(this.d.domains&&!currentDomainScope())return this.d.domains.run(principalId,{},'knowledge-explain:'+randomUUID(),()=>this.explain(factId,principalId));
+    if(currentDomainScope()&&currentDomainScope()!.principalId!==principalId)throw new Error('knowledge explanation ownership mismatch');
+    const fact=await this.d.atlasStore.getFact(factId);
+    if(!fact||fact.principalId!==principalId)return {facts:[],relationships:[],memories:[],evidence:[],unknowns:['no authorised evidence']};
     const { evidence } = await this.d.atlasQuery.evidenceFor(factId);
     return { facts: [], relationships: [], memories: [], evidence, unknowns: evidence.length === 0 ? [`no evidence recorded for fact ${factId}`] : [] };
   }
 
   async propose(p: KnowledgeProposal): Promise<KnowledgeProposalResult> {
+    if(this.d.domains&&!currentDomainScope())return this.d.domains.run(p.principalId,await this.d.domains.bound(p.principalId,p.correlationId),p.correlationId,()=>this.propose(p));
+    if(currentDomainScope()&&currentDomainScope()!.principalId!==p.principalId)throw new Error('knowledge proposal ownership mismatch');
     return p.kind === 'atlas' ? this.proposeAtlas(p) : this.proposeMemory(p);
   }
 

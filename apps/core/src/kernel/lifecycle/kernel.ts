@@ -289,7 +289,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const atlasStore = new AtlasStore(pg.sql);
   const mnemosyneStore = new MnemosyneStore(pg.sql);
   const entityResolver = new EntityResolver({ store: atlasStore, embeddings, clock, ids });
-  const atlasQuery = new AtlasQueryService({ store: atlasStore, clock, principalId: () => currentDomainScope()?.principalId ?? currentPrincipalId });
+  const atlasQuery = new AtlasQueryService({ domains, store: atlasStore, clock, principalId: () => currentDomainScope()?.principalId ?? currentPrincipalId });
   const memoryRecall = new MemoryRecallService({ domains,
     sql: pg.sql, store: mnemosyneStore, embeddings, clock, weights: config.knowledge.recallWeights,
   });
@@ -302,7 +302,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
       select objective_id from projections.objectives where ${domainReadSql(pg.sql, 'objectives')} and status in ('active','blocked','paused')`;
     return rows.map((r) => r.objective_id);
   };
-  const knowledgeFacade = new KnowledgeAgentFacade({
+  const knowledgeFacade = new KnowledgeAgentFacade({ domains,
     atlasQuery, atlasStore, recall: memoryRecall, ingestion: knowledgeIngestion, resolver: entityResolver, clock,
   });
   const observationPromoter = new ObservationPromoter({ store: atlasStore, clock }, config.knowledge.promotion);

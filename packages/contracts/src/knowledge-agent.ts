@@ -1,3 +1,4 @@
+import type { DomainRequest } from './domain.ts';
 /**
  * Bounded knowledge interface for agents (ORACLE, SCOUT, FORGE).
  *
@@ -19,7 +20,7 @@ import type { RecalledItem } from './memory-recall.ts';
 
 /** A read request an agent may make. `k` and `principalId` are always enforced
  *  by the facade; an agent cannot widen its own scope. */
-export interface KnowledgeQuery {
+export interface KnowledgeQuery extends DomainRequest {
   principalId: PrincipalId;
   /** Free text the facade embeds for similarity + uses for entity resolution. */
   text: string;

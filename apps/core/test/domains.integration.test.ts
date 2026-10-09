@@ -117,6 +117,17 @@ describe.skipIf(!dockerOk)('Kernel domain ownership and context boundaries',()=>
       else{const handle=await mint();expect(handle.domainId).toBe('finance');expect(JSON.stringify(handle)).not.toContain('controlled-test-secret');await kernel.domains.run(principalId,{domainId:'project-veterans'},'wrong-handle-domain',async()=>{expect(()=>broker.redeem(handle.handleId,handle.invocationId)).toThrow();});expect(broker.redeem(handle.handleId,handle.invocationId).use!(value=>value)).toBe('controlled-test-secret');}
     });
   });
+  it('protects the agent explanation path from guessed IDs and forged principals',async()=>{
+    const [fact]=await ctx.pg.sql<{id:string}[]>`select id from atlas.facts where domain_id='business-scale' limit 1`;
+    await ctx.pg.sql`insert into atlas.evidence(id,subject_kind,subject_id,kind,ref,note,principal_id,domain_id) values('private-domain-evidence','fact',${fact!.id},'source_document','fixture:private','private client evidence',${principalId},'business-scale')`;
+    await kernel.domains.run(principalId,{domainId:'business-scale'},'explain-authorised',async()=>{expect(JSON.stringify(await kernel.knowledgeFacade.explain(fact!.id,principalId))).toContain('private client evidence');});
+    expect((await kernel.knowledgeFacade.explain(fact!.id,principalId)).evidence).toEqual([]);
+    await kernel.domains.run(principalId,{domainId:'project-veterans'},'explain-denied',async()=>{
+      expect((await kernel.knowledgeFacade.explain(fact!.id,principalId)).evidence).toEqual([]);
+      await expect(kernel.knowledgeFacade.explain(fact!.id,'other')).rejects.toThrow('ownership');
+      await expect(kernel.knowledgeFacade.query({principalId:'other',text:'client evidence',k:5})).rejects.toThrow('ownership');
+    });
+  });
   it('admits domain management only through authenticated principal/node authority',async()=>{
     const base=`http://${kernel.config.diagnosticsHost}:${kernel.diagnosticsPort}`;
     expect((await fetch(base+'/domains')).status).toBe(401);

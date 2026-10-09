@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import type { DomainService } from '../domains/domain-service.ts';
+import { currentDomainScope } from '../domains/scope.ts';
 /**
  * `AtlasQuery` implementation (contract: packages/contracts/src/atlas-query.ts,
  * ATLAS_MODEL.md §8). Read-only. Never calls `MemoryRecall` — fusion happens
@@ -26,7 +29,7 @@ import type { AtlasStore } from './stores.ts';
 
 export class AtlasQueryService implements AtlasQuery {
   constructor(
-    private readonly deps: { store: AtlasStore; clock: Clock; principalId: () => string },
+    private readonly deps: { domains?:DomainService; store: AtlasStore; clock: Clock; principalId: () => string },
   ) {}
 
   async currentlyBelieved(entityId: Ulid, attribute?: string): Promise<Known<{ facts: Fact[] }>> {
@@ -77,12 +80,16 @@ export class AtlasQueryService implements AtlasQuery {
   }
 
   async evidenceFor(factId: Ulid): Promise<{ evidence: Evidence[] }> {
+    if(this.deps.domains&&!currentDomainScope())return this.deps.domains.run(this.deps.principalId(),{},'atlas-evidence:'+randomUUID(),()=>this.evidenceFor(factId));
+    const fact=await this.deps.store.getFact(factId);if(!fact||fact.principalId!==this.deps.principalId())return {evidence:[]};
     return { evidence: await this.deps.store.evidenceFor(factId) };
   }
 
   async relationships(
     entityId: Ulid, opts?: { at?: Timestamp; kinds?: string[] },
   ): Promise<{ relationships: EntityRelationship[] }> {
+    if(this.deps.domains&&!currentDomainScope())return this.deps.domains.run(this.deps.principalId(),{},'atlas-relationships:'+randomUUID(),()=>this.relationships(entityId,opts));
+    const entity=await this.deps.store.getEntity(entityId);if(!entity||entity.principalId!==this.deps.principalId())return {relationships:[]};
     return { relationships: await this.deps.store.relationshipsFor(entityId, opts ?? {}) };
   }
 
