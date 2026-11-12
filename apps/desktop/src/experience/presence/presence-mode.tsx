@@ -3,41 +3,58 @@
  * SENTIENCE Presence Mode: the room, not the dashboard.
  *
  * Everything the operator can act on stays reachable — the instruction field,
- * the approvals surface (rendered by the parent so it is identical to the
- * command centre's barrier), the response, and the way back to the full
- * command centre. Everything else is removed: no model rail, no telemetry
- * strip, no panel grid, no lifecycle path. State is carried by the orb's motion
- * and one word; the sentence below it is the accessible truth line.
+ * the microphone control, the approvals surface (rendered by the parent so it is
+ * identical to the command centre's barrier), the response, and the way back to
+ * the full command centre. Everything else is removed: no model rail, no
+ * telemetry strip, no panel grid, no lifecycle path.
+ *
+ * Layout is a single vertical stack whose boundaries come from
+ * `presenceZones()`: orb → word → detail → response → input → footer. The
+ * response grows upward into the space that is left and scrolls beyond it, so it
+ * can never cover the word, the input or the orb.
  */
-import { useId, useState, type FormEvent } from 'react';
-import { ArrowUpRight, CornerDownLeft, LayoutDashboard } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ArrowUpRight, ChevronsDown, ChevronsUp, CornerDownLeft, LayoutDashboard, X } from 'lucide-react';
 import type { DataLiveness } from '../experience-phase-policy.ts';
-import type { PresenceComposition, PresenceSatellite, PresenceState } from './presence-policy.ts';
-import { presenceWord } from './presence-policy.ts';
+import type { PresenceComposition, PresenceReadout, PresenceSatellite, PresenceZones } from './presence-policy.ts';
 
 export interface PresenceModeProps {
-  phaseWord: string;
-  detail: string;
-  state: PresenceState;
+  readout: PresenceReadout;
   liveness: DataLiveness;
   composition: PresenceComposition;
+  zones: PresenceZones;
   satellites: PresenceSatellite[];
   inputEnabled: boolean;
   reducedMotion: boolean;
   rendererFallback: boolean;
   answer?: string | undefined;
+  /** Composed by the parent so the trusted RTC session lives in one place. */
+  voiceControl?: ReactNode;
   onAsk: (text: string) => Promise<void> | void;
   onDismissAnswer: () => void;
   onCommandCentre: () => void;
 }
 
 export function PresenceMode(props: PresenceModeProps) {
-  const { phaseWord, detail, state, liveness, composition, satellites, inputEnabled, reducedMotion, rendererFallback, answer } = props;
+  const { readout, liveness, composition, zones, satellites, inputEnabled, reducedMotion, rendererFallback, answer } = props;
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const inputId = useId();
+  const layer = useRef<HTMLDivElement>(null);
   const { core, coreRadius } = composition.layout;
-  const horizon = composition.horizon;
+
+  useEffect(() => { if (!answer) setExpanded(false); }, [answer]);
+
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (expanded) { setExpanded(false); return; }
+      if (answer) props.onDismissAnswer();
+    };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [answer, expanded, props]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -47,46 +64,59 @@ export function PresenceMode(props: PresenceModeProps) {
     try { await props.onAsk(value); setText(''); } finally { setBusy(false); }
   };
 
-  return <div className={`presence-layer presence-${state.toLowerCase()}${reducedMotion ? ' reduced' : ''}`} data-presence-state={state}>
-    <div className="presence-word-block" style={{ left: core.x, top: horizon }}>
-      <div className="presence-word" role="status" aria-live="polite" aria-label={`JARVIS ${presenceWord(state, liveness)}. ${detail}`}>
-        <strong key={phaseWord}>{phaseWord}</strong>
+  return <div ref={layer} className={`presence-layer presence-${readout.state.toLowerCase()}${reducedMotion ? ' reduced' : ''}${answer ? ' has-answer' : ''}${expanded ? ' answer-expanded' : ''}`}
+    data-presence-state={readout.state} style={{ ['--presence-horizon' as string]: `${zones.horizon}px`, ['--presence-answer-max' as string]: `${zones.answerMaxHeight}px` }}>
+
+    <div className="presence-word-block" style={{ left: core.x, top: zones.horizon }}>
+      <div className="presence-word" role="status" aria-live="polite" aria-label={`JARVIS ${readout.word}. ${readout.detail}`}>
+        <strong key={readout.word}>{readout.word}</strong>
       </div>
-      <p className="presence-detail">{detail}</p>
+      <p className="presence-detail">{readout.detail}</p>
       {!liveness.current ? <button className="presence-reconnect" type="button" onClick={props.onCommandCentre}>OPEN COMMAND CENTRE · RECONNECT</button> : null}
       {rendererFallback ? <p className="presence-fallback" role="note">GPU environment unavailable · static rendering · state text is authoritative</p> : null}
     </div>
 
-    {satellites.length ? <ul className="presence-satellites" aria-label="Active agent jobs" style={{ left: 0, top: 0 }}>
+    {satellites.length ? <ul className="presence-satellites" aria-label={`Active agent jobs: ${satellites.length}`}>
       {satellites.map(satellite => <li key={satellite.key}
         className={`presence-satellite state-${satellite.state.toLowerCase()}${satellite.animated ? ' live' : ''}${satellite.parentAgentId ? ' child' : ''}`}
-        style={{ left: satellite.point.x, top: satellite.point.y, ['--satellite-angle' as string]: `${satellite.angle}deg` }}>
-        <i aria-hidden="true" />
-        <span>{satellite.name}</span>
-        <small>{satellite.state}{satellite.jobCount > 1 ? ` · ${satellite.jobCount} JOBS` : ''}</small>
+        style={{ left: satellite.point.x, top: satellite.point.y }}>
+        <i className="presence-orb" aria-hidden="true"><b/><b/></i>
+        <span className="presence-satellite-name">{satellite.name}</span>
+        <small>{satellite.state}{satellite.jobCount > 1 ? ` · ${satellite.jobCount} JOBS` : ''}{satellite.parentAgentId ? ' · CHILD' : ''}</small>
       </li>)}
     </ul> : null}
 
-    <form className="presence-input" onSubmit={event => void submit(event)} role="search">
-      <label className="sr-only" htmlFor={inputId}>Ask JARVIS</label>
-      <input id={inputId} value={text} onChange={event => setText(event.target.value)} disabled={!inputEnabled || busy}
-        placeholder={inputEnabled ? (coreRadius < 200 ? 'Ask JARVIS' : 'Speak plainly. Ask, or name the outcome you want.') : 'Commands unavailable until the Kernel reconnects'} autoComplete="off" spellCheck={false} />
-      <button type="submit" disabled={!inputEnabled || busy || !text.trim()} aria-label="Send to JARVIS"><CornerDownLeft size={15} aria-hidden="true"/></button>
-    </form>
+    <div className="presence-stack">
+      {answer ? <section className="presence-answer" role="region" aria-label="JARVIS response" aria-live="polite">
+        <header>
+          <small>JARVIS</small>
+          <div className="presence-answer-actions">
+            <button type="button" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} title={expanded ? 'Collapse response' : 'Expand response'}>
+              {expanded ? <ChevronsDown size={13} aria-hidden="true"/> : <ChevronsUp size={13} aria-hidden="true"/>}
+              <span>{expanded ? 'COLLAPSE' : 'EXPAND'}</span>
+            </button>
+            <button type="button" onClick={props.onDismissAnswer} aria-label="Dismiss response" title="Dismiss response"><X size={13} aria-hidden="true"/></button>
+          </div>
+        </header>
+        <div className="presence-answer-body" tabIndex={0}>{answer}</div>
+      </section> : null}
 
-    {answer ? <div className="presence-answer" role="status">
-      <div><small>JARVIS</small><p>{answer}</p></div>
-      <button type="button" onClick={props.onDismissAnswer} aria-label="Dismiss response">DISMISS</button>
-    </div> : null}
+      <form className="presence-input" onSubmit={event => void submit(event)} role="search">
+        <label className="sr-only" htmlFor={inputId}>Ask JARVIS</label>
+        <input id={inputId} value={text} onChange={event => setText(event.target.value)} disabled={!inputEnabled || busy}
+          placeholder={inputEnabled ? (coreRadius < 200 ? 'Ask JARVIS' : 'Ask JARVIS, or name the outcome you want') : 'Commands unavailable until the Kernel reconnects'} autoComplete="off" spellCheck={false} />
+        {props.voiceControl}
+        <button type="submit" className="presence-send" disabled={!inputEnabled || busy || !text.trim()} aria-label="Send to JARVIS"><CornerDownLeft size={15} aria-hidden="true"/></button>
+      </form>
 
-    <div className="presence-return">
-      <button type="button" onClick={props.onCommandCentre} title="Return to the command centre (C)">
-        <LayoutDashboard size={14} aria-hidden="true"/><span>COMMAND CENTRE</span><kbd>C</kbd>
-      </button>
-      <span className={`presence-link link-${liveness.status}`} aria-label={`Connection ${liveness.status}`}><i aria-hidden="true"/>{liveness.label}</span>
+      <div className="presence-footer">
+        <button className="presence-return" type="button" onClick={props.onCommandCentre} title="Return to the command centre (C)">
+          <LayoutDashboard size={14} aria-hidden="true"/><span>COMMAND CENTRE</span><kbd>C</kbd>
+        </button>
+        <span className={`presence-link link-${liveness.status}`} aria-label={`Connection ${liveness.status}`}><i aria-hidden="true"/>{liveness.label}</span>
+        <span className="presence-mark" aria-hidden="true"><ArrowUpRight size={11}/>SENTIENCE</span>
+      </div>
     </div>
-
-    <span className="presence-mark" aria-hidden="true"><ArrowUpRight size={12}/>SENTIENCE · PRESENCE</span>
   </div>;
 }
 

@@ -13,7 +13,15 @@ export function useViewport(): { width: number; height: number; measured: boolea
     const update = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
     measure();
     window.addEventListener('resize', update);
-    return () => { cancelAnimationFrame(frame); window.removeEventListener('resize', update); };
+    // Mobile browsers can change the visual viewport without a window resize.
+    window.visualViewport?.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
   }, []);
   return size;
 }

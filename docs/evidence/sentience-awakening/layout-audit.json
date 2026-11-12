@@ -1,0 +1,1789 @@
+{
+  "measuredAt": "2026-11-12T23:26:08.206Z",
+  "results": [
+    {
+      "viewportLabel": "1856x890",
+      "scenario": "ambient",
+      "viewport": {
+        "width": 1856,
+        "height": 890
+      },
+      "state": "STANDBY",
+      "word": "STANDBY",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 843.5,
+          "y": 568,
+          "w": 169,
+          "h": 28.8,
+          "right": 1012.5,
+          "bottom": 596.8,
+          "fontSize": "24px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 818.8,
+          "y": 605.8,
+          "w": 218.5,
+          "h": 22.4,
+          "right": 1037.2,
+          "bottom": 628.2,
+          "fontSize": "14px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 578,
+          "y": 785,
+          "w": 700,
+          "h": 54,
+          "right": 1278,
+          "bottom": 839,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 28,
+          "y": 643.8,
+          "w": 410,
+          "h": 126.2,
+          "right": 438,
+          "bottom": 770,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 45,
+          "y": 689.8,
+          "w": 376,
+          "h": 67.2,
+          "right": 421,
+          "bottom": 757,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 578,
+          "y": 849,
+          "w": 700,
+          "h": 29,
+          "right": 1278,
+          "bottom": 878,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 350,
+        "bottomPx": 757,
+        "inputTopPx": 785,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "1856x890",
+      "scenario": "approval",
+      "viewport": {
+        "width": 1856,
+        "height": 890
+      },
+      "state": "APPROVAL",
+      "word": "AWAITING YOU",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 789.8,
+          "y": 568,
+          "w": 276.3,
+          "h": 28.8,
+          "right": 1066.2,
+          "bottom": 596.8,
+          "fontSize": "24px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 769.6,
+          "y": 605.8,
+          "w": 316.8,
+          "h": 22.4,
+          "right": 1086.4,
+          "bottom": 628.2,
+          "fontSize": "14px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 578,
+          "y": 785,
+          "w": 700,
+          "h": 54,
+          "right": 1278,
+          "bottom": 839,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 28,
+          "y": 643.8,
+          "w": 410,
+          "h": 126.2,
+          "right": 438,
+          "bottom": 770,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 45,
+          "y": 689.8,
+          "w": 376,
+          "h": 67.2,
+          "right": 421,
+          "bottom": 757,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 578,
+          "y": 849,
+          "w": 700,
+          "h": 29,
+          "right": 1278,
+          "bottom": 878,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".approval-barrier",
+          "x": 1376,
+          "y": 261,
+          "w": 452,
+          "h": 315.9,
+          "right": 1828,
+          "bottom": 577,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 905.5,
+          "y": 105.5,
+          "w": 45,
+          "h": 49,
+          "right": 950.5,
+          "bottom": 154.5,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.68",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 350,
+        "bottomPx": 757,
+        "inputTopPx": 785,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 1
+    },
+    {
+      "viewportLabel": "1856x890",
+      "scenario": "executing",
+      "viewport": {
+        "width": 1856,
+        "height": 890
+      },
+      "state": "EXECUTING",
+      "word": "EXECUTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 823,
+          "y": 568,
+          "w": 210,
+          "h": 28.8,
+          "right": 1033,
+          "bottom": 596.8,
+          "fontSize": "24px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 797.2,
+          "y": 605.8,
+          "w": 261.7,
+          "h": 22.4,
+          "right": 1058.8,
+          "bottom": 628.2,
+          "fontSize": "14px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 578,
+          "y": 785,
+          "w": 700,
+          "h": 54,
+          "right": 1278,
+          "bottom": 839,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 28,
+          "y": 643.8,
+          "w": 410,
+          "h": 126.2,
+          "right": 438,
+          "bottom": 770,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 45,
+          "y": 689.8,
+          "w": 376,
+          "h": 67.2,
+          "right": 421,
+          "bottom": 757,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 578,
+          "y": 849,
+          "w": 700,
+          "h": 29,
+          "right": 1278,
+          "bottom": 878,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 1139.8,
+          "y": 263.5,
+          "w": 45,
+          "h": 49,
+          "right": 1184.8,
+          "bottom": 312.5,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 350,
+        "bottomPx": 757,
+        "inputTopPx": 785,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "1856x890",
+      "scenario": "disconnected",
+      "viewport": {
+        "width": 1856,
+        "height": 890
+      },
+      "state": "DISCONNECTED",
+      "word": "STALE",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 870.3,
+          "y": 568,
+          "w": 115.4,
+          "h": 28.8,
+          "right": 985.7,
+          "bottom": 596.8,
+          "fontSize": "24px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 758,
+          "y": 605.8,
+          "w": 339.9,
+          "h": 22.4,
+          "right": 1098,
+          "bottom": 628.2,
+          "fontSize": "14px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 578,
+          "y": 785,
+          "w": 700,
+          "h": 54,
+          "right": 1278,
+          "bottom": 839,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 28,
+          "y": 643.8,
+          "w": 410,
+          "h": 126.2,
+          "right": 438,
+          "bottom": 770,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 45,
+          "y": 689.8,
+          "w": 376,
+          "h": 67.2,
+          "right": 421,
+          "bottom": 757,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 578,
+          "y": 849,
+          "w": 700,
+          "h": 29,
+          "right": 1278,
+          "bottom": 878,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 1139.8,
+          "y": 263.5,
+          "w": 45,
+          "h": 49,
+          "right": 1184.8,
+          "bottom": 312.5,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 350,
+        "bottomPx": 757,
+        "inputTopPx": 785,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "1280x720",
+      "scenario": "ambient",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "STANDBY",
+      "word": "STANDBY",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 570.1,
+          "y": 415.2,
+          "w": 139.7,
+          "h": 23.8,
+          "right": 709.9,
+          "bottom": 439,
+          "fontSize": "19.84px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 538.2,
+          "y": 448,
+          "w": 203.6,
+          "h": 20.9,
+          "right": 741.8,
+          "bottom": 468.9,
+          "fontSize": "13.056px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 290,
+          "y": 615,
+          "w": 700,
+          "h": 54,
+          "right": 990,
+          "bottom": 669,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 20,
+          "y": 481.8,
+          "w": 345.6,
+          "h": 126.2,
+          "right": 365.6,
+          "bottom": 608,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 37,
+          "y": 527.8,
+          "w": 311.6,
+          "h": 67.2,
+          "right": 348.6,
+          "bottom": 595,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 290,
+          "y": 679,
+          "w": 700,
+          "h": 29,
+          "right": 990,
+          "bottom": 708,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 272,
+        "bottomPx": 595,
+        "inputTopPx": 615,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "1280x720",
+      "scenario": "approval",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "APPROVAL",
+      "word": "AWAITING YOU",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 525.8,
+          "y": 415.2,
+          "w": 228.4,
+          "h": 23.8,
+          "right": 754.2,
+          "bottom": 439,
+          "fontSize": "19.84px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 492.3,
+          "y": 448,
+          "w": 295.3,
+          "h": 20.9,
+          "right": 787.7,
+          "bottom": 468.9,
+          "fontSize": "13.056px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 290,
+          "y": 615,
+          "w": 700,
+          "h": 54,
+          "right": 990,
+          "bottom": 669,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 20,
+          "y": 481.8,
+          "w": 345.6,
+          "h": 126.2,
+          "right": 365.6,
+          "bottom": 608,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 37,
+          "y": 527.8,
+          "w": 311.6,
+          "h": 67.2,
+          "right": 348.6,
+          "bottom": 595,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 290,
+          "y": 679,
+          "w": 700,
+          "h": 29,
+          "right": 990,
+          "bottom": 708,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".approval-barrier",
+          "x": 837.6,
+          "y": 176,
+          "w": 422.4,
+          "h": 315.9,
+          "right": 1260,
+          "bottom": 492,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 617.5,
+          "y": 141.1,
+          "w": 45,
+          "h": 49,
+          "right": 662.5,
+          "bottom": 190.1,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.68",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 272,
+        "bottomPx": 595,
+        "inputTopPx": 615,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 1
+    },
+    {
+      "viewportLabel": "1280x720",
+      "scenario": "executing",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "EXECUTING",
+      "word": "EXECUTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 553.2,
+          "y": 415.2,
+          "w": 173.6,
+          "h": 23.8,
+          "right": 726.8,
+          "bottom": 439,
+          "fontSize": "19.84px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 518,
+          "y": 448,
+          "w": 243.9,
+          "h": 20.9,
+          "right": 762,
+          "bottom": 468.9,
+          "fontSize": "13.056px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 290,
+          "y": 615,
+          "w": 700,
+          "h": 54,
+          "right": 990,
+          "bottom": 669,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 20,
+          "y": 481.8,
+          "w": 345.6,
+          "h": 126.2,
+          "right": 365.6,
+          "bottom": 608,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 37,
+          "y": 527.8,
+          "w": 311.6,
+          "h": 67.2,
+          "right": 348.6,
+          "bottom": 595,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 290,
+          "y": 679,
+          "w": 700,
+          "h": 29,
+          "right": 990,
+          "bottom": 708,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 751,
+          "y": 231.2,
+          "w": 45,
+          "h": 49,
+          "right": 796,
+          "bottom": 280.2,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 272,
+        "bottomPx": 595,
+        "inputTopPx": 615,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "1280x720",
+      "scenario": "disconnected",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "DISCONNECTED",
+      "word": "STALE",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 592.3,
+          "y": 415.2,
+          "w": 95.4,
+          "h": 23.8,
+          "right": 687.7,
+          "bottom": 439,
+          "fontSize": "19.84px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 481.6,
+          "y": 448,
+          "w": 316.9,
+          "h": 20.9,
+          "right": 798.4,
+          "bottom": 468.9,
+          "fontSize": "13.056px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 290,
+          "y": 615,
+          "w": 700,
+          "h": 54,
+          "right": 990,
+          "bottom": 669,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 20,
+          "y": 481.8,
+          "w": 345.6,
+          "h": 126.2,
+          "right": 365.6,
+          "bottom": 608,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 37,
+          "y": 527.8,
+          "w": 311.6,
+          "h": 67.2,
+          "right": 348.6,
+          "bottom": 595,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 290,
+          "y": 679,
+          "w": 700,
+          "h": 29,
+          "right": 990,
+          "bottom": 708,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 751,
+          "y": 231.2,
+          "w": 45,
+          "h": 49,
+          "right": 796,
+          "bottom": 280.2,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 272,
+        "bottomPx": 595,
+        "inputTopPx": 615,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "1024x768",
+      "scenario": "ambient",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "state": "STANDBY",
+      "word": "STANDBY",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 460.8,
+          "y": 462,
+          "w": 102.5,
+          "h": 19.2,
+          "right": 563.2,
+          "bottom": 481.2,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 418.4,
+          "y": 490.2,
+          "w": 187.3,
+          "h": 19.2,
+          "right": 605.6,
+          "bottom": 509.4,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 671,
+          "w": 1000,
+          "h": 50,
+          "right": 1012,
+          "bottom": 721,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 12,
+          "y": 581.6,
+          "w": 1000,
+          "h": 81.4,
+          "right": 1012,
+          "bottom": 663,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 29,
+          "y": 627.6,
+          "w": 966,
+          "h": 22.4,
+          "right": 995,
+          "bottom": 650,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 729,
+          "w": 1000,
+          "h": 29,
+          "right": 1012,
+          "bottom": 758,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 81,
+        "bottomPx": 650,
+        "inputTopPx": 671,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "1024x768",
+      "scenario": "approval",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "state": "APPROVAL",
+      "word": "AWAITING YOU",
+      "boxes": [
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 671,
+          "w": 1000,
+          "h": 50,
+          "right": 1012,
+          "bottom": 721,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 729,
+          "w": 1000,
+          "h": 29,
+          "right": 1012,
+          "bottom": 758,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".approval-barrier",
+          "x": 12,
+          "y": 348.2,
+          "w": 1000,
+          "h": 295.8,
+          "right": 1012,
+          "bottom": 644,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 493.7,
+          "y": 80.6,
+          "w": 36.6,
+          "h": 31,
+          "right": 530.3,
+          "bottom": 111.6,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.68",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 0,
+        "bottomPx": 0,
+        "inputTopPx": 671,
+        "crossesInput": false,
+        "scrolls": false
+      },
+      "satellites": 1
+    },
+    {
+      "viewportLabel": "1024x768",
+      "scenario": "executing",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "state": "EXECUTING",
+      "word": "EXECUTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 448.4,
+          "y": 462,
+          "w": 127.2,
+          "h": 19.2,
+          "right": 575.6,
+          "bottom": 481.2,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 399.9,
+          "y": 490.2,
+          "w": 224.3,
+          "h": 19.2,
+          "right": 624.1,
+          "bottom": 509.4,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 671,
+          "w": 1000,
+          "h": 50,
+          "right": 1012,
+          "bottom": 721,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 12,
+          "y": 581.6,
+          "w": 1000,
+          "h": 81.4,
+          "right": 1012,
+          "bottom": 663,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 29,
+          "y": 627.6,
+          "w": 966,
+          "h": 22.4,
+          "right": 995,
+          "bottom": 650,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 729,
+          "w": 1000,
+          "h": 29,
+          "right": 1012,
+          "bottom": 758,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 689.4,
+          "y": 212.6,
+          "w": 36.6,
+          "h": 31,
+          "right": 726,
+          "bottom": 243.6,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 81,
+        "bottomPx": 650,
+        "inputTopPx": 671,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "1024x768",
+      "scenario": "disconnected",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "state": "DISCONNECTED",
+      "word": "STALE",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 477.4,
+          "y": 462,
+          "w": 69.2,
+          "h": 19.2,
+          "right": 546.6,
+          "bottom": 481.2,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 395.6,
+          "y": 490.2,
+          "w": 232.9,
+          "h": 38.4,
+          "right": 628.4,
+          "bottom": 528.6,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 671,
+          "w": 1000,
+          "h": 50,
+          "right": 1012,
+          "bottom": 721,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 12,
+          "y": 581.6,
+          "w": 1000,
+          "h": 81.4,
+          "right": 1012,
+          "bottom": 663,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 29,
+          "y": 627.6,
+          "w": 966,
+          "h": 22.4,
+          "right": 995,
+          "bottom": 650,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 729,
+          "w": 1000,
+          "h": 29,
+          "right": 1012,
+          "bottom": 758,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 693.1,
+          "y": 212.6,
+          "w": 29.3,
+          "h": 31,
+          "right": 722.3,
+          "bottom": 243.6,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": true
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 81,
+        "bottomPx": 650,
+        "inputTopPx": 671,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "ambient",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "STANDBY",
+      "word": "STANDBY",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 143.8,
+          "y": 466.3,
+          "w": 102.5,
+          "h": 19.2,
+          "right": 246.2,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 101.4,
+          "y": 494.5,
+          "w": 187.3,
+          "h": 19.2,
+          "right": 288.6,
+          "bottom": 513.7,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 12,
+          "y": 612.8,
+          "w": 366,
+          "h": 126.2,
+          "right": 378,
+          "bottom": 739,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 29,
+          "y": 658.8,
+          "w": 332,
+          "h": 67.2,
+          "right": 361,
+          "bottom": 726,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 152.7,
+        "bottomPx": 726,
+        "inputTopPx": 747,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "approval",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "APPROVAL",
+      "word": "AWAITING YOU",
+      "boxes": [
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".approval-barrier",
+          "x": 12,
+          "y": 361.3,
+          "w": 366,
+          "h": 358.7,
+          "right": 378,
+          "bottom": 720,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 176.7,
+          "y": 158.3,
+          "w": 36.6,
+          "h": 31,
+          "right": 213.3,
+          "bottom": 189.3,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.68",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 0,
+        "bottomPx": 0,
+        "inputTopPx": 747,
+        "crossesInput": false,
+        "scrolls": false
+      },
+      "satellites": 1
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "executing",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "EXECUTING",
+      "word": "EXECUTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 131.4,
+          "y": 466.3,
+          "w": 127.2,
+          "h": 19.2,
+          "right": 258.6,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 82.9,
+          "y": 494.5,
+          "w": 224.3,
+          "h": 19.2,
+          "right": 307.1,
+          "bottom": 513.7,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 12,
+          "y": 612.8,
+          "w": 366,
+          "h": 126.2,
+          "right": 378,
+          "bottom": 739,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 29,
+          "y": 658.8,
+          "w": 332,
+          "h": 67.2,
+          "right": 361,
+          "bottom": 726,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 328.6,
+          "y": 260.7,
+          "w": 36.6,
+          "h": 31,
+          "right": 365.1,
+          "bottom": 291.7,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 152.7,
+        "bottomPx": 726,
+        "inputTopPx": 747,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "disconnected",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "DISCONNECTED",
+      "word": "STALE",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 160.4,
+          "y": 466.3,
+          "w": 69.2,
+          "h": 19.2,
+          "right": 229.6,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 78.6,
+          "y": 494.5,
+          "w": 232.9,
+          "h": 38.4,
+          "right": 311.4,
+          "bottom": 532.9,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer",
+          "x": 12,
+          "y": 612.8,
+          "w": 366,
+          "h": 126.2,
+          "right": 378,
+          "bottom": 739,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-answer-body",
+          "x": 29,
+          "y": 658.8,
+          "w": 332,
+          "h": 67.2,
+          "right": 361,
+          "bottom": 726,
+          "fontSize": "13.5px",
+          "colour": "color(srgb 0.888941 0.916392 0.932078)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-satellite",
+          "x": 332.2,
+          "y": 260.7,
+          "w": 29.3,
+          "h": 31,
+          "right": 361.5,
+          "bottom": 291.7,
+          "fontSize": "10.5px",
+          "colour": "color(srgb 0.757569 0.792471 0.815608)",
+          "opacity": "0.92",
+          "clipped": true
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": {
+        "heightPx": 152.7,
+        "bottomPx": 726,
+        "inputTopPx": 747,
+        "crossesInput": false,
+        "scrolls": true
+      },
+      "satellites": 2
+    }
+  ]
+}

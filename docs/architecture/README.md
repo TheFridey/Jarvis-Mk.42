@@ -36,6 +36,7 @@ years. Implementation is subordinate to it (see `PRINCIPLES.md` §Precedence).
 | 19f | [`AUDIT_PROMPT5_COGNITION_OBSERVATORY.md`](AUDIT_PROMPT5_COGNITION_OBSERVATORY.md) | Prompt 5 working-tree evidence, exact verification results and deferred boundaries |
 | 19g | [`AUDIT_PROMPT6_AGENT_RUNTIME.md`](AUDIT_PROMPT6_AGENT_RUNTIME.md) | Durable worker lifecycle, cancellation, recovery, Observatory and exact gate evidence |
 | 19h | [`ENGINEERING-CONTRACT-V1.md`](ENGINEERING-CONTRACT-V1.md) | **Design only.** `jarvis.engineering.v1`: how Mark 42 would consume Jarvis V2's engineering loop as one bounded capability without shared authority or storage |
+| 19i | [`SENTIENCE-QUALIFICATION.md`](SENTIENCE-QUALIFICATION.md) | Presence hardware-qualification procedure: what is measured, how to prove GPU acceleration, and the audited baseline |
 | 20 | [`MK43_IMPLEMENTATION_NOTES.md`](MK43_IMPLEMENTATION_NOTES.md) | The Nervous System as built: ratified changes, environment-forced toolchain deviations, real-vs-placeholder |
 | 21 | [`AUDIT_MK42_ASCENSION.md`](AUDIT_MK42_ASCENSION.md) | Hostile external architecture audit (ASCENSION Stage A): design vs as-built, the hollow-agency-plane finding, scores, required corrections |
 | 22 | [`HARDENING_SPEC_MK42.md`](HARDENING_SPEC_MK42.md) | ASCENSION Stage B implementation direction: task groups H1–H13, chaos/perf/fitness/contract gates, the FOUNDATION_REVIEW template |

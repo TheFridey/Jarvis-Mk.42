@@ -34,7 +34,8 @@ import { useScene } from './use-scene.ts';
 import { latestConversationAnswer } from './conversation-answer.ts';
 import { ResponsePanel } from './response-panel.tsx';
 import { PresenceMode } from './presence/presence-mode.tsx';
-import { COMMAND_MODE_KEY, PRESENCE_MODE_KEY, PRESENCE_MODE_STORAGE, presenceChrome, presenceComposition, presenceDetail, presenceInputEnabled, presenceMotion, presenceSatellites, presenceWord, resolvePresenceState } from './presence/presence-policy.ts';
+import { COMMAND_MODE_KEY, PRESENCE_MODE_KEY, PRESENCE_MODE_STORAGE, presenceComposition, presenceInputEnabled, presenceMotion, presenceReadout, presenceSatellites, presenceZones } from './presence/presence-policy.ts';
+import { PresenceMic } from './presence/presence-mic.tsx';
 
 const offlineScene = (): SemanticScene => ({ id: 'kernel-offline', principalId: 'unavailable', version: 0, presentation: 'DEGRADED', monitors: [{ id: 'primary', label: 'Primary', bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 }, scaleFactor: 1, primary: true, connected: true }], objects: [{ id: 'core', kind: 'jarvis-core', title: 'JARVIS', semanticRole: 'connection-status', monitorId: 'primary', position: { x: 760, y: 300 }, size: { width: 400, height: 400 }, zIndex: 1, state: 'focused', pinned: true, dismissible: false, resourceRefs: [], updatedAt: new Date().toISOString(), data: { activity: [], phrase: 'Kernel unavailable. No authoritative state is being shown.' } }], updatedAt: new Date().toISOString() });
 
@@ -105,17 +106,10 @@ export function JarvisExperience() {
   const cinematicLayout = useMemo(() => ({ ...layout, core: { x: viewport.width * .5, y: viewport.height * (layout.narrow ? .40 : .50) }, coreRadius: Math.min(viewport.height * .24, viewport.width * (layout.narrow ? .34 : .205)) }), [layout, viewport.width, viewport.height]);
   const presenceOn = mode === 'presence';
   const composition = useMemo(() => presenceComposition(viewport), [viewport.width, viewport.height]);
-  const presence = useMemo(() => {
-    const input = { phase, liveness, ...(kernel ? { picture: kernel } : {}) };
-    const state = resolvePresenceState(input);
-    return {
-      state,
-      word: presenceWord(state, liveness),
-      detail: presenceDetail(input),
-      chrome: presenceChrome({ approvals: kernel?.pendingApprovals?.length ?? 0, liveness }),
-      motion: presenceMotion(reducedSensory, state),
-    };
-  }, [phase, liveness, kernel, reducedSensory]);
+  const presenceClock = useNow(1000);
+  const readout = useMemo(() => presenceReadout({ phase, liveness, ...(kernel ? { picture: kernel } : {}), now: presenceClock }), [phase, liveness, kernel, presenceClock]);
+  const zones = useMemo(() => presenceZones(viewport, composition), [viewport, composition]);
+  const presenceMotionState = useMemo(() => presenceMotion(reducedSensory, readout.state), [reducedSensory, readout.state]);
   const satellites = useMemo(() => presenceSatellites(kernel?.agentJobs ?? [], { core: composition.layout.core, radius: composition.satelliteRadius, current, reducedMotion: reducedSensory }), [kernel?.agentJobs, current, reducedSensory, composition]);
   const activeLayout = presenceOn ? composition.layout : cinematicLayout;
   const barrierLayout = presenceOn ? { ...composition.layout, narrow: true } : layout;
@@ -155,15 +149,17 @@ export function JarvisExperience() {
   const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
   const developer = process.env.NODE_ENV === 'development';
   const approvals = kernel?.pendingApprovals ?? [];
+  const rtcAvailable = ['HEALTHY', 'DEGRADED'].includes(kernel?.diagnostics.dependencies.find(item => item.name === 'rtc')?.status ?? 'OFFLINE');
 
   return <main style={{ '--cinematic-accent': modelTint(visualId) } as CSSProperties} className={`environment cinematic visual-${preset} presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${workspaceOpen ? ' workspace-open' : ''}${commandResult ? ' has-response' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}${idle ? ' idle' : ''}${presenceOn ? ' presence-open' : ' command-open'}${viewport.measured ? '' : ' unmeasured'}`}
     onKeyDown={event => { if (event.key === 'Escape' && selected[0]) { send({ type: 'dismiss', targetId: selected[0], input: 'keyboard' }); setSelected([]); } }} tabIndex={-1}>
     {demoMode && <div className="demo-banner" role="status">DEMO MODE · SYNTHETIC DATA · NO LIVE EXECUTION</div>}
     <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={activeLayout} {...(visualId ? { focusModel: visualId } : {})} models={presenceOn ? [] : displayed} {...(router.route ? { route: router.route } : {})} agents={presenceOn ? [] : agents.nodes} regions={regions}
       systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback} {...(stage ? { stage } : {})} choreography={choreography}
-      {...(presenceOn ? { presence: { state: presence.state, ambient: presence.motion.ambient, reduced: reducedSensory } } : {})}/>
-    {presenceOn ? <PresenceMode phaseWord={presence.word} detail={presence.detail} state={presence.state} liveness={liveness} composition={composition}
-      satellites={satellites} inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
+      {...(presenceOn ? { presence: { state: readout.state, ambient: presenceMotionState.ambient, reduced: reducedSensory } } : {})}/>
+    {presenceOn ? <PresenceMode readout={readout} liveness={liveness} composition={composition} zones={zones} satellites={satellites}
+      inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
+      voiceControl={<PresenceMic transport={transport} live={kernelLive} available={rtcAvailable} liveness={liveness} picture={kernel}/>}
       answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
     {!presenceOn ? <>
     <SystemStatusEdge {...(kernel ? { picture: kernel } : {})} liveness={liveness} regions={regions} operations={operations} inspector={inspector}
@@ -177,7 +173,7 @@ export function JarvisExperience() {
     <ModelControls {...(kernel?{picture:kernel}:{})} {...(visualModel?{modelId:visualModel}:{})} preset={preset} onPreset={updatePreset} preferredModel={preferredModel} onPreferredModel={updatePreferredModel} current={current}/>
     <ReferentFocus focus={kernelLive ? kernel?.referentFocus : undefined} objects={scene.objects} developer={inspector && developer}/>
     <footer className="command-deck">
-      <RtcControl transport={transport} live={kernelLive} available={['HEALTHY', 'DEGRADED'].includes(kernel?.diagnostics.dependencies.find(item => item.name === 'rtc')?.status ?? 'OFFLINE')}/>
+      <RtcControl transport={transport} live={kernelLive} available={rtcAvailable}/>
       <button className="command-line" onClick={() => setProposalOpen(!proposalOpen)} disabled={!kernelLive}><Command size={15}/><span>{kernelLive ? (layout.narrow ? 'Ask JARVIS' : 'Ask JARVIS or request an action') : liveness.synthetic ? (layout.narrow ? 'Demo · read only' : 'Demo mode · commands are not sent') : (layout.narrow ? 'Reconnect to begin' : 'Commands unavailable until Kernel reconnects')}</span><kbd>ENTER</kbd></button>
       <button aria-label="Scene workspace" aria-expanded={workspaceOpen} className="deck-icon" onClick={() => setWorkspaceOpen(open => !open)} title="Scene workspace"><Layers size={16}/></button>
       <SelectedCapture {...(kernel ? { kernel } : {})} live={kernelLive} submit={submitProposal}/>

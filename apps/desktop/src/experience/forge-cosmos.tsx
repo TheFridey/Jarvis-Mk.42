@@ -22,6 +22,7 @@ import { modelShape, modelTint } from './cinematic-palette.ts';
 import { Nebula } from './cosmos/nebula.tsx';
 import { DriftField } from './cosmos/particle-fields.tsx';
 import { PresenceAtmosphere } from './cosmos/presence-atmosphere.tsx';
+import { LivingCore } from './cosmos/living-core.tsx';
 import type { PresenceState } from './presence/presence-policy.ts';
 import { CosmosClockProvider, useCosmosClock, useWorld, type World } from './cosmos/runtime.tsx';
 
@@ -116,7 +117,10 @@ function Cosmos({ input, envelope, onMetrics }: { input: CosmosInput; envelope: 
       <DriftField count={Math.floor(policy.particleCount / 6)} seed={53} spread={[14, 8, 2]} centre={[0, 0, 3]} size={[1.2, 3]} colour="infra" accent="cognitionDeep" alpha={.05} drift={.3} twinkle={.2} />
       <DriftField count={policy.emberCount} seed={61} spread={[world.radius(layout.coreRadius) * 2.2, world.radius(layout.coreRadius), 1.5]} centre={[execution[0], execution[1] - .4, -.5]} size={[.9, 2.4]} colour="execution" accent="forge" alpha={.012 + gold * .55} drift={.05} twinkle={.5} rise={.35} riseSpan={2.4} />
       <CinematicCore shape={modelShape(input.focusModel)} position={core} scale={coreRadius} colour={phase === 'CRITICAL' ? COLOUR.critical : phase === 'APPROVAL' ? COLOUR.forge : modelTint(input.focusModel)} energy={cognition + gold} audio={amplitude} count={coreCount}/>
-      {input.presence ? <PresenceAtmosphere core={core} radius={coreRadius} state={input.presence.state} ambient={input.presence.ambient} dust={input.presence.dust} reduced={input.presence.reduced}/> : null}
+      {/* Presence layers stay mounted in both modes (invisible in the command
+          centre) so a mode switch never pays a shader-compile stall. */}
+      <LivingCore position={core} radius={coreRadius * .99} colour={phase === 'CRITICAL' ? COLOUR.critical : phase === 'APPROVAL' ? COLOUR.forge : modelTint(input.focusModel)} energy={cognition + gold} audio={amplitude} quality={policy.quality} reduced={input.reducedMotion} active={Boolean(input.presence)}/>
+      <PresenceAtmosphere core={core} radius={coreRadius} state={input.presence?.state ?? 'STANDBY'} ambient={input.presence?.ambient ?? 0} dust={input.presence?.dust ?? policy.particleCount} reduced={input.presence?.reduced ?? input.reducedMotion} active={Boolean(input.presence)}/>
     </FramingRig>
     <Metrics policy={policy} particles={particles} {...(onMetrics ? { onMetrics } : {})} />
     {policy.bloom ? <EffectComposer multisampling={0}><Bloom intensity={.85} luminanceThreshold={.55} luminanceSmoothing={.3} mipmapBlur /></EffectComposer> : null}

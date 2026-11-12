@@ -36,9 +36,11 @@ const ENERGY: Record<PresenceState, number> = {
   VERIFIED: .5, SPEAKING: .6, LISTENING: .45, THINKING: .72, STANDBY: .28,
 };
 
-export function PresenceAtmosphere({ core, radius, state, ambient, dust, reduced }: {
+export function PresenceAtmosphere({ core, radius, state, ambient, dust, reduced, active = true }: {
   core: [number, number]; radius: number; state: PresenceState;
   ambient: number; dust: number; reduced: boolean;
+  /** Kept mounted across modes so switching never recompiles shaders. */
+  active?: boolean;
 }) {
   const clock = useCosmosClock();
   const halo = useRef<Mesh>(null), innerRing = useRef<Mesh>(null), outerRing = useRef<Mesh>(null);
@@ -76,7 +78,7 @@ export function PresenceAtmosphere({ core, radius, state, ambient, dust, reduced
   });
 
   const shellsBase = Math.max(120, Math.floor(dust / 3));
-  return <group position={[core[0], core[1], 0]}>
+  return <group position={[core[0], core[1], 0]} visible={active}>
     <mesh ref={halo} material={m.halo}>
       <circleGeometry args={[radius * 3.6, 96]} />
     </mesh>

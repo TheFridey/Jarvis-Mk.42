@@ -4,7 +4,8 @@ import type { DataLiveness, ExperiencePhase } from '../experience-phase-policy.t
 import {
   COMMAND_MODE_KEY, PRESENCE_MODE_KEY, PRESENCE_MODE_STORAGE,
   presenceChrome, presenceComposition, presenceDetail, presenceInputEnabled, presenceMotion,
-  presenceSatellites, presenceTone, presenceWord, resolvePresenceState,
+  presenceReadout, presenceSatellites, presenceTone, presenceVoiceStatus, presenceWord, presenceZones,
+  resolvePresenceState, speechObserved, verifiedEvidence,
 } from './presence-policy.ts';
 
 const live = (over: Partial<DataLiveness> = {}): DataLiveness => ({ status: 'live', current: true, synthetic: false, label: 'REALTIME LIVE', ...over });
@@ -54,10 +55,32 @@ describe('presence state mapping', () => {
     expect(resolvePresenceState({ phase: 'COMPLETE', liveness: live(), picture: { voiceAudio: { tts: 'playing' } } })).toBe('VERIFIED');
   });
 
-  it('reports speaking only when speech is actually observed', () => {
-    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture: { voiceAudio: { tts: 'playing' } } })).toBe('SPEAKING');
-    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture: { voiceAudio: { tts: 'idle' } } })).toBe('STANDBY');
-    expect(resolvePresenceState({ phase: 'RESPONDING', liveness: live() })).toBe('SPEAKING');
+  it('reports speaking only when audio playback is freshly observed', () => {
+    const now = Date.now();
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), now, picture: { voiceAudio: { tts: 'playing', observedAt: new Date(now - 400).toISOString() } } })).toBe('SPEAKING');
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), now, picture: { voiceAudio: { tts: 'idle', observedAt: new Date(now - 400).toISOString() } } })).toBe('STANDBY');
+    // A tts flag with no timestamp cannot establish audio.
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), now, picture: { voiceAudio: { tts: 'playing' } } })).toBe('STANDBY');
+  });
+
+  it('cannot keep claiming speech from a stale observation', () => {
+    const now = Date.now();
+    const stale = { voiceAudio: { tts: 'playing', observedAt: new Date(now - 30_000).toISOString() } };
+    expect(speechObserved(stale, now)).toBe(false);
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), now, picture: stale })).toBe('STANDBY');
+    expect(resolvePresenceState({ phase: 'RESPONDING', liveness: live(), now, picture: stale })).toBe('SPEAKING');
+    expect(presenceDetail({ phase: 'RESPONDING', liveness: live(), now, picture: stale })).toBe('Response in progress.');
+  });
+
+  it('does not call a text response audible speech', () => {
+    const now = Date.now();
+    const readout = presenceReadout({ phase: 'RESPONDING', liveness: live(), now });
+    expect(readout.state).toBe('SPEAKING');
+    expect(readout.speaking).toBe(false);
+    expect(readout.word).toBe('RESPONDING');
+    const audible = presenceReadout({ phase: 'RESPONDING', liveness: live(), now, picture: { voiceAudio: { tts: 'playing', observedAt: new Date(now - 200).toISOString() } } });
+    expect(audible.word).toBe('SPEAKING');
+    expect(audible.speaking).toBe(true);
   });
 
   it('never claims verified completion from a model run alone', () => {
@@ -154,7 +177,9 @@ describe('presence navigation', () => {
 describe('presence composition', () => {
   it('frames a dominant orb with a clear readout horizon', () => {
     const desktop = presenceComposition({ width: 1856, height: 890 });
-    expect(desktop.coreRadius).toBeGreaterThan(240);
+    // Large enough to dominate, small enough to leave a real response surface.
+    expect(desktop.coreRadius).toBeGreaterThan(890 * .24);
+    expect(desktop.coreRadius).toBeLessThan(890 * .34);
     expect(desktop.layout.core.x).toBe(928);
     expect(desktop.coreRadius * 2).toBeLessThan(desktop.layout.height);
     expect(desktop.horizon).toBeGreaterThan(desktop.layout.core.y + desktop.coreRadius * .9);
@@ -232,5 +257,120 @@ describe('satellite agents', () => {
   it('caps the field at six identities', () => {
     const jobs = Array.from({ length: 10 }, (_, index) => job({ jobId: `j${index}`, agentId: `agents.agent${String(index).padStart(2, '0')}` }));
     expect(presenceSatellites(jobs, { core: { x: 400, y: 400 }, radius: 260, current: true })).toHaveLength(6);
+  });
+});
+
+describe('verified completion requires canonical evidence', () => {
+  it('accepts a successful invocation ledger entry', () => {
+    const picture = { capabilityActivity: [{ action: 'publish', state: 'EXECUTING' }, { action: 'publish', state: 'VERIFIED' }] };
+    expect(verifiedEvidence(picture).verified).toBe(true);
+    expect(verifiedEvidence(picture).action).toBe('publish');
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture })).toBe('VERIFIED');
+    expect(presenceDetail({ phase: 'DORMANT', liveness: live(), picture })).toContain('publish verified');
+  });
+
+  it('refuses completion while any invocation is still active', () => {
+    const picture = { capabilityActivity: [{ action: 'publish', state: 'VERIFIED' }, { action: 'notify', state: 'EXECUTING' }] };
+    expect(verifiedEvidence(picture).verified).toBe(false);
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture })).toBe('STANDBY');
+  });
+
+  it('lets a later failure supersede an earlier success', () => {
+    const picture = { capabilityActivity: [{ action: 'publish', state: 'VERIFIED' }, { action: 'publish', state: 'VERIFICATION_FAILED' }] };
+    expect(verifiedEvidence(picture).verified).toBe(false);
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture })).toBe('STANDBY');
+  });
+
+  it('never invents completion from an empty or idle projection', () => {
+    expect(verifiedEvidence(undefined).verified).toBe(false);
+    expect(verifiedEvidence({ capabilityActivity: [] }).verified).toBe(false);
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture: {} })).toBe('STANDBY');
+    expect(resolvePresenceState({ phase: 'AWARE', liveness: live() })).toBe('STANDBY');
+  });
+});
+
+describe('degradation is never presented as healthy standby', () => {
+  it('keeps the standby state but names the degradation', () => {
+    const readout = presenceReadout({ phase: 'DEGRADED', liveness: live() });
+    expect(readout.state).toBe('STANDBY');
+    expect(readout.word).toBe('DEGRADED');
+    expect(readout.degraded).toBe(true);
+    expect(readout.tone).toBe('attention');
+    expect(readout.detail).toContain('degraded');
+  });
+
+  it('reports degradation reported only on system health', () => {
+    const readout = presenceReadout({ phase: 'DORMANT', liveness: live(), picture: { systemHealth: { overall: 'DEGRADED' } } });
+    expect(readout.word).toBe('DEGRADED');
+    expect(readout.detail).toContain('degraded');
+  });
+
+  it('leaves a genuinely healthy standby alone', () => {
+    const readout = presenceReadout({ phase: 'DORMANT', liveness: live(), picture: { systemHealth: { overall: 'HEALTHY' } } });
+    expect(readout.word).toBe('STANDBY');
+    expect(readout.tone).toBe('idle');
+  });
+});
+
+describe('readout agreement', () => {
+  it('derives one state for the word, the sentence and the GPU', () => {
+    for (const phase of ALL_PHASES) {
+      const readout = presenceReadout({ phase, liveness: live() });
+      expect(readout.state, phase).toBe(resolvePresenceState({ phase, liveness: live() }));
+      expect(readout.word.length, phase).toBeGreaterThan(0);
+      expect(readout.detail.length, phase).toBeGreaterThan(0);
+      expect(presenceTone(readout.state), phase).toBeTruthy();
+    }
+  });
+});
+
+describe('vertical zones', () => {
+  const viewports = [{ width: 390, height: 844 }, { width: 1280, height: 720 }, { width: 1856, height: 890 }, { width: 2560, height: 1440 }, { width: 1024, height: 600 }];
+  it('never lets the response, word or input overlap at any tested viewport', () => {
+    for (const viewport of viewports) {
+      const composition = presenceComposition(viewport);
+      const zones = presenceZones(viewport, composition);
+      const label = `${viewport.width}x${viewport.height}`;
+      expect(zones.horizon, label).toBeLessThan(zones.detailBottom);
+      expect(zones.detailBottom, label).toBeLessThan(zones.answerTop);
+      expect(zones.answerTop, label).toBeLessThan(zones.inputTop);
+      expect(zones.inputTop, label).toBeLessThan(zones.inputBottom);
+      expect(zones.inputBottom, label).toBeLessThanOrEqual(viewport.height);
+      expect(zones.answerMaxHeight, label).toBeGreaterThanOrEqual(64);
+      // Stacked layouts must fit between the readout and the input; docked ones
+      // get their own column and are bounded by the viewport instead.
+      if (zones.answerDocked) expect(zones.answerMaxHeight, label).toBeLessThanOrEqual(viewport.height * .5);
+      else expect(zones.answerTop + zones.answerMaxHeight, label).toBeLessThanOrEqual(zones.inputTop);
+    }
+  });
+
+  it('keeps the word below the orb at every tested viewport', () => {
+    for (const viewport of viewports) {
+      const composition = presenceComposition(viewport);
+      const zones = presenceZones(viewport, composition);
+      expect(zones.horizon, `${viewport.width}x${viewport.height}`).toBeGreaterThan(composition.layout.core.y + composition.coreRadius * .9);
+    }
+  });
+});
+
+describe('voice availability', () => {
+  it('reports unavailable while disconnected, whatever the device says', () => {
+    expect(presenceVoiceStatus({ liveness: stale(), micActive: false, available: true }).state).toBe('UNAVAILABLE');
+    expect(presenceVoiceStatus({ liveness: stale(), micActive: true, available: true }).state).toBe('UNAVAILABLE');
+  });
+
+  it('reports unavailable when the RTC service is not ready', () => {
+    expect(presenceVoiceStatus({ liveness: live(), micActive: false, available: false }).state).toBe('UNAVAILABLE');
+  });
+
+  it('reports a genuinely live microphone, and degradation when the device is lost', () => {
+    expect(presenceVoiceStatus({ liveness: live(), micActive: true, available: true }).state).toBe('LIVE');
+    expect(presenceVoiceStatus({ liveness: live(), micActive: false, available: true, picture: { voiceAudio: { deviceState: 'lost' } } }).state).toBe('DEGRADED');
+    expect(presenceVoiceStatus({ liveness: live(), micActive: false, available: true, picture: { voiceAudio: { deviceState: 'ready' } } }).state).toBe('READY');
+  });
+
+  it('never describes capture as active before it is started', () => {
+    const status = presenceVoiceStatus({ liveness: live(), micActive: false, available: true });
+    expect(status.detail).toContain('not captured until you press it');
   });
 });
