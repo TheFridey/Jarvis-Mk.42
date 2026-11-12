@@ -1,0 +1,107 @@
+/*
+ * SENTIENCE · Presence Mode.
+ * The room around the orb: one word, one sentence, one field, one way back.
+ * Every colour comes from the semantic tokens in globals.css; state colour is
+ * carried by --presence, which the presence-<state> class sets from those tokens.
+ */
+.presence-disconnected{--presence:var(--c-silverDim)}
+.presence-fault{--presence:var(--c-critical)}
+.presence-approval,.presence-executing{--presence:var(--c-execution)}
+.presence-verified{--presence:var(--c-verified)}
+.presence-speaking,.presence-listening,.presence-thinking{--presence:var(--c-cognition)}
+.presence-standby{--presence:var(--c-infra)}
+
+.presence-layer{position:fixed;inset:0;z-index:20;pointer-events:none;--presence:var(--c-infra)}
+.presence-layer>*{pointer-events:auto}
+.presence-layer .presence-satellites{pointer-events:none}
+.presence-layer .presence-satellites li{pointer-events:auto}
+
+/* ---------- the word ---------- */
+.presence-word-block{position:absolute;transform:translateX(-50%);width:min(560px,calc(100vw - 48px));text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.presence-word{display:flex;align-items:center;justify-content:center;gap:14px}
+.presence-word::before,.presence-word::after{content:'';width:clamp(24px,6vw,68px);height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--presence) 55%,transparent))}
+.presence-word::after{background:linear-gradient(270deg,transparent,color-mix(in srgb,var(--presence) 55%,transparent))}
+.presence-word strong{font:300 clamp(15px,1.5vw,23px) var(--f-body);letter-spacing:.42em;padding-left:.42em;color:color-mix(in srgb,var(--presence) 78%,var(--c-ink));transition:color var(--m-decay) var(--e-decay);text-transform:uppercase;white-space:nowrap}
+.presence-detail{margin:0;font:400 clamp(11px,1vw,13px)/1.65 var(--f-body);letter-spacing:.06em;color:var(--c-inkMuted);max-width:46ch;text-wrap:balance}
+.presence-fallback{margin:2px 0 0;font:var(--t-micro) var(--f-data);letter-spacing:.16em;color:var(--c-degraded)}
+.presence-reconnect{margin-top:6px;padding:8px 14px;background:none;border:1px solid color-mix(in srgb,var(--c-degraded) 40%,transparent);color:var(--c-degraded);font:var(--t-micro) var(--f-data);letter-spacing:.24em}
+
+/* ---------- satellites: real agent jobs, nothing else ---------- */
+.presence-satellites{position:absolute;inset:0;margin:0;padding:0;list-style:none}
+.presence-satellite{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;font:var(--t-micro) var(--f-data);letter-spacing:.16em;color:var(--c-inkMuted);opacity:.85}
+.presence-satellite i{width:5px;height:5px;border-radius:50%;background:var(--c-infra);box-shadow:0 0 0 1px color-mix(in srgb,var(--c-infra) 30%,transparent)}
+.presence-satellite span{white-space:nowrap;text-transform:uppercase}
+.presence-satellite small{font-size:calc(var(--t-micro) * .92);letter-spacing:.1em;color:var(--c-inkFaint);text-transform:uppercase}
+.presence-satellite.state-working i{background:var(--c-cognition);box-shadow:0 0 12px color-mix(in srgb,var(--c-cognition) 55%,transparent)}
+.presence-satellite.state-leased i{background:var(--c-ice)}
+.presence-satellite.state-blocked i{background:var(--c-degraded)}
+.presence-satellite.state-unconfirmed i{background:none;border:1px solid var(--c-degraded)}
+.presence-satellite.state-queued,.presence-satellite.state-waiting{opacity:.6}
+.presence-satellite.child span{font-size:calc(var(--t-micro) * .9);color:var(--c-inkFaint)}
+.presence-satellite.live i{animation:presence-pulse 3.4s var(--e-settle) infinite}
+@keyframes presence-pulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.6);opacity:.55}}
+
+/* ---------- the field ---------- */
+.presence-input{position:fixed;left:50%;bottom:calc(var(--edge) + 42px);transform:translateX(-50%);width:min(640px,calc(100vw - 48px));display:flex;align-items:center;gap:10px;height:52px;padding:0 8px 0 20px;background:color-mix(in srgb,var(--c-obsidian0) 62%,transparent);border:1px solid color-mix(in srgb,var(--c-ink) 10%,transparent);border-radius:2px;backdrop-filter:blur(18px);transition:border-color var(--m-unfold) var(--e-settle),background var(--m-unfold)}
+.presence-input:focus-within{border-color:color-mix(in srgb,var(--presence) 46%,transparent);background:color-mix(in srgb,var(--c-obsidian0) 78%,transparent)}
+.presence-input input{flex:1;min-width:0;background:none;border:0;outline:none;font:400 13px var(--f-body);letter-spacing:.04em;color:var(--c-ink)}
+.presence-input input::placeholder{color:var(--c-inkFaint);letter-spacing:.06em}
+.presence-input input:disabled{color:var(--c-inkFaint)}
+.presence-input button{display:grid;place-items:center;width:36px;height:36px;border:1px solid color-mix(in srgb,var(--c-ink) 12%,transparent);background:none;color:var(--presence);transition:background var(--m-quick),border-color var(--m-quick)}
+.presence-input button:hover:not(:disabled){background:color-mix(in srgb,var(--presence) 12%,transparent);border-color:color-mix(in srgb,var(--presence) 44%,transparent)}
+.presence-input button:disabled{color:var(--c-inkFaint);opacity:.5}
+
+/* ---------- the answer ---------- */
+.presence-answer{position:fixed;left:50%;bottom:calc(var(--edge) + 108px);transform:translateX(-50%);width:min(640px,calc(100vw - 48px));display:flex;gap:16px;align-items:flex-start;padding:16px 18px;background:color-mix(in srgb,var(--c-obsidian2) 92%,transparent);border:1px solid color-mix(in srgb,var(--c-ink) 9%,transparent);backdrop-filter:blur(20px);animation:presence-rise var(--m-unfold) var(--e-unfold)}
+.presence-answer small{display:block;font:var(--t-micro) var(--f-data);letter-spacing:.3em;color:var(--presence);margin-bottom:8px}
+.presence-answer p{margin:0;font:400 13px/1.7 var(--f-body);color:var(--c-ink);max-height:168px;overflow:auto;white-space:pre-wrap}
+.presence-answer>div{flex:1;min-width:0}
+.presence-answer>button{align-self:flex-start;background:none;border:0;color:var(--c-inkFaint);font:var(--t-micro) var(--f-data);letter-spacing:.18em;padding:4px}
+.presence-answer>button:hover{color:var(--c-ink)}
+@keyframes presence-rise{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ---------- the way back ---------- */
+.presence-return{position:fixed;left:var(--edge);bottom:calc(var(--edge) + 4px);display:flex;align-items:center;gap:18px;font:var(--t-micro) var(--f-data);letter-spacing:.18em}
+.presence-return>button{display:flex;align-items:center;gap:8px;padding:7px 10px;background:none;border:1px solid color-mix(in srgb,var(--c-ink) 10%,transparent);color:var(--c-inkMuted);font:var(--t-micro) var(--f-data);letter-spacing:.2em;transition:color var(--m-quick),border-color var(--m-quick)}
+.presence-return>button:hover{color:var(--c-ice);border-color:color-mix(in srgb,var(--c-ice) 34%,transparent)}
+.presence-return kbd{border:1px solid color-mix(in srgb,var(--c-ink) 14%,transparent);padding:1px 5px;color:var(--c-inkFaint)}
+.presence-link{display:flex;align-items:center;gap:8px;color:var(--c-inkFaint)}
+.presence-link i{width:5px;height:5px;border-radius:50%;background:var(--c-verified)}
+.presence-link:is(.link-stale,.link-reconnecting,.link-connecting,.link-offline){color:var(--c-degraded)}
+.presence-link:is(.link-stale,.link-reconnecting,.link-connecting,.link-offline) i{background:none;border:1px solid var(--c-degraded);border-radius:0;transform:rotate(45deg)}
+.presence-mark{position:fixed;right:var(--edge);bottom:calc(var(--edge) + 4px);display:flex;align-items:center;gap:6px;font:var(--t-micro) var(--f-data);letter-spacing:.28em;color:color-mix(in srgb,var(--c-inkFaint) 70%,transparent)}
+
+/* Command centre entry point; deliberately quiet. */
+.presence-entry{position:fixed;z-index:40;right:var(--edge);bottom:calc(var(--edge) + 30px);display:flex;align-items:center;gap:7px;padding:6px 9px;background:none;border:1px solid color-mix(in srgb,var(--c-ink) 10%,transparent);color:var(--c-inkFaint);font:var(--t-micro) var(--f-data);letter-spacing:.22em;transition:color var(--m-quick),border-color var(--m-quick)}
+.presence-entry:hover{color:var(--c-ice);border-color:color-mix(in srgb,var(--c-ice) 32%,transparent)}
+
+/*
+ * Approvals keep their full command-centre barrier. It docks to the right so it
+ * never covers the state word or the orb's centre: the one thing that must stay
+ * legible while a decision is outstanding is what the decision is about.
+ */
+.presence-open .approval-barrier{left:auto;right:var(--edge);top:calc(50% - 26px);bottom:auto;transform:translateY(-50%);width:min(452px,33vw);max-height:min(68vh,620px);overflow:hidden auto;animation:presence-slide var(--m-unfold) var(--e-unfold)}
+@keyframes presence-slide{from{opacity:0;transform:translate(10px,-50%)}to{opacity:1;transform:translate(0,-50%)}}
+.presence-open .approval-barrier h2{font-size:var(--t-body)}
+.presence-open .quality-control{opacity:.45}
+
+@media(max-width:900px){
+  .presence-word strong{letter-spacing:.3em;padding-left:.3em}
+  .presence-input{width:calc(100vw - 32px);height:48px;padding-left:14px;bottom:calc(var(--edge) + 44px)}
+  .presence-answer{width:calc(100vw - 32px);bottom:calc(var(--edge) + 104px);padding:13px 14px}
+  .presence-satellite small{display:none}
+  .presence-return{gap:10px}
+  .presence-return>button span{display:none}
+  .presence-mark{display:none}
+  /* A phone cannot show a card and the orb at once: the decision becomes the screen. */
+  .presence-open .approval-barrier{left:12px;right:12px;width:auto;top:auto;bottom:calc(var(--edge) + 104px);transform:none;max-height:58vh;animation:presence-rise var(--m-unfold) var(--e-unfold)}
+  .presence-open.approval-hold .presence-word-block{visibility:hidden}
+}
+@media(prefers-reduced-motion:reduce){
+  .presence-satellite.live i{animation:none}
+  .presence-answer,.presence-open .approval-barrier{animation:none}
+  .presence-layer *{transition:none!important}
+}
+@media(forced-colors:active){
+  .presence-input,.presence-answer,.presence-return>button,.presence-entry,.presence-open .approval-barrier{border:1px solid CanvasText}
+}

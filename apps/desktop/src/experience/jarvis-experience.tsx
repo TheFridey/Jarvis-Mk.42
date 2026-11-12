@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
-import { Activity, Command, Layers } from 'lucide-react';
+import { Activity, Command, Layers, Sparkles } from 'lucide-react';
 import { CinematicHud } from './cinematic-hud.tsx';
 import { ModelControls } from './model-controls.tsx';
 import { VISUAL_PRESETS, type VisualPreset, modelTint } from './cinematic-palette.ts';
@@ -33,10 +33,15 @@ import { useNow, useViewport } from './use-viewport.ts';
 import { useScene } from './use-scene.ts';
 import { latestConversationAnswer } from './conversation-answer.ts';
 import { ResponsePanel } from './response-panel.tsx';
+import { PresenceMode } from './presence/presence-mode.tsx';
+import { COMMAND_MODE_KEY, PRESENCE_MODE_KEY, PRESENCE_MODE_STORAGE, presenceChrome, presenceComposition, presenceDetail, presenceInputEnabled, presenceMotion, presenceSatellites, presenceWord, resolvePresenceState } from './presence/presence-policy.ts';
 
 const offlineScene = (): SemanticScene => ({ id: 'kernel-offline', principalId: 'unavailable', version: 0, presentation: 'DEGRADED', monitors: [{ id: 'primary', label: 'Primary', bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 }, scaleFactor: 1, primary: true, connected: true }], objects: [{ id: 'core', kind: 'jarvis-core', title: 'JARVIS', semanticRole: 'connection-status', monitorId: 'primary', position: { x: 760, y: 300 }, size: { width: 400, height: 400 }, zIndex: 1, state: 'focused', pinned: true, dismissible: false, resourceRefs: [], updatedAt: new Date().toISOString(), data: { activity: [], phrase: 'Kernel unavailable. No authoritative state is being shown.' } }], updatedAt: new Date().toISOString() });
 
 const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+/** Presence Mode is the room; the command centre is the workshop. Both stay mounted. */
+type ExperienceMode = 'presence' | 'command';
 
 export function JarvisExperience() {
   const [visualPreferences,setVisualPreferences]=useState<Record<string,VisualPreset>>({});
@@ -55,6 +60,9 @@ export function JarvisExperience() {
   const [fixtureTransport, setFixtureTransport] = useState<SceneTransport>();
   const [forceFallback, setForceFallback] = useState(false);
   const [operations, setOperations] = useState(false);
+  const [mode, setMode] = useState<ExperienceMode>('presence');
+  const switchMode = useCallback((next: ExperienceMode) => { setMode(next); try { localStorage.setItem(PRESENCE_MODE_STORAGE, next); } catch { /* presentation preference is optional */ } }, []);
+  useEffect(() => { try { setMode(localStorage.getItem(PRESENCE_MODE_STORAGE) === 'command' ? 'command' : 'presence'); } catch { /* default presence */ } }, []);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [inspector, setInspector] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<'situation' | 'agents'>('situation');
@@ -62,6 +70,7 @@ export function JarvisExperience() {
     const params = new URLSearchParams(window.location.search);
     setForceFallback(params.get('renderer') === 'fallback');
     setOperations(params.get('ops') === '1');
+    if (params.get('mode') === 'command') setMode('command');
     if (!demoMode) return;
     const scenario = params.get('scenario');
     const sequence = params.get('sequence');
@@ -94,6 +103,22 @@ export function JarvisExperience() {
   const layout = useMemo(() => spatialLayout({ width: viewport.width, height: viewport.height, models: displayed.map(node => ({ ...(node.locality ? { locality: node.locality } : {}), ...(slots.has(node.modelId) ? { slot: slots.get(node.modelId)! } : {}) })), agentCount: agents.nodes.length }),
     [viewport.width, viewport.height, slotSignature, agents.nodes.length]);
   const cinematicLayout = useMemo(() => ({ ...layout, core: { x: viewport.width * .5, y: viewport.height * (layout.narrow ? .40 : .50) }, coreRadius: Math.min(viewport.height * .24, viewport.width * (layout.narrow ? .34 : .205)) }), [layout, viewport.width, viewport.height]);
+  const presenceOn = mode === 'presence';
+  const composition = useMemo(() => presenceComposition(viewport), [viewport.width, viewport.height]);
+  const presence = useMemo(() => {
+    const input = { phase, liveness, ...(kernel ? { picture: kernel } : {}) };
+    const state = resolvePresenceState(input);
+    return {
+      state,
+      word: presenceWord(state, liveness),
+      detail: presenceDetail(input),
+      chrome: presenceChrome({ approvals: kernel?.pendingApprovals?.length ?? 0, liveness }),
+      motion: presenceMotion(reducedSensory, state),
+    };
+  }, [phase, liveness, kernel, reducedSensory]);
+  const satellites = useMemo(() => presenceSatellites(kernel?.agentJobs ?? [], { core: composition.layout.core, radius: composition.satelliteRadius, current, reducedMotion: reducedSensory }), [kernel?.agentJobs, current, reducedSensory, composition]);
+  const activeLayout = presenceOn ? composition.layout : cinematicLayout;
+  const barrierLayout = presenceOn ? { ...composition.layout, narrow: true } : layout;
   const visualModel = displayed.find(node => node.modelId === focusedModel)?.modelId ?? displayed.find(node => node.route === 'SELECTED')?.modelId;
   const preset=visualPreferences[visualModel??'preview']??'auto';
   const updatePreset=(value:VisualPreset)=>{const next={...visualPreferences,[visualModel??'preview']:value};setVisualPreferences(next);try{localStorage.setItem('jarvis:model-visuals:v1',JSON.stringify(next));}catch{}};
@@ -114,21 +139,33 @@ export function JarvisExperience() {
   const kernelLive = connection.status === 'live';
   useEffect(() => transport.subscribeNotifications?.(record => setCommandResult(`${record.title}: ${record.body}`)), [transport]);
   useEffect(() => {
-    const key = (event: KeyboardEvent) => { if (!typing(event.target) && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'o') setOperations(open => !open); };
+    const key = (event: KeyboardEvent) => {
+      if (typing(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+      const pressed = event.key.toLowerCase();
+      if (pressed === 'o') setOperations(open => !open);
+      else if (pressed === PRESENCE_MODE_KEY) switchMode('presence');
+      else if (pressed === COMMAND_MODE_KEY) switchMode('command');
+    };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, []);
+  }, [switchMode]);
   const closeOperations = useCallback(() => setOperations(false), []);
-  const runProposal = async () => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(proposalText.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: proposalText, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } setProposalOpen(false); } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
+  const ask = async (text: string) => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(text.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: text, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
+  const runProposal = async () => { await ask(proposalText); setProposalOpen(false); };
   const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
   const developer = process.env.NODE_ENV === 'development';
   const approvals = kernel?.pendingApprovals ?? [];
 
-  return <main style={{ '--cinematic-accent': modelTint(visualId) } as CSSProperties} className={`environment cinematic visual-${preset} presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${workspaceOpen ? ' workspace-open' : ''}${commandResult ? ' has-response' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}${idle ? ' idle' : ''}${viewport.measured ? '' : ' unmeasured'}`}
+  return <main style={{ '--cinematic-accent': modelTint(visualId) } as CSSProperties} className={`environment cinematic visual-${preset} presentation-${presentation.toLowerCase()} phase-${phase.toLowerCase()}${current ? '' : ' not-current'}${operations ? ' operations-open' : ''}${workspaceOpen ? ' workspace-open' : ''}${commandResult ? ' has-response' : ''}${approvals.length ? ' approval-hold' : ''}${layout.narrow ? ' narrow' : ''}${idle ? ' idle' : ''}${presenceOn ? ' presence-open' : ' command-open'}${viewport.measured ? '' : ' unmeasured'}`}
     onKeyDown={event => { if (event.key === 'Escape' && selected[0]) { send({ type: 'dismiss', targetId: selected[0], input: 'keyboard' }); setSelected([]); } }} tabIndex={-1}>
     {demoMode && <div className="demo-banner" role="status">DEMO MODE · SYNTHETIC DATA · NO LIVE EXECUTION</div>}
-    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={cinematicLayout} {...(visualId ? { focusModel: visualId } : {})} models={displayed} {...(router.route ? { route: router.route } : {})} agents={agents.nodes} regions={regions}
-      systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback} {...(stage ? { stage } : {})} choreography={choreography}/>
+    <GpuEnvironment scene={scene} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} layout={activeLayout} {...(visualId ? { focusModel: visualId } : {})} models={presenceOn ? [] : displayed} {...(router.route ? { route: router.route } : {})} agents={presenceOn ? [] : agents.nodes} regions={regions}
+      systemDegraded={current && kernel?.systemHealth.overall === 'DEGRADED'} criticalRisk={approvals[0]?.riskClass === 'CRITICAL'} forceFallback={forceFallback} {...(stage ? { stage } : {})} choreography={choreography}
+      {...(presenceOn ? { presence: { state: presence.state, ambient: presence.motion.ambient, reduced: reducedSensory } } : {})}/>
+    {presenceOn ? <PresenceMode phaseWord={presence.word} detail={presence.detail} state={presence.state} liveness={liveness} composition={composition}
+      satellites={satellites} inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
+      answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
+    {!presenceOn ? <>
     <SystemStatusEdge {...(kernel ? { picture: kernel } : {})} liveness={liveness} regions={regions} operations={operations} inspector={inspector}
       onOperations={() => setOperations(open => !open)} onInspector={() => { setInspectorTab('situation'); setInspector(open => !open); }} onReconnect={() => void reconnect()}
       sound={<CoreSound {...(current && kernel ? { picture: kernel } : {})} reducedSensory={reducedSensory}/>}/>
@@ -139,7 +176,6 @@ export function JarvisExperience() {
     <CinematicHud models={displayed} {...(focusedModel ? { focused: focusedModel } : {})} onFocus={setFocusedModel} instruments={instruments} agents={agents.nodes} phase={phase} liveness={liveness} layout={cinematicLayout} onAgents={() => { setInspectorTab('agents'); setInspector(true); }}/>
     <ModelControls {...(kernel?{picture:kernel}:{})} {...(visualModel?{modelId:visualModel}:{})} preset={preset} onPreset={updatePreset} preferredModel={preferredModel} onPreferredModel={updatePreferredModel} current={current}/>
     <ReferentFocus focus={kernelLive ? kernel?.referentFocus : undefined} objects={scene.objects} developer={inspector && developer}/>
-    {kernel && approvals.length ? <ApprovalBarrier approvals={approvals} stateVersion={kernel.stateVersion} decide={decideApproval} liveness={liveness} layout={layout}/> : null}
     <footer className="command-deck">
       <RtcControl transport={transport} live={kernelLive} available={['HEALTHY', 'DEGRADED'].includes(kernel?.diagnostics.dependencies.find(item => item.name === 'rtc')?.status ?? 'OFFLINE')}/>
       <button className="command-line" onClick={() => setProposalOpen(!proposalOpen)} disabled={!kernelLive}><Command size={15}/><span>{kernelLive ? (layout.narrow ? 'Ask JARVIS' : 'Ask JARVIS or request an action') : liveness.synthetic ? (layout.narrow ? 'Demo · read only' : 'Demo mode · commands are not sent') : (layout.narrow ? 'Reconnect to begin' : 'Commands unavailable until Kernel reconnects')}</span><kbd>ENTER</kbd></button>
@@ -151,7 +187,10 @@ export function JarvisExperience() {
     {proposalOpen && <section className="proposal-entry"><label htmlFor="proposal-json">JARVIS REQUEST</label><textarea id="proposal-json" value={proposalText} onChange={event => setProposalText(event.target.value)} placeholder="Ask a question or describe the outcome you want."/><div><button onClick={() => setProposalOpen(false)}>CANCEL</button><button onClick={() => void runProposal()}>SUBMIT TO JARVIS</button></div></section>}
     <ResponsePanel text={commandResult} answerId={commandResult===deliveredAnswer?.answer?deliveredAnswer?.requestId:undefined} live={kernelLive}/>
     <AirTouchLayer objects={panels} submit={send} transport={transport}/>
+    <button className="presence-entry" type="button" onClick={() => switchMode('presence')} title="Presence Mode (P)"><Sparkles size={14} aria-hidden="true"/><span>PRESENCE</span></button>
     {inspector && <SpatialInspector key={inspectorTab} initialTab={inspectorTab} {...(kernel ? { picture: kernel } : {})} liveness={liveness} onClose={() => setInspector(false)} agents={<AgentInspector jobs={kernel?.agentJobs ?? []} live={kernelLive} {...(kernel?.generatedAt ? { generatedAt: kernel.generatedAt } : {})} onCancel={cancelJob}/>}/>}
     {operations && <OperationsView instruments={instruments} {...(kernel ? { picture: kernel } : {})} liveness={liveness} phase={phase} regions={regions} nodes={router.nodes} {...(router.route ? { route: router.route } : {})} stats={stats} agents={agents.nodes} onClose={closeOperations}/>}
+    </> : null}
+    {kernel && approvals.length ? <ApprovalBarrier approvals={approvals} stateVersion={kernel.stateVersion} decide={decideApproval} liveness={liveness} layout={barrierLayout}/> : null}
   </main>;
 }

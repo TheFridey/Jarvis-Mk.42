@@ -21,9 +21,22 @@ import { CinematicCore } from './cosmos/cinematic-core.tsx';
 import { modelShape, modelTint } from './cinematic-palette.ts';
 import { Nebula } from './cosmos/nebula.tsx';
 import { DriftField } from './cosmos/particle-fields.tsx';
+import { PresenceAtmosphere } from './cosmos/presence-atmosphere.tsx';
+import type { PresenceState } from './presence/presence-policy.ts';
 import { CosmosClockProvider, useCosmosClock, useWorld, type World } from './cosmos/runtime.tsx';
 
 export interface ForgeRendererMetrics { fps:number; frameTimeMs:number; drawCalls:number; triangles:number; particleCount:number; quality:string; }
+
+/**
+ * Presence composition additions. Absent in the command centre; when present the
+ * scene draws the deep-field atmosphere instead of the constellation structure.
+ */
+export interface CosmosPresence {
+  state: PresenceState;
+  ambient: number;
+  dust: number;
+  reduced: boolean;
+}
 
 /** Everything the GPU scene may represent. Derived from Kernel projections by pure policies. */
 export interface CosmosInput {
@@ -42,6 +55,7 @@ export interface CosmosInput {
   staleSince?: number;
   criticalRisk: boolean;
   reducedMotion: boolean;
+  presence?: CosmosPresence;
   choreography: RefObject<ChoreographyState>;
 }
 
@@ -102,6 +116,7 @@ function Cosmos({ input, envelope, onMetrics }: { input: CosmosInput; envelope: 
       <DriftField count={Math.floor(policy.particleCount / 6)} seed={53} spread={[14, 8, 2]} centre={[0, 0, 3]} size={[1.2, 3]} colour="infra" accent="cognitionDeep" alpha={.05} drift={.3} twinkle={.2} />
       <DriftField count={policy.emberCount} seed={61} spread={[world.radius(layout.coreRadius) * 2.2, world.radius(layout.coreRadius), 1.5]} centre={[execution[0], execution[1] - .4, -.5]} size={[.9, 2.4]} colour="execution" accent="forge" alpha={.012 + gold * .55} drift={.05} twinkle={.5} rise={.35} riseSpan={2.4} />
       <CinematicCore shape={modelShape(input.focusModel)} position={core} scale={coreRadius} colour={phase === 'CRITICAL' ? COLOUR.critical : phase === 'APPROVAL' ? COLOUR.forge : modelTint(input.focusModel)} energy={cognition + gold} audio={amplitude} count={coreCount}/>
+      {input.presence ? <PresenceAtmosphere core={core} radius={coreRadius} state={input.presence.state} ambient={input.presence.ambient} dust={input.presence.dust} reduced={input.presence.reduced}/> : null}
     </FramingRig>
     <Metrics policy={policy} particles={particles} {...(onMetrics ? { onMetrics } : {})} />
     {policy.bloom ? <EffectComposer multisampling={0}><Bloom intensity={.85} luminanceThreshold={.55} luminanceSmoothing={.3} mipmapBlur /></EffectComposer> : null}
