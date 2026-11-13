@@ -31,6 +31,8 @@ export interface PresenceModeProps {
   answer?: string | undefined;
   /** Composed by the parent so the trusted RTC session lives in one place. */
   voiceControl?: ReactNode;
+  /** Conversation privacy: what the Kernel has authorised, and the two operator actions. */
+  privacy?: { regime: 'PRIVATE' | 'CLOUD_PERMITTED'; provider?: string; busy: boolean; note?: string; onGrant: () => void; onRevoke: () => void };
   onAsk: (text: string) => Promise<void> | void;
   onDismissAnswer: () => void;
   onCommandCentre: () => void;
@@ -113,6 +115,18 @@ export function PresenceMode(props: PresenceModeProps) {
             : <p key={index} className="presence-prose">{segment.text}</p>)}
         </div>
       </section> : null}
+
+      {props.privacy ? <div className={`presence-privacy regime-${props.privacy.regime.toLowerCase()}`} role="group" aria-label="Conversation privacy">
+        <span className="presence-privacy-label">
+          {props.privacy.regime === 'CLOUD_PERMITTED' ? `CLOUD · ${props.privacy.provider ?? 'AUTHORISED PROVIDER'}` : 'PRIVATE · THIS MACHINE'}
+        </span>
+        {props.privacy.note ? <small className="presence-privacy-note">{props.privacy.note}</small> : null}
+        <button type="button" disabled={!inputEnabled || props.privacy.busy}
+          onClick={props.privacy.regime === 'CLOUD_PERMITTED' ? props.privacy.onRevoke : props.privacy.onGrant}
+          title={props.privacy.regime === 'CLOUD_PERMITTED' ? 'Revoke cloud permission for this conversation' : 'Allow this conversation to use the authorised provider'}>
+          {props.privacy.regime === 'CLOUD_PERMITTED' ? 'MAKE PRIVATE' : 'ALLOW CLOUD'}
+        </button>
+      </div> : null}
 
       <form className="presence-input" onSubmit={event => void submit(event)} role="search">
         <label className="sr-only" htmlFor={inputId}>Ask JARVIS</label>

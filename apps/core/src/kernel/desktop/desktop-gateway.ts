@@ -10,6 +10,9 @@ import type {
   DesktopCognitionCommand,
   DesktopAgentCancelCommand,
   DesktopAgentCancelResponse,
+  DesktopConversationGrantCommand,
+  DesktopConversationPrivacy,
+  DesktopConversationRevokeCommand,
   PresentationState,
   SemanticScene,
   OperatingModelRun,
@@ -158,6 +161,32 @@ export class DesktopGateway {
   }
 
   async cognize(command:DesktopCognitionCommand,sourceNodeId=this.deps.nodeId):Promise<DesktopCommandResult<CognitionResponse>> { const state=await this.deps.state.view(); if(command.expectedStateVersion!==state.stateVersion)return{ok:false,code:'state_version_conflict',currentStateVersion:state.stateVersion}; const principalId=(state.slices.active_principal.value as {principalId:string|null}).principalId;if(!principalId)return{ok:false,code:'approval_rejected',currentStateVersion:state.stateVersion}; if(this.companion){const response=await this.companion.converse({principalId,nodeId:sourceNodeId},command,command.conversationId);if(response.result)return{ok:true,value:response.result};} const correlationId=this.deps.ids.ulid(); return {ok:true,value:await this.deps.cognition.submit({requestId:command.commandId,principalId,correlationId,input:command.input,agentId:command.agentId??'agents.oracle',task:command.task??'reason',locality:command.locality??'any',preferredModels:command.preferredModels,...(typeof command.maxOutputTokens==='number'?{maxOutput:command.maxOutputTokens}:{})})}; }
+
+  /** Operator action: authorise this conversation to use one named provider. */
+  async grantConversation(command: DesktopConversationGrantCommand, sourceNodeId = this.deps.nodeId): Promise<DesktopCommandResult<DesktopConversationPrivacy>> {
+    const state = await this.deps.state.view();
+    if (command.expectedStateVersion !== state.stateVersion) return { ok: false, code: 'state_version_conflict', currentStateVersion: state.stateVersion };
+    const principalId = (state.slices.active_principal.value as { principalId: string | null }).principalId;
+    if (!principalId || !this.companion) return { ok: false, code: 'approval_rejected', currentStateVersion: state.stateVersion };
+    await this.companion.grantCloud({ principalId, nodeId: sourceNodeId }, { conversationId: command.conversationId, provider: command.provider, model: command.model, ...(command.ceiling ? { ceiling: command.ceiling } : {}), ...(command.expiresInMs !== undefined ? { expiresInMs: command.expiresInMs } : {}) });
+    return { ok: true, value: await this.companion.privacyState({ principalId }, { conversationId: command.conversationId }) as never };
+  }
+
+  async revokeConversation(command: DesktopConversationRevokeCommand, sourceNodeId = this.deps.nodeId): Promise<DesktopCommandResult<DesktopConversationPrivacy>> {
+    const state = await this.deps.state.view();
+    if (command.expectedStateVersion !== state.stateVersion) return { ok: false, code: 'state_version_conflict', currentStateVersion: state.stateVersion };
+    const principalId = (state.slices.active_principal.value as { principalId: string | null }).principalId;
+    if (!principalId || !this.companion) return { ok: false, code: 'approval_rejected', currentStateVersion: state.stateVersion };
+    await this.companion.revokeCloud({ principalId, nodeId: sourceNodeId }, { conversationId: command.conversationId });
+    return { ok: true, value: await this.companion.privacyState({ principalId }, { conversationId: command.conversationId }) as never };
+  }
+
+  async conversationPrivacy(conversationId: string): Promise<DesktopConversationPrivacy | undefined> {
+    const state = await this.deps.state.view();
+    const principalId = (state.slices.active_principal.value as { principalId: string | null }).principalId;
+    if (!principalId || !this.companion) return undefined;
+    return await this.companion.privacyState({ principalId }, { conversationId }) as never;
+  }
 
   async submit(command: DesktopProposalCommand): Promise<DesktopCommandResult<DesktopProposalResponse>> {
     const state = await this.deps.state.view();

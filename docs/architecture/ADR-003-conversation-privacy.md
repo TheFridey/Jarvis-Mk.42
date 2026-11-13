@@ -1,7 +1,7 @@
 # ADR-003 · Conversation privacy and cloud authorisation
 
-Status: **Proposed — the current behaviour is preserved unchanged.**
-Date: 2026-11-13
+Status: **Accepted — PRIVATE and CLOUD_PERMITTED implemented (migration `0019`); HYBRID deferred.**
+Date: 2026-11-13 (implementation note appended the same day)
 Supersedes: nothing. Extends `ENGINEERING-CONTRACT-V1.md` and the routing policy in
 `apps/core/src/kernel/cognition/cognition-orchestrator.ts`.
 
@@ -115,3 +115,44 @@ privacy behaviour must not be weakened to make a demo work.
   oversight. Continuity requires a local model (see `JARVIS-RESONANCE.md` §C).
 - The assistant is fully usable for single-turn cloud conversation and for local
   multi-turn conversation, which is the honest state of the system.
+
+
+## Implementation note (Operation Synapse)
+
+The shipped implementation differs from §Implementation above in two deliberate ways. This
+ADR is updated so policy and architecture do not disagree.
+
+**1. The regime lives on the turn; the authority lives in a grant table.** Rather than one
+`privacy_mode` column on the conversation, each turn records `privacy_class` (nullable, never
+backfilled) and `privacy_regime` (`PRIVATE` by default), and authority is a separate
+`experience.conversation_grants` row with a partial unique index allowing one live grant per
+conversation. This is stronger than the original sketch: revoking a grant cannot rewrite how
+a turn was produced, and flipping a mode cannot reclassify old turns.
+
+**2. A grant authorises only future turns.** The drafted rule was "turns whose
+`privacy_class <= ceiling`". The implemented rule is stricter: only turns created *after*
+`grant.created_at` are eligible. Pre-grant history is excluded from outbound context and is
+never sent, so "changing a setting must not silently release older private history" holds by
+construction rather than by evaluation.
+
+Additional decisions taken during implementation:
+
+- `CLOUD_CEILING = 'INTERNAL'`. A grant declaring SENSITIVE or RESTRICTED is refused at
+  creation and again at dispatch, because routing already forces local above `INTERNAL`.
+- Unclassified turns are recorded and read as `RESTRICTED` (`classificationForTurn`), so a
+  missing classification can never become cloud-eligible.
+- Provider binding is enforced in the Model Registry via `requiredProvider`, a hard filter
+  that throws `NO_ROUTE` rather than falling back. `preferredProviders` was only a score
+  preference and was insufficient for an authorisation.
+- Refusals are total and named (`GrantRefusal`, twelve reasons) and are returned to the
+  caller, so the interface can explain a refusal instead of failing generically.
+- Revocation takes effect on the next dispatch; a request already transmitted cannot be
+  recalled, and no such claim is made in the UI or the docs.
+
+**HYBRID remains unimplemented**, as permitted: a per-fragment split needs a second dispatch
+path and its own adversarial tests, and a partial version would imply a guarantee it could
+not keep.
+
+Verification of this ADR: 22 policy tests, 6 registry tests, migration applied and inspected
+on a disposable database, and the live dev database showing 39 turns unchanged (0 classified,
+39 private) after migration.

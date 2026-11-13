@@ -54,6 +54,12 @@ export interface ModelRequest {
     maxLatencyMs?: number;
   };
   locality: Locality;
+  /**
+   * Hard provider binding. When set, only models from this provider are eligible and
+   * no other provider may be used as a fallback — `preferredProviders` is only a score
+   * preference and is not sufficient for an explicit authorisation.
+   */
+  requiredProvider?: string;
   determinism?: 'strict' | 'low-temp' | 'creative';
   /** Opt-in only; TTL'd; content otherwise not persisted. */
   cacheable?: boolean;

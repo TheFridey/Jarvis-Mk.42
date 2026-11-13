@@ -15,7 +15,7 @@ import { createServer, type Server } from 'node:http';
 import type { DiagnosticsService } from './diagnostics-service.ts';
 import type { StateManager } from '../state/state-manager.ts';
 import type { HealthManager } from '../health/health-manager.ts';
-import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand } from '@jarvis/scene';
+import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand, DesktopConversationGrantCommand, DesktopConversationRevokeCommand } from '@jarvis/scene';
 import type { DesktopGateway } from '../desktop/desktop-gateway.ts';
 import type { VoiceGateway } from '../voice/voice-gateway.ts';
 import { AgentJobAccessError, ModelGatewayError, type VisionEventCommand, type VoiceEventCommand } from '@jarvis/contracts';
@@ -192,6 +192,9 @@ export class DiagnosticsHttp {
           }
         if (path === '/desktop/proposals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.submit(await this.body<DesktopProposalCommand>(req)));
         if (path === '/desktop/cognition' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.cognize(await this.body<DesktopCognitionCommand>(req),auth.nodeId));
+        if (path === '/desktop/conversations/grant' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.grantConversation(await this.body<DesktopConversationGrantCommand>(req), auth.nodeId));
+        if (path === '/desktop/conversations/revoke' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.revokeConversation(await this.body<DesktopConversationRevokeCommand>(req), auth.nodeId));
+        if (path === '/desktop/conversations/privacy' && method === 'POST') { const parsed = z.object({ conversationId: z.string().min(1).max(200) }).strict().safeParse(await this.body<unknown>(req)); if (!parsed.success) return send(400, { error: 'invalid conversation' }); const privacy = await this.deps.desktop.conversationPrivacy(parsed.data.conversationId); return privacy ? send(200, privacy) : send(403, { error: 'no active principal' }); }
         if (path === '/desktop/agents/cancel' && method === 'POST') {
           const parsed = z.object({ commandId:z.string().min(1).max(200), expectedStateVersion:z.number().int().nonnegative(), jobId:z.string().min(1).max(200) }).strict().safeParse(await this.body<unknown>(req));
           if (!parsed.success) return send(400, { error:'invalid agent cancellation command' });

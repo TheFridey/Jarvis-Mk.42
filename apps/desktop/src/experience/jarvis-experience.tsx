@@ -49,6 +49,9 @@ export function JarvisExperience() {
   useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem('jarvis:model-visuals:v1')??'{}');if(saved&&typeof saved==='object'&&!Array.isArray(saved))setVisualPreferences(Object.fromEntries(Object.entries(saved).filter(([,value])=>typeof value==='string'&&Object.hasOwn(VISUAL_PRESETS,value))) as Record<string,VisualPreset>);}catch{}},[]);
   const [focusedModel, setFocusedModel] = useState<string>();
   const [preferredModel,setPreferredModel]=useState(process.env.NEXT_PUBLIC_JARVIS_PREFERRED_MODEL??'gpt-6.1-sol');
+  // Conversation privacy. The Kernel is the source of truth; this is only what it told us.
+  const [privacy,setPrivacy]=useState<{regime:'PRIVATE'|'CLOUD_PERMITTED';provider?:string;note?:string}>({regime:'PRIVATE'});
+  const [privacyBusy,setPrivacyBusy]=useState(false);
   useEffect(()=>{try{const saved=localStorage.getItem('jarvis:preferred-model:v1');if(saved!==null)setPreferredModel(saved);}catch{}},[]);
   const updatePreferredModel=(value:string)=>{setPreferredModel(value);try{localStorage.setItem('jarvis:preferred-model:v1',value);}catch{}};
   const [conversationId, setConversationId] = useState<string | undefined>();
@@ -144,6 +147,38 @@ export function JarvisExperience() {
     return () => window.removeEventListener('keydown', key);
   }, [switchMode]);
   const closeOperations = useCallback(() => setOperations(false), []);
+  const cloudProvider = process.env.NEXT_PUBLIC_JARVIS_CLOUD_PROVIDER ?? 'openrouter';
+  const applyPrivacy = (state:{regime:'PRIVATE'|'CLOUD_PERMITTED';provider?:string;note?:string}) => setPrivacy(state);
+  // The demo transport has no privacy endpoint, so the capability is probed structurally
+  // rather than assumed from the class name.
+  type PrivacyTransport = {
+    grantConversation: (c: { commandId: string; expectedStateVersion: number; conversationId: string; provider: string; model: string; ceiling: 'INTERNAL' }) => Promise<{ regime: 'PRIVATE' | 'CLOUD_PERMITTED'; grant: { provider: string } | null }>;
+    revokeConversation: (c: { commandId: string; expectedStateVersion: number; conversationId: string }) => Promise<{ regime: 'PRIVATE' | 'CLOUD_PERMITTED'; grant: { provider: string } | null }>;
+  };
+  const privacyTransport = (value: unknown): value is PrivacyTransport =>
+    typeof (value as PrivacyTransport | undefined)?.grantConversation === 'function' &&
+    typeof (value as PrivacyTransport | undefined)?.revokeConversation === 'function';
+  const toggleCloud = async () => {
+    if (!kernel || privacyBusy) return;
+    if (!privacyTransport(transport)) { setPrivacy({regime:'PRIVATE',note:'Kernel transport unavailable'}); return; }
+    setPrivacyBusy(true);
+    try {
+      if (privacy.regime === 'CLOUD_PERMITTED') {
+        if (conversationId) {
+          const state = await transport.revokeConversation({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, conversationId });
+          applyPrivacy({ regime: state.regime, ...(state.grant ? { provider: state.grant.provider } : {}) });
+        } else applyPrivacy({ regime: 'PRIVATE' });
+      } else {
+        const next = conversationId ?? crypto.randomUUID();
+        const state = await transport.grantConversation({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, conversationId: next, provider: cloudProvider, model: preferredModel, ceiling: 'INTERNAL' });
+        setConversationId(next);
+        applyPrivacy({ regime: state.regime, ...(state.grant ? { provider: state.grant.provider } : {}) });
+      }
+    } catch (error) {
+      applyPrivacy({ regime: privacy.regime, note: error instanceof Error ? error.message : 'permission change failed' });
+    } finally { setPrivacyBusy(false); }
+  };
+
   const ask = async (text: string) => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(text.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: text, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
   const runProposal = async () => { await ask(proposalText); setProposalOpen(false); };
   const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
@@ -160,6 +195,7 @@ export function JarvisExperience() {
     {presenceOn ? <PresenceMode readout={readout} liveness={liveness} composition={composition} zones={zones} satellites={satellites}
       inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
       voiceControl={<PresenceMic transport={transport} live={kernelLive} available={rtcAvailable} liveness={liveness} picture={kernel}/>}
+      privacy={{ regime: privacy.regime, ...(privacy.provider ? { provider: privacy.provider } : {}), ...(privacy.note ? { note: privacy.note } : {}), busy: privacyBusy, onGrant: () => void toggleCloud(), onRevoke: () => void toggleCloud() }}
       answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
     {!presenceOn ? <>
     <SystemStatusEdge {...(kernel ? { picture: kernel } : {})} liveness={liveness} regions={regions} operations={operations} inspector={inspector}
