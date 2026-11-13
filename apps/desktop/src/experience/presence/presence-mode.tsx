@@ -104,7 +104,13 @@ export function PresenceMode(props: PresenceModeProps) {
       <form className="presence-input" onSubmit={event => void submit(event)} role="search">
         <label className="sr-only" htmlFor={inputId}>Ask JARVIS</label>
         <input id={inputId} value={text} onChange={event => setText(event.target.value)} disabled={!inputEnabled || busy}
-          placeholder={inputEnabled ? (coreRadius < 200 ? 'Ask JARVIS' : 'Ask JARVIS, or name the outcome you want') : 'Commands unavailable until the Kernel reconnects'} autoComplete="off" spellCheck={false} />
+          placeholder={inputEnabled
+            ? (coreRadius < 200 ? 'Ask JARVIS' : 'Ask JARVIS, or name the outcome you want')
+            : liveness.synthetic
+              // Demo fixtures can never accept a command; saying "reconnect" would
+              // imply the Kernel is merely away.
+              ? 'Demo mode · synthetic data · commands disabled'
+              : 'Commands unavailable until the Kernel reconnects'} autoComplete="off" spellCheck={false} />
         {props.voiceControl}
         <button type="submit" className="presence-send" disabled={!inputEnabled || busy || !text.trim()} aria-label="Send to JARVIS"><CornerDownLeft size={15} aria-hidden="true"/></button>
       </form>

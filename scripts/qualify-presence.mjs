@@ -40,6 +40,8 @@ const ROOT = resolve('.');
 const OUT = join(ROOT, 'apps/desktop/out');
 const FRAMES = Number(option('frames', '240'));
 const SCENARIO = option('scenario', 'ambient');
+/** Hydration + auth + first operating picture can exceed 4s on a loaded host. */
+const SETTLE = Number(option('settle', '4000'));
 const PORT = Number(option('port', '4390'));
 const CDP_PORT = Number(option('cdpPort', '9333'));
 const CHROME_CANDIDATES = [
@@ -195,7 +197,7 @@ async function main() {
     const loaded = cdp.once('Page.loadEventFired');
     await cdp.send('Page.navigate', { url: target });
     await Promise.race([loaded, new Promise(done => setTimeout(done, 15000))]);
-    await new Promise(done => setTimeout(done, 4000));
+    await new Promise(done => setTimeout(done, SETTLE));
     const evaluate = async expression => {
       for (let attempt = 0; ; attempt++) {
         try {

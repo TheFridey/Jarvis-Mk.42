@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JarvisOperatingPicture, OperatingModelRun } from '@jarvis/scene';
-import { coreWord, freezeFactor, requestFlow, resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
+import { coreWord, freezeFactor, latestFailure, requestFlow, resolveExperiencePhase, resolveLiveness } from './experience-phase-policy.ts';
 
 const live = resolveLiveness({ status: 'live' }, false);
 const picture = (patch: Partial<JarvisOperatingPicture> = {}) => ({ interactionState: 'DORMANT', workState: 'IDLE', systemHealth: { overall: 'HEALTHY' }, pendingApprovals: [], activeModels: [], activeCapabilities: [], ...patch } as unknown as JarvisOperatingPicture);
@@ -53,5 +53,53 @@ describe('experience phase policy', () => {
     expect(flow.CONTEXT).toBe('unobserved');
     expect(flow.POLICY).toBe('unobserved');
     expect(flow.VERIFY).toBe('pending');
+  });
+});
+
+describe('work fault evidence freshness', () => {
+  const now = Date.parse('2026-11-13T09:00:00Z');
+  const failure = (ageMs: number) => ({ action: 'projects.read', state: 'FAILED', updatedAt: new Date(now - ageMs).toISOString() });
+  const errorPicture = (activity: unknown[]) => picture({ workState: 'ERROR', capabilityActivity: activity as never });
+
+  it('keeps ERROR while the failure is current', () => {
+    expect(resolveExperiencePhase(errorPicture([failure(30_000)]), live, now)).toBe('ERROR');
+  });
+
+  it('stops calling a healthy system faulty once the failure is history', () => {
+    expect(resolveExperiencePhase(errorPicture([failure(45 * 60 * 1000)]), live, now)).toBe('DORMANT');
+    expect(resolveExperiencePhase(errorPicture([failure(45 * 60 * 1000)]), live, now)).not.toBe('ERROR');
+  });
+
+  it('trusts the work axis when the projection carries no ledger', () => {
+    expect(resolveExperiencePhase(errorPicture([]), live, now)).toBe('ERROR');
+  });
+
+  it('never lets a historical failure outrank live activity', () => {
+    const busy = picture({
+      workState: 'EXECUTING',
+      capabilityActivity: [failure(60 * 60 * 1000)] as never,
+      activeCapabilities: [{ action: 'publish', state: 'EXECUTING' }] as never,
+    });
+    expect(resolveExperiencePhase(busy, live, now)).toBe('EXECUTING');
+  });
+
+  it('reports the most recent fault, not the first one it finds', () => {
+    const older = { action: 'invoices.read', state: 'FAILED', updatedAt: new Date(now - 60 * 60 * 1000).toISOString() };
+    const newer = { action: 'projects.read', state: 'VERIFICATION_FAILED', updatedAt: new Date(now - 60_000).toISOString() };
+    expect(latestFailure({ capabilityActivity: [older, newer] }, now)).toMatchObject({ action: 'projects.read', state: 'VERIFICATION_FAILED', recent: true });
+  });
+});
+
+describe('fault evidence without a timestamp', () => {
+  const now = Date.parse('2026-11-13T09:00:00Z');
+  it('assumes an undateable fault is current rather than hiding it', () => {
+    const picture = { workState: 'ERROR' as const, capabilityActivity: [{ action: 'projects.read', state: 'FAILED' }] as never };
+    expect(latestFailure(picture, now)).toMatchObject({ state: 'FAILED', recent: true });
+    expect(resolveExperiencePhase(picture as never, live, now)).toBe('ERROR');
+  });
+
+  it('prefers a dated fault over an undated one', () => {
+    const picture = { capabilityActivity: [{ state: 'FAILED' }, { action: 'x', state: 'FAILED', updatedAt: new Date(now - 86_400_000).toISOString() }] as never };
+    expect(latestFailure(picture, now)).toMatchObject({ action: 'x', recent: false });
   });
 });

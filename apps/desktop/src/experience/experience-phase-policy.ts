@@ -83,7 +83,7 @@ export function confirmedInference(run: OperatingModelRun): boolean {
  * interaction; only authoritative OFFLINE health is CRITICAL; no model phase
  * appears without an observed model run.
  */
-export function resolveExperiencePhase(picture: JarvisOperatingPicture | undefined, liveness: DataLiveness): ExperiencePhase {
+export function resolveExperiencePhase(picture: JarvisOperatingPicture | undefined, liveness: DataLiveness, now = Date.now()): ExperiencePhase {
   if (!liveness.current) return picture ? 'COMM_LOSS' : 'UNAVAILABLE';
   if (!picture) return 'UNAVAILABLE';
   if (picture.systemHealth?.overall === 'OFFLINE') return 'CRITICAL';
@@ -92,7 +92,11 @@ export function resolveExperiencePhase(picture: JarvisOperatingPicture | undefin
   if (work === 'EXECUTING') return 'EXECUTING';
   if (work === 'VERIFYING') return 'VERIFYING';
   if (work === 'COMPLETE') return 'COMPLETE';
-  if (work === 'ERROR') return 'ERROR';
+  if (work === 'ERROR') {
+    // Trust the axis when the projection offers no ledger to judge it by.
+    const failure = latestFailure(picture, now);
+    if (!failure || failure.recent) return 'ERROR';
+  }
   if (work === 'BLOCKED') return 'BLOCKED';
   const runs = picture.activeModels ?? [];
   if (runs.some(run => run.status === 'running' && run.routing?.phase === 'FALLBACK')) return 'FALLBACK';
@@ -108,6 +112,41 @@ export function resolveExperiencePhase(picture: JarvisOperatingPicture | undefin
 
 export function isIdlePhase(phase: ExperiencePhase): boolean {
   return phase === 'DORMANT' || phase === 'AWARE' || phase === 'UNAVAILABLE';
+}
+
+/**
+ * A work fault is only current while its evidence is recent. The projection's
+ * `capabilityActivity` is a bounded *history*: it keeps terminal rows, so a
+ * single failure weeks ago would otherwise pin the whole experience to ERROR
+ * forever. The Kernel remains free to say `workState: 'ERROR'`; this policy
+ * decides whether that still describes the present.
+ */
+export const FAILURE_EVIDENCE_WINDOW_MS = 5 * 60 * 1000;
+const FAULT_STATES = new Set<string>(['FAILED', 'ABORTED', 'INTERRUPTED', 'VERIFICATION_FAILED', 'UNVERIFIED']);
+
+export interface FailureEvidence { action?: string; state: string; at?: string }
+
+/** The most recent recorded fault, with its age, from the invocation ledger. */
+export function latestFailure(
+  picture: { capabilityActivity?: ReadonlyArray<{ action?: string; state: string; updatedAt?: string }> } | undefined,
+  now = Date.now(),
+): (FailureEvidence & { ageMs?: number; recent: boolean }) | undefined {
+  const activity = picture?.capabilityActivity ?? [];
+  let latest: FailureEvidence | undefined;
+  let latestAt = Number.NEGATIVE_INFINITY;
+  let undated = false;
+  for (const entry of activity) {
+    if (!FAULT_STATES.has(entry.state)) continue;
+    const at = entry.updatedAt ? Date.parse(entry.updatedAt) : Number.NaN;
+    if (Number.isFinite(at) && at > latestAt) { latestAt = at; latest = { state: entry.state, ...(entry.action ? { action: entry.action } : {}), at: entry.updatedAt }; }
+    else if (!latest) { latest = { state: entry.state, ...(entry.action ? { action: entry.action } : {}) }; }
+    if (!Number.isFinite(at)) undated = true;
+  }
+  if (!latest) return undefined;
+  const ageMs = Number.isFinite(latestAt) ? Math.max(0, now - latestAt) : undefined;
+  // An undateable fault is assumed current: hiding a fault we cannot age would be
+  // the dangerous direction. A dated fault uses the window.
+  return { ...latest, ...(ageMs !== undefined ? { ageMs } : {}), recent: ageMs === undefined ? undated : ageMs <= FAILURE_EVIDENCE_WINDOW_MS };
 }
 
 export type FlowStage = 'INPUT' | 'INTERPRET' | 'CONTEXT' | 'ROUTE' | 'MODEL' | 'RESULT' | 'POLICY' | 'APPROVAL' | 'EXECUTE' | 'VERIFY' | 'COMPLETE';

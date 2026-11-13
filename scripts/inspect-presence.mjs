@@ -75,7 +75,7 @@ const AUDIT = `(scenario) => {
     longAnswer = { heightPx: +r.height.toFixed(1), bottomPx: +r.bottom.toFixed(1), inputTopPx: +inputTop.toFixed(1), crossesInput: r.bottom > inputTop + 1, scrolls: body.scrollHeight > body.clientHeight + 2 };
     body.textContent = before;
   }
-  return { viewport: { width: innerWidth, height: innerHeight }, state: document.querySelector('.presence-layer')?.getAttribute('data-presence-state') ?? null, word: document.querySelector('.presence-word strong')?.textContent ?? null, boxes, overlaps, viewportOverflow, focus, longAnswer, satellites: document.querySelectorAll('.presence-satellite').length };
+  return { viewport: { width: innerWidth, height: innerHeight }, state: document.querySelector('.presence-layer')?.getAttribute('data-presence-state') ?? null, word: document.querySelector('.presence-word strong')?.textContent ?? null, detail: document.querySelector('.presence-detail')?.textContent ?? null, answerText: document.querySelector('.presence-answer-body')?.textContent?.slice(0, 200) ?? null, link: document.querySelector('.presence-link')?.textContent ?? null, boxes, overlaps, viewportOverflow, focus, longAnswer, satellites: document.querySelectorAll('.presence-satellite').length };
 }`;
 
 async function serve(root, port) {

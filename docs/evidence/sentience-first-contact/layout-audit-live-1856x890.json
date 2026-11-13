@@ -1,0 +1,309 @@
+{
+  "measuredAt": "2026-11-13T09:31:56.352Z",
+  "results": [
+    {
+      "viewportLabel": "390x844",
+      "scenario": "ambient",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "DISCONNECTED",
+      "word": "DISCONNECTED",
+      "detail": "No authoritative state is being shown.",
+      "answerText": null,
+      "link": "CONNECTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 108,
+          "y": 466.3,
+          "w": 174.1,
+          "h": 19.2,
+          "right": 282,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 88.1,
+          "y": 494.5,
+          "w": 213.8,
+          "h": 18.6,
+          "right": 301.9,
+          "bottom": 513.1,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": null,
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "approval",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "DISCONNECTED",
+      "word": "DISCONNECTED",
+      "detail": "No authoritative state is being shown.",
+      "answerText": null,
+      "link": "CONNECTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 108,
+          "y": 466.3,
+          "w": 174.1,
+          "h": 19.2,
+          "right": 282,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 88.1,
+          "y": 494.5,
+          "w": 213.8,
+          "h": 18.6,
+          "right": 301.9,
+          "bottom": 513.1,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": null,
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "executing",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "DISCONNECTED",
+      "word": "DISCONNECTED",
+      "detail": "No authoritative state is being shown.",
+      "answerText": null,
+      "link": "CONNECTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 108,
+          "y": 466.3,
+          "w": 174.1,
+          "h": 19.2,
+          "right": 282,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 88.1,
+          "y": 494.5,
+          "w": 213.8,
+          "h": 18.6,
+          "right": 301.9,
+          "bottom": 513.1,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": null,
+      "satellites": 0
+    },
+    {
+      "viewportLabel": "390x844",
+      "scenario": "disconnected",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "DISCONNECTED",
+      "word": "DISCONNECTED",
+      "detail": "No authoritative state is being shown.",
+      "answerText": null,
+      "link": "CONNECTING",
+      "boxes": [
+        {
+          "selector": ".presence-word strong",
+          "x": 108,
+          "y": 466.3,
+          "w": 174.1,
+          "h": 19.2,
+          "right": 282,
+          "bottom": 485.5,
+          "fontSize": "16px",
+          "colour": "color(srgb 0.700863 0.741176 0.772941)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-detail",
+          "x": 88.1,
+          "y": 494.5,
+          "w": 213.8,
+          "h": 18.6,
+          "right": 301.9,
+          "bottom": 513.1,
+          "fontSize": "12px",
+          "colour": "color(srgb 0.792471 0.825412 0.846588)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-input",
+          "x": 12,
+          "y": 747,
+          "w": 366,
+          "h": 50,
+          "right": 378,
+          "bottom": 797,
+          "fontSize": "16px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        },
+        {
+          "selector": ".presence-footer",
+          "x": 12,
+          "y": 805,
+          "w": 366,
+          "h": 29,
+          "right": 378,
+          "bottom": 834,
+          "fontSize": "10.5px",
+          "colour": "rgb(227, 234, 238)",
+          "opacity": "1",
+          "clipped": false
+        }
+      ],
+      "overlaps": [],
+      "viewportOverflow": [],
+      "focus": {
+        "formBorderColour": "color(srgb 0.890196 0.917647 0.933333 / 0.16)",
+        "formBoxShadow": false,
+        "outlineWidth": "3px"
+      },
+      "longAnswer": null,
+      "satellites": 0
+    }
+  ]
+}

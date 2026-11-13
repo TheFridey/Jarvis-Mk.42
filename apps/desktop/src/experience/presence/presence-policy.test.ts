@@ -262,11 +262,27 @@ describe('satellite agents', () => {
 
 describe('verified completion requires canonical evidence', () => {
   it('accepts a successful invocation ledger entry', () => {
-    const picture = { capabilityActivity: [{ action: 'publish', state: 'EXECUTING' }, { action: 'publish', state: 'VERIFIED' }] };
+    const now = Date.now();
+    const stamp = new Date(now - 20_000).toISOString();
+    const picture = { capabilityActivity: [{ action: 'publish', state: 'EXECUTING', updatedAt: stamp }, { action: 'publish', state: 'VERIFIED', updatedAt: stamp }] };
     expect(verifiedEvidence(picture).verified).toBe(true);
     expect(verifiedEvidence(picture).action).toBe('publish');
-    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture })).toBe('VERIFIED');
-    expect(presenceDetail({ phase: 'DORMANT', liveness: live(), picture })).toContain('publish verified');
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), now, picture })).toBe('VERIFIED');
+    expect(presenceDetail({ phase: 'DORMANT', liveness: live(), now, picture })).toContain('publish verified');
+  });
+
+  it('does not let an old success become a permanent VERIFIED state', () => {
+    const now = Date.now();
+    const stale = new Date(now - 45 * 60 * 1000).toISOString();
+    const picture = { capabilityActivity: [{ action: 'publish', state: 'VERIFIED', updatedAt: stale }] };
+    expect(verifiedEvidence(picture, now).verified).toBe(false);
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), now, picture })).not.toBe('VERIFIED');
+  });
+
+  it('refuses to claim completion it cannot date', () => {
+    const picture = { capabilityActivity: [{ action: 'publish', state: 'VERIFIED' }] };
+    expect(verifiedEvidence(picture).verified).toBe(false);
+    expect(resolvePresenceState({ phase: 'DORMANT', liveness: live(), picture })).not.toBe('VERIFIED');
   });
 
   it('refuses completion while any invocation is still active', () => {

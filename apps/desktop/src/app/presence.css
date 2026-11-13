@@ -23,7 +23,10 @@
 .presence-word::after{background:linear-gradient(270deg,transparent,color-mix(in srgb,var(--presence) 70%,transparent))}
 .presence-word strong{font:300 clamp(16px,1.55vw,24px)/1.2 var(--f-body);letter-spacing:.38em;padding-left:.38em;text-transform:uppercase;white-space:nowrap;
   color:color-mix(in srgb,var(--presence) 82%,var(--c-platinum));transition:color var(--m-decay) var(--e-decay)}
-.presence-detail{margin:0;font:400 clamp(12px,1.02vw,14px)/1.6 var(--f-body);letter-spacing:.03em;color:color-mix(in srgb,var(--c-ink) 72%,var(--c-inkMuted));max-width:52ch;text-wrap:balance}
+/* Two lines maximum: the sentence is generous, the band it may occupy is fixed
+   (presenceZones reserves it), and the full text stays in the aria-label. */
+.presence-detail{margin:0;font:400 clamp(12px,1.02vw,14px)/1.55 var(--f-body);letter-spacing:.03em;color:color-mix(in srgb,var(--c-ink) 72%,var(--c-inkMuted));
+  max-width:56ch;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .presence-fallback{margin:0;font:var(--t-data) var(--f-data);letter-spacing:.14em;color:var(--c-degraded)}
 .presence-reconnect{margin-top:4px;padding:9px 15px;background:none;border:1px solid color-mix(in srgb,var(--c-degraded) 55%,transparent);color:var(--c-degraded);font:var(--t-data) var(--f-data);letter-spacing:.2em;pointer-events:auto}
 .presence-reconnect:hover{border-color:var(--c-degraded);color:color-mix(in srgb,var(--c-degraded) 60%,#fff)}
@@ -32,16 +35,16 @@
 .presence-satellites{position:absolute;inset:0;margin:0;padding:0;list-style:none;pointer-events:none}
 .presence-satellite{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
   font:var(--t-data) var(--f-data);letter-spacing:.14em;color:color-mix(in srgb,var(--c-ink) 62%,var(--c-inkMuted));opacity:.92}
-.presence-orb{position:relative;display:block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-infra) 70%,transparent) 42%,transparent 72%);
-  box-shadow:0 0 12px color-mix(in srgb,var(--c-infra) 42%,transparent),inset 0 0 6px color-mix(in srgb,#fff 30%,transparent)}
+.presence-orb{position:relative;display:block;width:19px;height:19px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-infra) 78%,transparent) 42%,transparent 74%);
+  box-shadow:0 0 20px color-mix(in srgb,var(--c-infra) 55%,transparent),inset 0 0 8px color-mix(in srgb,#fff 34%,transparent)}
 .presence-orb b{position:absolute;inset:-5px;border-radius:50%;border:1px solid color-mix(in srgb,var(--c-infra) 26%,transparent);opacity:.7}
 .presence-orb b+b{inset:-10px;border-color:color-mix(in srgb,var(--c-infra) 14%,transparent)}
-.presence-satellite-name{font-weight:500;color:color-mix(in srgb,var(--c-ink) 88%,var(--c-platinum));text-transform:uppercase;white-space:nowrap}
-.presence-satellite small{font-size:calc(var(--t-data) * .92);letter-spacing:.08em;color:var(--c-inkMuted);text-transform:uppercase;white-space:nowrap}
+.presence-satellite-name{font-size:calc(var(--t-data) * 1.08);font-weight:500;color:var(--c-platinum);text-transform:uppercase;white-space:nowrap;letter-spacing:.16em;text-shadow:0 0 12px #000}
+.presence-satellite small{font-size:calc(var(--t-data) * .95);letter-spacing:.1em;color:var(--c-ink);opacity:.8;text-transform:uppercase;white-space:nowrap;text-shadow:0 0 10px #000}
 .presence-satellite.child{opacity:.82}
 .presence-satellite.child .presence-orb{width:10px;height:10px}
 .presence-satellite.state-working{--orb:var(--c-cognition)}
-.presence-satellite.state-working .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--orb) 78%,transparent) 44%,transparent 74%);box-shadow:0 0 16px color-mix(in srgb,var(--orb) 62%,transparent),inset 0 0 6px #ffffff55}
+.presence-satellite.state-working .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--orb) 82%,transparent) 44%,transparent 76%);box-shadow:0 0 24px color-mix(in srgb,var(--orb) 72%,transparent),inset 0 0 8px #ffffff66}
 .presence-satellite.state-working .presence-orb b{border-color:color-mix(in srgb,var(--orb) 34%,transparent)}
 .presence-satellite.state-leased .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-ice) 80%,transparent) 44%,transparent 74%)}
 .presence-satellite.state-blocked .presence-orb,.presence-satellite.state-unconfirmed .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-degraded) 78%,transparent) 44%,transparent 74%);box-shadow:0 0 16px color-mix(in srgb,var(--c-degraded) 55%,transparent)}
@@ -167,3 +170,21 @@
 @media(forced-colors:active){
   .presence-input,.presence-answer,.presence-return,.presence-mic,.presence-send,.presence-open .approval-barrier{border:1px solid CanvasText}
 }
+
+/* ---------- readability pass: panels are information, not decoration ---------- */
+/* Both surfaces sit over a bright orb. At 90% opacity the halo bled through and
+   pulled the text down; they are now effectively opaque in presence, with the
+   body copy promoted a step and the border strengthened. */
+.presence-open .presence-answer,
+.presence-open .approval-barrier{background:color-mix(in srgb,var(--c-obsidian1) 97%,transparent);backdrop-filter:blur(22px) saturate(1.05)}
+.presence-open .presence-answer{border-color:color-mix(in srgb,var(--c-ink) 22%,transparent);box-shadow:0 18px 60px #000b,inset 0 1px 0 color-mix(in srgb,var(--c-ink) 8%,transparent)}
+.presence-answer-body{color:var(--c-platinum)}
+.presence-answer header small{color:color-mix(in srgb,var(--presence) 88%,#fff)}
+.presence-answer-actions button{color:color-mix(in srgb,var(--c-ink) 82%,var(--c-inkMuted))}
+.presence-open .approval-barrier{border-color:color-mix(in srgb,var(--c-execution) 42%,transparent);box-shadow:0 24px 70px #000c}
+.presence-open .approval-barrier :is(h2,dd,summary){color:var(--c-ink)}
+.presence-open .approval-barrier .approval-summary{color:color-mix(in srgb,var(--c-ink) 78%,var(--c-inkMuted))}
+.presence-open .approval-barrier header strong{color:color-mix(in srgb,var(--c-execution) 88%,#fff)}
+.presence-open .approval-barrier dt{color:var(--c-inkMuted)}
+.presence-open .approval-actions .approve{border-color:color-mix(in srgb,var(--c-execution) 80%,transparent);color:var(--c-forge)}
+.presence-open .approval-actions .deny{color:var(--c-ink)}

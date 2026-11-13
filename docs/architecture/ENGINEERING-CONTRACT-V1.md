@@ -173,3 +173,42 @@ is never parsed for control flow. Unknown codes fail closed.
 No merge, push, deploy, remote hosting, shared database, exposed network
 endpoint, cross-file atomicity, automatic worktree deletion, indefinite autonomy,
 or second approval system. Those are refused by construction, not by convention.
+
+## 14. Addendum after live Kernel qualification (First Contact)
+
+Field findings from running the real Kernel changed three assumptions in this
+design. The contract is unchanged; its *preconditions* are now explicit.
+
+**14.1 The projection is lossy; never infer lifecycle from aggregate axes.**
+`workState` does not emit `COMPLETE`, and it returned `ERROR` on an idle, healthy
+Kernel because one invocation had failed hours earlier — the ledger keeps terminal
+rows. Therefore:
+
+- completion and failure must be read from the invocation ledger with timestamps,
+  never from `workState` or from "nothing is active";
+- every `capabilityActivity` entry must carry `updatedAt`; the contract's
+  `VerificationEvidence` already requires provenance and now also requires a
+  freshness window (a success older than the window is history, not state);
+- a client may only present `VERIFIED` while the evidence is inside that window.
+
+**14.2 Scoped sessions, not the bootstrap credential.**
+The desktop authenticates with `POST /auth/session` and explicit scopes
+(`desktop.read`, `desktop.write`, `experience.read`, `voice.write`, …) plus a
+node id. An engineering capability must request its own scoped session, bound to
+the requesting principal, and must never reuse the development bootstrap
+credential outside local development.
+
+**14.3 Freshness is a rendering problem too.**
+The UI must distinguish "connecting" from "disconnected". A bootstrap that takes
+several seconds is not an outage: the presence layer showed `DISCONNECTED` while
+the transport was still `CONNECTING`. Any integration must consume the transport
+status, not the absence of a snapshot.
+
+**14.4 Environment preconditions observed here.**
+- Docker publishes the data plane on host ports `5433`/`6380`/`4222`; on this
+  workstation `localhost` resolves to `::1` first and the connection times out, so
+  local runs must use `127.0.0.1` explicitly.
+- `model-gateway` and `rtc` report `OFFLINE` until their services are started and
+  configured. An engineering capability that assumes either is present will fail
+  closed — which is the intended behaviour, but it must be *reported*, not retried
+  silently.

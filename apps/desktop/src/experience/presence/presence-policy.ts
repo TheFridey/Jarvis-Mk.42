@@ -11,7 +11,7 @@
  * visible no matter how calm the presentation is.
  */
 import { agentField, type AgentNodeState } from '../agent-field-policy.ts';
-import type { ExperiencePhase, DataLiveness } from '../experience-phase-policy.ts';
+import { latestFailure, type ExperiencePhase, type DataLiveness } from '../experience-phase-policy.ts';
 import { polar, spatialLayout, type Point, type SpatialLayout } from '../spatial-layout-policy.ts';
 import type { CoreSystemTargets } from '../core-visual-policy.ts';
 import type { OperatingAgentJob } from '@jarvis/scene';
@@ -52,7 +52,7 @@ export interface PresencePicture {
    * verified: `workState` never carries COMPLETE from the desktop gateway, so
    * completion must be read from these invocation states, never inferred.
    */
-  capabilityActivity?: ReadonlyArray<{ action?: string; state: string }>;
+  capabilityActivity?: ReadonlyArray<{ action?: string; state: string; updatedAt?: string }>;
   agentJobs?: ReadonlyArray<OperatingAgentJob>;
   voiceAudio?: { tts?: string; observedAt?: string; amplitude?: number; playbackAmplitude?: number; deviceState?: 'ready' | 'lost' | 'recovering'; vad?: 'speech' | 'silence' | 'unknown' };
   systemHealth?: { overall?: string };
@@ -89,19 +89,23 @@ export function speechObserved(picture: PresencePicture | undefined, now = Date.
  * Canonical completion evidence. `capabilityActivity` is the authoritative
  * invocation ledger; agent prose and model output are never consulted here.
  */
-export function verifiedEvidence(picture: PresencePicture | undefined): { verified: boolean; action?: string } {
+export function verifiedEvidence(picture: PresencePicture | undefined, now = Date.now()): { verified: boolean; action?: string } {
   const activity = picture?.capabilityActivity ?? [];
   if (!activity.length) return { verified: false };
   // The projection carries one row per observed invocation state, so an action
   // appears several times as it advances. Its *latest* state is the observation;
   // an earlier EXECUTING row is history, not an active invocation.
-  const latest = new Map<string, { state: string; action?: string }>();
+  const latest = new Map<string, { state: string; action?: string; updatedAt?: string }>();
   for (const entry of activity) latest.set(entry.action ?? `invocation:${latest.size}`, entry);
   const states = [...latest.values()];
   if (states.some(entry => ACTIVE_STATES.has(entry.state))) return { verified: false };
   if (states.some(entry => FAILED_STATES.has(entry.state))) return { verified: false };
   const verified = states.filter(entry => VERIFIED_STATES.has(entry.state)).at(-1);
   if (!verified) return { verified: false };
+  // Success is history the moment it stops being recent: without a timestamp we
+  // cannot claim it is current, so we do not claim it at all.
+  const at = verified.updatedAt ? Date.parse(verified.updatedAt) : Number.NaN;
+  if (!Number.isFinite(at) || now - at > VERIFIED_EVIDENCE_WINDOW_MS) return { verified: false };
   return { verified: true, ...(verified.action ? { action: verified.action } : {}) };
 }
 
@@ -131,7 +135,7 @@ export function resolvePresenceState(input: PresenceInput): PresenceState {
   if (approvals > 0 || phase === 'APPROVAL') return 'APPROVAL';
   if (phase === 'EXECUTING' || phase === 'VERIFYING') return 'EXECUTING';
   if (phase === 'COMPLETE') return 'VERIFIED';
-  if (verifiedEvidence(picture).verified) return 'VERIFIED';
+  if (verifiedEvidence(picture, now).verified) return 'VERIFIED';
   if (speechObserved(picture, now)) return 'SPEAKING';
   return PHASE_STATE[phase];
 }
@@ -176,7 +180,7 @@ export function presenceDetail(input: PresenceInput): string {
     return capability ? `${capability.action} · ${capability.state}` : 'Capability activity observed.';
   }
   if (state === 'VERIFIED') {
-    const evidence = verifiedEvidence(picture);
+    const evidence = verifiedEvidence(picture, now);
     return evidence.action ? `${evidence.action} verified. No further action is outstanding.` : 'Effect verified. No further action is outstanding.';
   }
   if (state === 'SPEAKING') return speechObserved(picture, now) ? 'Speaking.' : 'Response in progress.';
@@ -185,6 +189,11 @@ export function presenceDetail(input: PresenceInput): string {
   const agents = picture?.agentJobs?.filter(job => !TERMINAL_JOB_STATES.has(job.state)).length ?? 0;
   if (agents > 0) return `${agents} agent job${agents === 1 ? '' : 's'} in flight.`;
   if (phase === 'DEGRADED' || picture?.systemHealth?.overall === 'DEGRADED') return 'Subsystem health degraded. Availability is reduced.';
+  const past = latestFailure(picture, now);
+  if (past) {
+    const when = past.ageMs === undefined ? 'at an unknown time' : `at ${new Date((past.at ? Date.parse(past.at) : now - (past.ageMs ?? 0))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return `Standing by. Last work fault: ${past.action ? `${past.action} · ` : ''}${past.state} ${when}.`;
+  }
   return liveness.synthetic ? 'Synthetic data. No live execution.' : 'Standing by.';
 }
 
@@ -281,7 +290,9 @@ export function presenceComposition(viewport: { width: number; height: number })
   // clear the word and the detail line; in the stacked layout it must also leave
   // a usable reading surface above the input.
   const docked = !narrow;
-  const edge = narrow ? 12 : 24, inputHeight = narrow ? 48 : 52, footer = 30, detail = 52, gap = 10, answerMin = docked ? 0 : 140;
+  // The detail line may wrap to two lines with a long fault history, so the
+  // reserved band is two lines, not one.
+  const edge = narrow ? 12 : 24, inputHeight = narrow ? 48 : 52, footer = 30, detail = 74, gap = 10, answerMin = docked ? 0 : 140;
   const inputTop = height - edge - footer - inputHeight;
   const maxHorizon = inputTop - 14 - answerMin - detail - gap;
   const coreRadius = Math.max(96, Math.min(desired, (maxHorizon - core.y) / 1.1));
@@ -407,7 +418,7 @@ export function presenceZones(viewport: { width: number; height: number }, compo
   const footer = 30;
   const inputBottom = height - edge - footer;
   const inputTop = inputBottom - inputHeight;
-  const detailBottom = composition.horizon + 52;
+  const detailBottom = composition.horizon + 74;
   const answerTop = detailBottom + 10;
   // On a wide screen the response lives in its own column beside the orb, so it
   // may be tall. Below 1100px there is no column, so it is bounded by the space

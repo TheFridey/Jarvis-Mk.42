@@ -1,91 +1,104 @@
 'use client';
 /**
- * Living Core envelope: the continuous body the particle field was missing.
+ * Living Core: an emergent body, not a shell.
  *
- * The Genesis orb read as a galaxy because CinematicCore is a point shell — it
- * has no boundary and no interior. This layer adds the body around the same
- * particles, without replacing them:
+ * First-contact revision. The previous version drew a continuous displaced
+ * surface, which read as a solid amber bubble with a polygonal silhouette. This
+ * version builds the boundary out of light instead:
  *
- *   1. one displaced shell — a low-frequency vertex deformation gives an organic
- *      silhouette, a fresnel rim carries the edge, and the fragment shader loses
- *      opacity toward the rim so the interior stays readable;
- *   2. two internal filament bands — thin torus knots on separate axes, dim and
- *      additive, so the interior reads as layered structure rather than fog;
- *   3. a restrained nucleus — a small bright core with an edge cage.
+ *   1. a rim-only haze — the displaced surface survives as a thin fresnel band
+ *      with noise-torn alpha, so there is no filled bubble, only a suggestion of
+ *      where the body ends;
+ *   2. a luminous particle shell — thousands of points on a jittered sphere whose
+ *      size and brightness fall off at grazing angles. The boundary is now the
+ *      density of particles, which is where it belongs;
+ *   3. flowing filaments — Bézier ribbons with travelling pulses, their control
+ *      points drifting on slow independent paths, so they read as currents inside
+ *      the body rather than planetary rings;
+ *   4. a diffuse nucleus — a soft additive core with no wireframe, plus a small
+ *      warm point that breathes with energy and measured audio.
  *
- * Everything is GPU-deformed from one uniform clock; no per-frame CPU work, no
- * textures, no post-processing added. Segment and knot densities come from the
- * existing quality tiers, so LOW still fits an integrated GPU. Colours are passed
- * in from the same policy that drives the DOM, so the body can never disagree
- * with the word beside it.
+ * Everything is GPU-driven from the shared clock, disposed on unmount, and kept
+ * mounted across modes so a mode switch never pays a shader compile.
  */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AdditiveBlending, Color, EdgesGeometry, IcosahedronGeometry, Mesh, ShaderMaterial, TorusKnotGeometry } from 'three';
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, IcosahedronGeometry, Mesh, ShaderMaterial } from 'three';
 import { COLOUR } from '../visual-tokens.ts';
 import { NOISE } from './glsl.ts';
+import { ribbonGeometry, ribbonMaterial } from './primitives.ts';
 import { damp } from './damp.ts';
 import { rate, useCosmosClock } from './runtime.tsx';
 
-const SHELL_VERTEX = /* glsl */ `${NOISE}
+const HAZE_VERTEX = /* glsl */ `${NOISE}
 uniform float uTime; uniform float uEnergy; uniform float uBreath; uniform float uDeform;
-varying vec3 vN; varying vec3 vV; varying float vRidge;
+varying vec3 vN; varying vec3 vV;
 void main(){
   vec3 p = normalize(position);
   float low = fbm(p * 1.6 + vec3(0., uTime * .05, 0.), 2);
   float mid = fbm(p * 4.4 - vec3(uTime * .07, 0., uTime * .04), 3);
   float ridge = sin((p.y * 6.0) + uTime * .35) * .5 + .5;
-  float displacement = (low - .5) * .085 + (mid - .5) * .035 + ridge * .012;
-  p *= 1. + displacement * uDeform + uBreath * .012 + uEnergy * .01;
-  vRidge = ridge;
+  float displacement = (low - .5) * .11 + (mid - .5) * .05 + ridge * .015;
+  p *= 1. + displacement * uDeform + uBreath * .014 + uEnergy * .012;
   vN = normalize(normalMatrix * normal);
   vec4 mv = modelViewMatrix * vec4(p, 1.);
   vV = normalize(-mv.xyz);
   gl_Position = projectionMatrix * mv;
 }`;
 
-const SHELL_FRAGMENT = /* glsl */ `${NOISE}
+const HAZE_FRAGMENT = /* glsl */ `${NOISE}
 uniform vec3 uBody; uniform vec3 uWarm; uniform float uAlpha; uniform float uEnergy; uniform float uTime;
-varying vec3 vN; varying vec3 vV; varying float vRidge;
+varying vec3 vN; varying vec3 vV;
 void main(){
   float facing = clamp(dot(normalize(vN), normalize(vV)), 0., 1.);
-  float rim = pow(1. - facing, 2.2);
-  float veins = smoothstep(.42, .92, fbm(vN * 3.1 + vec3(uTime * .06), 3));
-  // A warm band that turns with the body; restrained, never a lens flare.
-  float warmBand = smoothstep(.35, .75, sin(vN.y * 5.2 + uTime * .22) * .5 + .5) * .35;
-  // Toward the viewer the body warms and brightens, so the centre reads as
-  // illuminated matter rather than a hole: a plasma body, not a bubble.
-  vec3 colour = mix(uBody, uWarm, clamp(warmBand + veins * .42 + pow(facing, 3.) * .55, 0., 1.));
-  float body = pow(facing, 1.4) * (.3 + veins * .34);
-  float innerGlow = pow(facing, 4.) * .2;
-  float alpha = (rim * .45 + body + innerGlow) * uAlpha;
-  gl_FragColor = vec4(colour * (.95 + uEnergy * .3), alpha);
+  // Only the grazing band survives: no filled surface, no bubble.
+  float rim = pow(1. - facing, 3.4);
+  float grain = fbm(vN * 5.6 + vec3(uTime * .05), 3);
+  float torn = smoothstep(.28, .78, grain);
+  float alpha = rim * (.06 + torn * .5) * uAlpha;
+  vec3 colour = mix(uBody, uWarm, .18 + torn * .22);
+  gl_FragColor = vec4(colour * (.9 + uEnergy * .35), alpha);
 }`;
 
-const FILAMENT_VERTEX = /* glsl */ `
-varying vec2 vUv; varying vec3 vPos;
-void main(){ vUv = uv; vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`;
-
-const FILAMENT_FRAGMENT = /* glsl */ `
-uniform vec3 uColour; uniform float uAlpha; uniform float uTime; uniform float uSpeed;
-varying vec2 vUv; varying vec3 vPos;
+const SHELL_VERTEX = /* glsl */ `
+attribute float aSeed;
+uniform float uTime; uniform float uPixel; uniform float uEnergy; uniform float uBreath;
+varying float vFade; varying float vSeed;
 void main(){
-  // Two travelling pulses along the knot; the rest is a dim, flickering thread.
-  float flow = fract(vUv.x * 2. - uTime * uSpeed);
-  float pulse = smoothstep(.0, .07, flow) * smoothstep(.3, .07, flow);
-  float flicker = .55 + .45 * sin(vUv.x * 42. + uTime * 1.4);
-  float alpha = (0.085 + pulse * .55) * uAlpha * flicker;
-  gl_FragColor = vec4(uColour, alpha);
+  vec3 p = position;
+  float swell = 1. + sin(uTime * (.22 + aSeed * .12) + aSeed * 43.) * (.012 + uBreath * .01) + uEnergy * .006;
+  p *= swell;
+  vec4 mv = modelViewMatrix * vec4(p, 1.);
+  vec3 n = normalize(normalMatrix * normalize(position));
+  vec3 v = normalize(-mv.xyz);
+  // Grazing points dim, so the silhouette is soft rather than cut out.
+  float facing = clamp(dot(n, v), 0., 1.);
+  vFade = mix(.35, 1., pow(facing, .6)) * (.7 + .3 * sin(uTime * (.5 + aSeed) + aSeed * 90.));
+  vSeed = aSeed;
+  gl_PointSize = (1.2 + aSeed * 1.8) * uPixel * (9. / max(.5, -mv.z));
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const SHELL_FRAGMENT = /* glsl */ `
+uniform vec3 uCold; uniform vec3 uWarm; uniform float uAlpha; uniform float uEnergy;
+varying float vFade; varying float vSeed;
+void main(){
+  vec2 c = gl_PointCoord * 2. - 1.;
+  float r = dot(c, c);
+  if (r > 1.) discard;
+  vec3 colour = mix(uCold, uWarm, pow(vSeed, 3.));
+  float core = pow(max(1. - r, 0.), 2.4);
+  gl_FragColor = vec4(colour * (1. + uEnergy * .5), core * vFade * uAlpha);
 }`;
 
 export interface LivingCoreProps {
   /** World-space centre on the z=0 plane. */
   position: [number, number];
-  /** World-space radius of the shell. */
+  /** World-space radius of the body. */
   radius: number;
   /** Body colour, from the same policy that colours the particles. */
   colour: string;
-  /** 0..1 — drives brightness, deformation amplitude and filament speed. */
+  /** 0..1 — drives brightness, deformation, shell swell and filament speed. */
   energy: number;
   /** 0..1 — measured audio only; 0 when no genuine envelope exists. */
   audio: number;
@@ -96,100 +109,141 @@ export interface LivingCoreProps {
 }
 
 const QUALITY = {
-  LOW: { detail: 3, shell: 0.55, filaments: 2, knotSegments: 96, tubeSegments: 6 },
-  MEDIUM: { detail: 4, shell: 0.8, filaments: 2, knotSegments: 148, tubeSegments: 8 },
-  HIGH: { detail: 5, shell: 1, filaments: 3, knotSegments: 200, tubeSegments: 9 },
-  ULTRA: { detail: 5, shell: 1.12, filaments: 3, knotSegments: 260, tubeSegments: 10 },
+  LOW: { detail: 3, shellPoints: 2200, filaments: 2, ribbonSegments: 40 },
+  MEDIUM: { detail: 4, shellPoints: 5200, filaments: 3, ribbonSegments: 56 },
+  HIGH: { detail: 5, shellPoints: 9000, filaments: 3, ribbonSegments: 72 },
+  ULTRA: { detail: 5, shellPoints: 11000, filaments: 4, ribbonSegments: 88 },
 } as const;
+
+const seeded = (seed: number, index: number) => { let h = Math.imul(index ^ seed, 0x45d9f3b); h = Math.imul(h ^ (h >>> 16), 0x45d9f3b); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+
+/** Evenly distributed spherical shell with radial jitter — the emergent boundary. */
+function shellGeometry(count: number): BufferGeometry {
+  const positions = new Float32Array(count * 3), seeds = new Float32Array(count);
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < count; i++) {
+    const y = 1 - (i / Math.max(1, count - 1)) * 2;
+    const ring = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = golden * i;
+    const jitter = .955 + seeded(311, i) * .09;
+    positions[i * 3] = Math.cos(theta) * ring * jitter;
+    positions[i * 3 + 1] = y * jitter;
+    positions[i * 3 + 2] = Math.sin(theta) * ring * jitter;
+    seeds[i] = seeded(317, i);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(positions, 3));
+  geometry.setAttribute('aSeed', new BufferAttribute(seeds, 1));
+  return geometry;
+}
 
 export function LivingCore({ position, radius, colour, energy, audio, quality, reduced, active = true }: LivingCoreProps) {
   const clock = useCosmosClock();
-  const qualitySettings = QUALITY[quality];
-  const shellRef = useRef<Mesh>(null);
-  const nucleusRef = useRef<Mesh>(null);
+  const settings = QUALITY[quality];
+  const nucleus = useRef<Mesh>(null);
   const filaments = useRef<Array<Mesh | null>>([]);
   const level = useRef(0);
   const target = useMemo(() => new Color(colour), [colour]);
+  const paths = useRef(Array.from({ length: 4 }, (_, index) => ({ phase: seeded(401, index) * Math.PI * 2, speed: .09 + seeded(409, index) * .05, tilt: .35 + seeded(419, index) * 1.1 })));
 
   const assets = useMemo(() => {
-    const shellGeometry = new IcosahedronGeometry(1, qualitySettings.detail);
-    const shellMaterial = new ShaderMaterial({
-      vertexShader: SHELL_VERTEX,
-      fragmentShader: SHELL_FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      blending: AdditiveBlending,
+    const hazeGeometry = new IcosahedronGeometry(1, settings.detail);
+    const hazeMaterial = new ShaderMaterial({
+      vertexShader: HAZE_VERTEX, fragmentShader: HAZE_FRAGMENT,
+      transparent: true, depthWrite: false, depthTest: false, blending: AdditiveBlending,
       uniforms: {
-        uTime: { value: 0 }, uEnergy: { value: 0 }, uBreath: { value: 0 }, uDeform: { value: .7 },
-        uAlpha: { value: 0 }, uBody: { value: new Color(COLOUR.cognitionDeep) }, uWarm: { value: new Color(COLOUR.forge) },
+        uTime: { value: 0 }, uEnergy: { value: 0 }, uBreath: { value: 0 }, uDeform: { value: .8 }, uAlpha: { value: 0 },
+        uBody: { value: new Color(COLOUR.cognitionDeep) }, uWarm: { value: new Color(COLOUR.forge) },
       },
     });
-    const knotGeometry = new TorusKnotGeometry(1, .012, qualitySettings.knotSegments, qualitySettings.tubeSegments, 2, 3);
-    const filamentMaterial = new ShaderMaterial({
-      vertexShader: FILAMENT_VERTEX,
-      fragmentShader: FILAMENT_FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      blending: AdditiveBlending,
-      uniforms: { uColour: { value: new Color(COLOUR.platinum) }, uAlpha: { value: 0 }, uTime: { value: 0 }, uSpeed: { value: .08 } },
+    const points = shellGeometry(settings.shellPoints);
+    const shellMaterial = new ShaderMaterial({
+      vertexShader: SHELL_VERTEX, fragmentShader: SHELL_FRAGMENT,
+      transparent: true, depthWrite: false, depthTest: false, blending: AdditiveBlending,
+      uniforms: {
+        uTime: { value: 0 }, uPixel: { value: 1 }, uEnergy: { value: 0 }, uBreath: { value: 0 }, uAlpha: { value: 0 },
+        uCold: { value: new Color(COLOUR.cognition) }, uWarm: { value: new Color(COLOUR.forge) },
+      },
     });
-    const nucleusGeometry = new EdgesGeometry(new IcosahedronGeometry(.16, 1));
-    return { shellGeometry, shellMaterial, knotGeometry, filamentMaterial, nucleusGeometry };
-  }, [qualitySettings.detail, qualitySettings.knotSegments, qualitySettings.tubeSegments]);
+    const ribbon = ribbonGeometry(settings.ribbonSegments);
+    const ribbons = Array.from({ length: settings.filaments }, () => ribbonMaterial());
+    return { hazeGeometry, hazeMaterial, points, shellMaterial, ribbon, ribbons };
+  }, [settings.detail, settings.shellPoints, settings.ribbonSegments, settings.filaments]);
 
   useEffect(() => () => {
-    assets.shellGeometry.dispose(); assets.shellMaterial.dispose();
-    assets.knotGeometry.dispose(); assets.filamentMaterial.dispose();
-    assets.nucleusGeometry.dispose();
+    assets.hazeGeometry.dispose(); assets.hazeMaterial.dispose();
+    assets.points.dispose(); assets.shellMaterial.dispose();
+    assets.ribbons.forEach(material => material.dispose());
   }, [assets]);
 
   useFrame(() => {
     const dt = clock.dt;
-    const settle = rate(clock, 2.2), slow = rate(clock, .7);
+    const settle = rate(clock, 2.2), slow = rate(clock, .6);
     level.current = damp(level.current, energy, settle, dt);
+    const energyNow = level.current;
+    const breath = Math.sin(clock.t * .55) * (reduced ? 0 : 1);
+
+    const haze = assets.hazeMaterial.uniforms;
+    haze.uTime!.value = clock.t;
+    haze.uEnergy!.value = energyNow;
+    haze.uBreath!.value = breath;
+    haze.uAlpha!.value = damp(Number(haze.uAlpha!.value), .62 + energyNow * .45 + audio * .2, settle, dt);
+    (haze.uBody!.value as Color).lerp(target, clock.snap ? 1 : 1 - Math.exp(-dt * 1.8));
+
     const shell = assets.shellMaterial.uniforms;
     shell.uTime!.value = clock.t;
-    shell.uEnergy!.value = level.current;
-    shell.uBreath!.value = Math.sin(clock.t * .55) * (reduced ? 0 : 1);
-    shell.uDeform!.value = .7 * qualitySettings.shell;
-    shell.uAlpha!.value = damp(Number(shell.uAlpha!.value), .74 + level.current * .26 + audio * .12, settle, dt);
-    (shell.uBody!.value as Color).lerp(target, clock.snap ? 1 : 1 - Math.exp(-dt * 1.8));
-    const filament = assets.filamentMaterial.uniforms;
-    filament.uTime!.value = clock.t;
-    filament.uSpeed!.value = .06 + level.current * .34;
-    filament.uAlpha!.value = damp(Number(filament.uAlpha!.value), .35 + level.current * .65, slow, dt);
-    if (shellRef.current) {
-      shellRef.current.rotation.y = clock.t * .035 * (reduced ? 0 : 1);
-      shellRef.current.rotation.x = Math.sin(clock.t * .05) * .06 * (reduced ? 0 : 1);
-    }
-    if (nucleusRef.current) {
-      nucleusRef.current.rotation.z = clock.t * .12 * (reduced ? 0 : 1);
-      const scale = 1 + level.current * .12 + audio * .18;
-      nucleusRef.current.scale.setScalar(scale);
-    }
-    filaments.current.forEach((mesh, index) => {
-      if (!mesh) return;
-      const spin = reduced ? 0 : clock.t * (.05 + index * .017) * (1 + level.current);
-      mesh.rotation.set(.7 + index * .9, spin, .3 + index * .4);
+    shell.uEnergy!.value = energyNow;
+    shell.uBreath!.value = breath;
+    shell.uAlpha!.value = damp(Number(shell.uAlpha!.value), .46 + energyNow * .5 + audio * .12, slow, dt);
+    (shell.uCold!.value as Color).lerp(target, clock.snap ? 1 : 1 - Math.exp(-dt * 1.2));
+
+    // Filaments: control points drift on slow, independent arcs inside the body.
+    assets.ribbons.forEach((material, index) => {
+      const path = paths.current[index] ?? paths.current[0]!;
+      const t = clock.t * path.speed + path.phase;
+      const reachA = .52 + Math.sin(t * 1.7) * .16;
+      const reachB = .5 + Math.cos(t * 1.3 + 1.1) * .18;
+      const lift = Math.sin(t * .9) * .3;
+      const uniforms = material.uniforms;
+      uniforms.uP0.value.set(Math.cos(t) * reachA, Math.sin(t * 1.4 + lift) * reachA * .8, Math.sin(t * .7) * .2);
+      uniforms.uP1.value.set(Math.cos(t + 2.1) * .1, Math.sin(t + 1.3) * .18, Math.cos(t * .6) * .28);
+      uniforms.uP2.value.set(Math.cos(t + 3.4) * reachB, Math.sin(t * 1.1 + 2.2) * reachB * .75, Math.sin(t * .8 + 1.7) * .22);
+      uniforms.uAlpha.value = (.22 + energyNow * .55) * (reduced ? .7 : 1);
+      uniforms.uDraw.value = .55 + Math.sin(t * .6) * .35;
+      uniforms.uPulse.value = reduced ? 0 : .35 + energyNow * .5;
+      uniforms.uPulseCount.value = 1.6;
+      uniforms.uPhase.value = (t * .35) % 1;
+      uniforms.uTime.value = clock.t;
+      uniforms.uWidth.value = .012 + index * .004;
+      (uniforms.uColour.value as Color).lerp(target, clock.snap ? 1 : 1 - Math.exp(-dt * 1.4));
     });
+
+    if (nucleus.current) {
+      const scale = 1 + energyNow * .14 + audio * .22 + (reduced ? 0 : Math.sin(clock.t * .8) * .02);
+      nucleus.current.scale.setScalar(scale);
+    }
   });
 
   return <group position={[position[0], position[1], 0]} scale={radius} visible={active}>
-    <mesh ref={shellRef} geometry={assets.shellGeometry} material={assets.shellMaterial} frustumCulled={false} />
-    {Array.from({ length: qualitySettings.filaments }, (_, index) => <mesh key={index} ref={mesh => { filaments.current[index] = mesh; }}
-      geometry={assets.knotGeometry} material={assets.filamentMaterial} scale={0.42 + index * .14} frustumCulled={false} />)}
-    <mesh ref={nucleusRef}>
-      <icosahedronGeometry args={[.13, 1]} />
-      <meshBasicMaterial color={COLOUR.ice} transparent opacity={.2} blending={AdditiveBlending} depthWrite={false} />
+    {/* Emergent boundary: particle density, not a surface. */}
+    <points geometry={assets.points} material={assets.shellMaterial} frustumCulled={false} />
+    {/* A torn rim of light where the boundary would be. */}
+    <mesh geometry={assets.hazeGeometry} material={assets.hazeMaterial} frustumCulled={false} />
+    {/* Currents inside the body. */}
+    {assets.ribbons.map((material, index) => <mesh key={index} ref={mesh => { filaments.current[index] = mesh; }}
+      geometry={assets.ribbon} material={material} frustumCulled={false} />)}
+    {/* Diffuse nucleus — no wireframe. */}
+    <mesh ref={nucleus}>
+      <sphereGeometry args={[.19, 24, 18]} />
+      <meshBasicMaterial color={COLOUR.ice} transparent opacity={.3} blending={AdditiveBlending} depthWrite={false} />
     </mesh>
-    <lineSegments geometry={assets.nucleusGeometry}>
-      <lineBasicMaterial color={COLOUR.forge} transparent opacity={.42} blending={AdditiveBlending} depthWrite={false} />
-    </lineSegments>
-    <mesh scale={.44}>
-      <sphereGeometry args={[1, 24, 18]} />
-      <meshBasicMaterial color={COLOUR.cognition} transparent opacity={.075} blending={AdditiveBlending} depthWrite={false} />
+    <mesh scale={.52}>
+      <sphereGeometry args={[1, 20, 16]} />
+      <meshBasicMaterial color={COLOUR.cognition} transparent opacity={.055} blending={AdditiveBlending} depthWrite={false} />
+    </mesh>
+    <mesh scale={.4}>
+      <sphereGeometry args={[1, 20, 16]} />
+      <meshBasicMaterial color={COLOUR.forge} transparent opacity={.035} blending={AdditiveBlending} depthWrite={false} />
     </mesh>
   </group>;
 }
