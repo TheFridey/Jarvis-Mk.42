@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "principals": "one principal per import; the CLI principal selects it",
+  "note": "Synthetic pack used to qualify the import path. No real owner data. Imported as pending; nothing here is approved by being present.",
+  "records": [
+    {
+      "recordId": "mem_synthetic_response_length",
+      "category": "communication",
+      "subject": "response-length-preference",
+      "statement": "Prefers concise technical summaries by default, and a full engineering report when explicitly requested.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.9,
+      "privacyClass": "INTERNAL"
+    },
+    {
+      "recordId": "mem_synthetic_evening_working",
+      "category": "constraint",
+      "subject": "working-hours",
+      "statement": "Keeps evenings for family; deep work happens earlier in the day.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.8,
+      "privacyClass": "SENSITIVE"
+    },
+    {
+      "recordId": "mem_synthetic_first_paid_client",
+      "category": "milestone",
+      "subject": "first-paid-client",
+      "statement": "Delivered a first paid client deployment, then rebuilt the pipeline around repeatable delivery rather than one-off work.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.85,
+      "privacyClass": "INTERNAL"
+    },
+    {
+      "recordId": "mem_synthetic_ambition_independence",
+      "category": "ambition",
+      "subject": "financial-independence",
+      "statement": "Building toward a business that does not depend on any single client for its income.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.9,
+      "privacyClass": "SENSITIVE"
+    },
+    {
+      "recordId": "mem_synthetic_decision_platform",
+      "category": "decision",
+      "subject": "platform-choice",
+      "statement": "Chose Next.js with PostgreSQL over a no-code stack so the products stay maintainable and ownable.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.95,
+      "privacyClass": "INTERNAL"
+    },
+    {
+      "recordId": "mem_synthetic_project_jarvis",
+      "category": "project",
+      "subject": "assistant-project",
+      "statement": "Building a locally operated assistant that runs on his own machine, with authority boundaries enforced by a Kernel rather than by the model.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.9,
+      "privacyClass": "INTERNAL"
+    },
+    {
+      "recordId": "mem_synthetic_interest_music",
+      "category": "interest",
+      "subject": "eighties-music",
+      "statement": "Enjoys eighties British pop, including Duran Duran.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.7,
+      "privacyClass": "INTERNAL"
+    },
+    {
+      "recordId": "mem_synthetic_skill_shipping",
+      "category": "skill",
+      "subject": "shipping-velocity",
+      "statement": "Comfortable shipping full-stack products quickly; commercial distribution, not development, is usually the constraint.",
+      "source": "synthetic-legacy-example",
+      "sourceType": "synthetic",
+      "confidence": 0.85,
+      "privacyClass": "INTERNAL"
+    }
+  ]
+}

@@ -54,6 +54,44 @@ export type ExclusionReason =
   | 'wrong_principal' | 'revoked' | 'superseded' | 'not_approved' | 'rejected'
   | 'cloud_ineligible' | 'ceiling_exceeded' | 'irrelevant' | 'budget';
 
+/**
+ * Broad conversational requests that refer to a kind of memory rather than words inside one.
+ * The register is a relevance hint: it widens *what may be considered*, and nothing else — every
+ * record still passes principal, approval, class and disclosure checks.
+ */
+export function categoryHintFor(input: string): MemoryCategory[] | undefined {
+  const text = input.toLowerCase();
+  if (/\b(hype|big me up|pump me up)\b/.test(text)) {
+    return ['milestone', 'business', 'project', 'ambition', 'history', 'decision'];
+  }
+  if (/\bhow far (have|has) (we|it) come\b|\bwhat have we (built|done)\b|\bprogress so far\b/.test(text)) {
+    return ['milestone', 'decision', 'project', 'business', 'history'];
+  }
+  if (/\bwhat should we (work|do|focus)\b|\bwhat'?s next\b|\bplan for (tonight|today|tomorrow)\b/.test(text)) {
+    return ['project', 'decision', 'constraint', 'ambition'];
+  }
+  if (/\bwhat do you know about me\b|\bwhat have you (got|remember) on me\b/.test(text)) {
+    return ['preference', 'communication', 'ambition', 'business', 'project', 'skill'];
+  }
+  return undefined;
+}
+
+/**
+ * An explicit instruction to remember something, or undefined.
+ *
+ * Only an imperative counts. "Imagine I preferred..." and "don't remember that" are not requests
+ * to store anything, and a hypothetical must never become a fact about the owner.
+ */
+export function rememberRequest(input: string): string | undefined {
+  const text = input.trim();
+  if (!/^(?:please\s+)?remember\b/i.test(text)) return undefined;
+  if (/\b(?:don'?t|do not|never|stop)\b/i.test(text)) return undefined;
+  const body = text.replace(/^(?:please\s+)?remember(?:\s+that)?[:,\s]+/i, '').trim();
+  if (body.length < 3) return undefined;
+  if (/\b(?:imagine|pretend|hypothetical(?:ly)?|suppose|what if|if i said)\b/i.test(body)) return undefined;
+  return body.slice(0, 2000);
+}
+
 export interface SelectionInput {
   records: MemoryRecord[];
   query: string;
@@ -61,6 +99,8 @@ export interface SelectionInput {
   locality: 'local' | 'cloud';
   limit?: number;
   minScore?: number;
+  /** Categories that count as relevant for a broad request, before lexical scoring. */
+  categories?: MemoryCategory[];
 }
 
 export interface SelectedMemory { record: MemoryRecord; score: number }
@@ -116,7 +156,11 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
       if (!classPermitsCloud(record)) { excluded.push({ id: record.id, reason: 'cloud_ineligible' }); continue; }
       if (record.privacyClass === 'RESTRICTED' || record.privacyClass === 'SENSITIVE') { excluded.push({ id: record.id, reason: 'ceiling_exceeded' }); continue; }
     }
-    const score = memoryRelevance(record, input.query);
+    const lexical = memoryRelevance(record, input.query);
+    // A broad request is answered by the kind of record it asks for, not by the words in it,
+    // but it never becomes an excuse to include a weakly-scored one.
+    const categoryFit = input.categories?.includes(record.category) ? 0.75 : 0;
+    const score = Math.max(lexical, categoryFit + Math.min(lexical, 0.2));
     if (score < minScore) { excluded.push({ id: record.id, reason: 'irrelevant' }); continue; }
     selected.push({ record, score });
   }

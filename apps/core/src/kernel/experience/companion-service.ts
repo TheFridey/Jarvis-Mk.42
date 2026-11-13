@@ -1,4 +1,4 @@
-import { selectMemories, memoryContextLines } from './personal-memory.ts';
+import { categoryHintFor, memoryContextLines, rememberRequest, selectMemories } from './personal-memory.ts';
 import type { PersonalMemoryStore } from './personal-memory-store.ts';
 import type { DomainService } from '../domains/domain-service.ts';
 import { currentDomainScope, domainFor, domainReadSql } from '../domains/scope.ts';
@@ -100,7 +100,7 @@ export class CompanionService {
       const memoryRecords = this.d.memory ? await this.d.memory.loadForSelection(node.principalId) : [];
       const memoryFor = (locality: 'local' | 'cloud'): string => {
         if (!memoryRecords.length) return '';
-        const { selected } = selectMemories({ records: memoryRecords, query: command.input, principalId: node.principalId, locality });
+        const { selected } = selectMemories({ records: memoryRecords, query: command.input, principalId: node.principalId, locality, categories: categoryHintFor(command.input) });
         if (!selected.length) return '';
         return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
       };
@@ -111,7 +111,23 @@ export class CompanionService {
       this.d.invalidate();
       try{
         // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        const response=await this.d.cognize({requestId:turnId,domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input:decision?.allow?input+memoryCloud:input+memoryLocal,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),...(decision?.allow?{locality:'cloud-ok' as const,cloudAllowed:true,requiredProvider:decision.provider,preferredModels:[decision.model],contextCeiling:decision.ceiling,authorisation:{grantId:decision.grantId,conversationId:turn!.conversation_id,provider:decision.provider}}:(mobile||(conversationId&&!publicWeb))?{locality:'local' as const,cloudAllowed:false}:{locality:command.locality??'prefer-local'}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
+        // Revalidate at the dispatch boundary: a grant that is still valid does not mean a
+      // particular memory is still eligible. Re-select from fresh rows so a revocation, deletion
+      // or supersession that landed during compilation cannot be transmitted.
+      const memoryVerified = await (async (): Promise<string> => {
+        if (!this.d.memory) return decision?.allow ? memoryCloud : memoryLocal;
+        const fresh = await this.d.memory.loadForSelection(node.principalId);
+        const { selected } = selectMemories({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', categories: categoryHintFor(command.input) });
+        if (!selected.length) return '';
+        return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
+      })();
+      // An explicit "remember this" creates a pending candidate — never an approval, and never a
+      // claim of storage the Kernel did not make.
+      const recall = rememberRequest(command.input);
+      if (recall && this.d.memory) {
+        await this.d.memory.propose({ id: `mem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, principalId: node.principalId, category: 'preference', subject: 'Owner stated preference', statement: recall, source: 'conversation-request', confidence: 0.9, privacyClass: 'SENSITIVE', cloudEligible: false });
+      }
+      const response=await this.d.cognize({requestId:turnId,domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input:input+memoryVerified,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),...(decision?.allow?{locality:'cloud-ok' as const,cloudAllowed:true,requiredProvider:decision.provider,preferredModels:[decision.model],contextCeiling:decision.ceiling,authorisation:{grantId:decision.grantId,conversationId:turn!.conversation_id,provider:decision.provider}}:(mobile||(conversationId&&!publicWeb))?{locality:'local' as const,cloudAllowed:false}:{locality:command.locality??'prefer-local'}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},privacy_class=${classificationForTurn(result.privacyClass)},privacy_regime=${decision?.allow?'CLOUD_PERMITTED':'PRIVATE'},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};
