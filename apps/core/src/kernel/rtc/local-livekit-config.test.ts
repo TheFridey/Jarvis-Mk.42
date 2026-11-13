@@ -19,10 +19,11 @@ describe('local LiveKit credentials', () => {
   it('binds the server to loopback and disables external IP discovery', () => {
     const yaml = renderLivekitYaml({ apiKey: 'APIxxxxxxxxxxxx', apiSecret: 's'.repeat(43) });
     expect(yaml).toContain('bind_addresses:');
-    expect(yaml).toContain('127.0.0.1');
+    // Inside a container a published port forwards to eth0, so the bind must be wildcard;
+    // host exposure is limited by rtc.compose.yml publishing 127.0.0.1:7880, not by this bind.
+    expect(yaml).toContain('0.0.0.0');
     expect(yaml).toContain('use_external_ip: false');
     expect(yaml).toContain('port: 7880');
-    expect(yaml).not.toContain('0.0.0.0');
   });
 
   it('writes the three variables the Kernel actually reads', () => {

@@ -9,7 +9,7 @@ import { inspectAsrConfig, type AsrReadiness, type WhisperCppConfig } from './wh
  * API that might not be local.
  */
 export const DEFAULT_MODEL_ROOT = 'D:\\AI\\Models\\SpeechRecognition';
-export const DEFAULT_RUNTIME_ROOT = 'D:\\AI\\Runtimes';
+export const DEFAULT_RUNTIME_ROOT = 'D:\\AI\\Runtimes\\whisper-arm64\\Release';
 export const DEFAULT_SPEECH_DATA = 'D:\\JarvisData\\Speech';
 
 export type AsrEngine = 'whisper-cpp' | 'windows' | 'none';
@@ -35,7 +35,7 @@ export function resolveAsrConfig(env: NodeJS.ProcessEnv = process.env): Resolved
   }
 
   const config: WhisperCppConfig = {
-    executable: env.JARVIS_ASR_EXECUTABLE?.trim() || join(env.JARVIS_AI_ROOT ?? DEFAULT_RUNTIME_ROOT, 'whisper', 'whisper-cli.exe'),
+    executable: env.JARVIS_ASR_EXECUTABLE?.trim() || join(env.JARVIS_AI_ROOT ?? DEFAULT_RUNTIME_ROOT, 'whisper-cli.exe'),
     modelPath: env.JARVIS_ASR_MODEL_PATH?.trim() || join(DEFAULT_MODEL_ROOT, 'ggml-small.en.bin'),
     tempDir: env.JARVIS_ASR_TEMP_DIR?.trim() || join(env.JARVIS_DATA_ROOT ?? DEFAULT_SPEECH_DATA, 'tmp'),
     language: env.JARVIS_ASR_LANGUAGE?.trim() || 'en',

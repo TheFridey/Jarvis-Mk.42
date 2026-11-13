@@ -36,7 +36,7 @@ describe('speech configuration from the environment', () => {
   it('4. points at D: by default for both the engine and the model', () => {
     const resolved = resolveAsrConfig({ JARVIS_ASR_ENGINE: 'whisper-cpp' });
     expect(resolved.config?.modelPath).toBe('D:\\AI\\Models\\SpeechRecognition\\ggml-small.en.bin');
-    expect(resolved.config?.executable).toBe('D:\\AI\\Runtimes\\whisper\\whisper-cli.exe');
+    expect(resolved.config?.executable).toBe('D:\\AI\\Runtimes\\whisper-arm64\\Release\\whisper-cli.exe');
     expect(resolved.config?.tempDir).toBe('D:\\JarvisData\\Speech\\tmp');
   });
 

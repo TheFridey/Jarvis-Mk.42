@@ -121,6 +121,16 @@ export function cleanTranscript(stdout: string): string {
 
 const MAX_STDOUT_BYTES = 64 * 1024;
 
+/** Below this RMS the utterance is treated as silence. -48 dBFS: a quiet room, no speech. */
+export const ASR_SILENCE_RMS = 0.004;
+
+export function rmsOf(frames: readonly AudioFrame[]): number {
+  let sum = 0;
+  let count = 0;
+  for (const frame of frames) for (const sample of frame.samples) { sum += sample * sample; count += 1; }
+  return count ? Math.sqrt(sum / count) : 0;
+}
+
 export class WhisperCppAsrAdapter implements AsrAdapter {
   constructor(private readonly config: WhisperCppConfig) {}
 
@@ -136,6 +146,10 @@ export class WhisperCppAsrAdapter implements AsrAdapter {
     if (signal.aborted) throw new Error('speech recognition cancelled');
     const readiness = this.readiness();
     if (!readiness.ready) throw new Error(readiness.detail);
+
+    // Whisper hallucinates words on silence ("you", "thank you"). A quiet utterance is not
+    // an utterance: return nothing and spend no CPU rather than invent a command.
+    if (rmsOf(frames) < ASR_SILENCE_RMS) return '';
 
     const maxSeconds = this.config.maxSeconds ?? ASR_MAX_SECONDS;
     const wav = encodeWav(frames, maxSeconds);
@@ -191,4 +205,42 @@ export class WhisperCppAsrAdapter implements AsrAdapter {
       });
     });
   }
+}
+
+/**
+ * Decode a 16-bit PCM WAV into frames. Used for file-based ingestion (a recorded utterance,
+ * a test fixture) and by the real-engine qualification test. Deliberately strict: a format
+ * we do not understand is an error, not something to guess at.
+ */
+export function decodeWav(buffer: Uint8Array): AudioFrame[] {
+  const view = Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  if (view.length < 44 || view.subarray(0, 4).toString() !== 'RIFF' || view.subarray(8, 12).toString() !== 'WAVE') {
+    throw new Error('not a WAV file');
+  }
+  let offset = 12;
+  let format: { channels: number; sampleRate: number; bits: number } | undefined;
+  let data: { start: number; length: number } | undefined;
+  while (offset + 8 <= view.length) {
+    const id = view.subarray(offset, offset + 4).toString();
+    const size = view.readUInt32LE(offset + 4);
+    const body = offset + 8;
+    if (id === 'fmt ') {
+      format = { channels: view.readUInt16LE(body + 2), sampleRate: view.readUInt32LE(body + 4), bits: view.readUInt16LE(body + 14) };
+    } else if (id === 'data') {
+      data = { start: body, length: Math.min(size, view.length - body) };
+    }
+    offset = body + size + (size % 2);
+  }
+  if (!format || !data) throw new Error('WAV is missing fmt or data');
+  if (format.bits !== 16) throw new Error(`only 16-bit PCM is supported, got ${format.bits}-bit`);
+  if (format.channels !== 1) throw new Error(`only mono audio is supported, got ${format.channels} channels`);
+  if (format.sampleRate !== ASR_SAMPLE_RATE) throw new Error(`audio must be ${ASR_SAMPLE_RATE} Hz, got ${format.sampleRate}`);
+
+  const count = Math.floor(data.length / 2);
+  const samples = new Float32Array(count);
+  for (let index = 0; index < count; index++) {
+    const value = view.readInt16LE(data.start + index * 2);
+    samples[index] = value < 0 ? value / 0x8000 : value / 0x7fff;
+  }
+  return [{ samples, sampleRate: ASR_SAMPLE_RATE, capturedAt: Date.now() }];
 }

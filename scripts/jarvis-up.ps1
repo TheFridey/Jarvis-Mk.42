@@ -171,6 +171,9 @@ if ($gatewayConfigured) {
 } else { Warn 'gateway not started - no provider key' }
 
 if ($gatewayConfigured) { $env:JARVIS_MODEL_CLOUD_ALLOWED = '1' } else { $env:JARVIS_MODEL_CLOUD_ALLOWED = '0' }
+# RTC is constructed only when this flag is set; without it the Kernel reports rtc OFFLINE
+# even with valid LiveKit credentials in the environment.
+if ($rtcConfigured) { $env:JARVIS_RTC_ENABLED = '1' } else { $env:JARVIS_RTC_ENABLED = '0' }
 $tracked += Start-Tracked 'kernel' 'node' @($pnpmPath, '--filter', '@jarvis/core', 'start')
 Ok 'kernel starting (log: .logs/kernel.log)'
 

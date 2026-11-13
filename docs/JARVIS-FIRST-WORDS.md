@@ -1,37 +1,57 @@
-# JARVIS · First Words — installation and the one blocker
+# JARVIS · First Words
 
-Baseline `487b93b` → this pass. Mark 42 untouched at `9c1b880`, V2 untouched. No
-microphone opened, no paid inference, no credential read.
+Baseline `0d9dfba` → this pass. Mark 42 untouched at `9c1b880`, V2 untouched. No microphone
+opened, no paid inference, no credential read.
 
-## The short version
+## Result: the machine now transcribes speech, natively
 
-The engine and the model are installed on D: and the model is hash-verified against the
-publisher. The official whisper.cpp Windows binary **cannot run on this machine**, and that
-is now proven rather than assumed: it is an x86-64 PE, and on Windows ARM64 it exits
-immediately during CPU feature detection before it even parses its arguments. A native
-ARM64 build needs a compiler (clang-cl/CMake/Ninja), which the mission forbids installing
-without your approval.
+Upstream shipped Windows ARM64 builds in v1.9.4+ (the release asset list is on the nightly
+tag that v1.9.5 links to, not on the stable tag itself). Installed
+`whisper-bin-win-cpu-arm64.zip` from tag **b5454**: every binary and DLL reports PE machine
+`0xAA64`, i.e. native ARM64, not emulation.
 
-So the honest state: **everything except the compiler is in place.** One approval unblocks a
-real, local, offline transcription test with the fixture I already generated.
+Real transcription through the real engine, on a synthetic 8.34 s fixture:
+
+```
+"Hello Jarvis. This is a microphone check. The fictional project code name is Aurora."
+fixture text: "…the fictional project codename is Aurora."      (only "code name" vs "codename")
+elapsed 1.44–1.46 s        RTF 0.17 (≈5.9x realtime)
+peak working set 296 MB    exit 0    model 141 MiB on disk
+```
+
+Silence previously produced the classic Whisper hallucination ("you"). The adapter now gates
+on RMS (−48 dBFS): a quiet utterance returns `''` and spends no CPU rather than inventing a
+command.
+
+## Also fixed: RTC was never actually constructible
+
+Two defects, both mine, both now proven by a live `rtc HEALTHY`:
+
+1. `JARVIS_RTC_ENABLED=1` is required for the Kernel to construct the RTC service at all —
+   undocumented in my earlier runbooks, so `rtc` stayed `OFFLINE` with valid credentials in
+   the environment. The launcher now sets it when `livekit.env` exists.
+2. The generated `livekit.yaml` bound `127.0.0.1` **inside the container**, where the
+   published port forwards to `eth0` and finds nothing. It now binds `0.0.0.0` in-container;
+   host exposure stays loopback-only because `rtc.compose.yml` publishes `127.0.0.1:7880`.
+   Verified: `POST /twirp/livekit.RoomService/ListRooms` → `401` (reachable, unauthenticated).
+
+Live state: `postgres, redis, event-bus, nats, world-model, memory-subsystem, rtc` all
+HEALTHY; `model-gateway` OFFLINE until a Gateway runs with your key.
 
 ## Classifications
 
 | Workstream | Result | Basis |
 |---|---|---|
-| GATEWAY_READINESS | **BLOCKED_EXTERNAL** | Kernel healthy, but no Gateway process exists (`7430` closed, `model-gateway OFFLINE`). Your key is in your shell, not in a running process. |
-| FIRST_TURN_INFERENCE / MULTI_TURN_INFERENCE | **BLOCKED_EXTERNAL** | No gateway ⇒ no provider. |
-| ASR_EXECUTABLE | **BLOCKED_EXTERNAL** | Official v1.8.0 binary installed at `D:\AI\Runtimes\whisper\Release\main.exe`; **exits 1 with no output on ARM64** (x64-only, AVX). |
-| ASR_MODEL | **VERIFIED_LIVE** | `ggml-base.en.bin`, 147,964,211 bytes, SHA-256 matches HuggingFace's published LFS OID exactly. |
-| REAL_ASR_SYNTHETIC_AUDIO | **BLOCKED_EXTERNAL** | Cannot run the engine. Fixture audio is ready and waiting. |
-| AUDIOFRAME_INGESTION | **NOT_ATTEMPTED** | Needs a capture source; capture is owned by the sidecar/Windows path. |
-| TRANSCRIPT_CONVERSATION_INTEGRATION | **PARTIAL** | Existing `VoiceEngine` → Kernel `asr.final` path unchanged; not exercised. |
-| RTC_CONFIGURATION | **NOT_RUN** | Generator exists and is tested; you haven't invoked it. |
-| RTC_HEALTH | **BLOCKED_EXTERNAL** | `rtc OFFLINE` — no credentials in the Kernel's environment. |
-| KOKORO_LOCAL_ASSETS | **NOT_ATTEMPTED** | Requires the asset set and an approved serving path. |
-| REAL_SYNTHESIS | **PARTIAL** | System.Speech produced a real 16 kHz mono WAV (used as the ASR fixture). Kokoro not exercised. |
-| PHYSICAL_MICROPHONE / PHYSICAL_TRANSCRIPTION / AUDIBLE_PLAYBACK / FULL_LOOP | **NOT_ATTEMPTED** | Yours to perform. |
-| RESOURCE_QUALIFICATION | **PARTIAL** | Disk and RAM measured; no engine to measure. |
+| NATIVE_ARM64_ASR | **VERIFIED_LIVE** | Official `whisper-bin-win-cpu-arm64.zip` (tag b5454, 4,371,193 bytes, SHA-256 `28c37e7b…d615ff6d`); every exe/DLL is PE `0xAA64`. |
+| REAL_CPU_TRANSCRIPTION | **VERIFIED_LIVE** | Synthetic 8.34 s fixture transcribed accurately through `whisper-cli.exe`; RTF 0.17; 296 MB peak. |
+| ADRENO_ACCELERATION | **NOT_ATTEMPTED** | `whisper-bin-win-opencl-adreno-arm64.zip` exists and is downloaded-ready; CPU already meets the target, and OpenCL device support was not verified. |
+| AUDIOFRAME_INGESTION | **PARTIAL** | `decodeWav` now turns a 16 kHz WAV into `AudioFrame`s and the adapter consumes real frames; a live capture source is still the sidecar/Windows path. |
+| TRANSCRIPT_DELIVERY | **PARTIAL** | `VoiceEngine` → Kernel `asr.final` path unchanged and unexercised with real speech. |
+| GATEWAY_READINESS | **BLOCKED_EXTERNAL** | No Gateway process; `7430` closed, `model-gateway OFFLINE`. Restart from your key-bearing shell. |
+| RTC_HEALTH | **VERIFIED_LIVE** | `rtc HEALTHY` on the running Kernel after the two fixes above. |
+| KOKORO_LOCAL_ASSETS | **NOT_ATTEMPTED** | Requires asset staging plus a worker change; moving it half-way would leave weights on C: and claim otherwise. |
+| REAL_SYNTHESIS | **PARTIAL** | System.Speech produced the 16 kHz fixture; Kokoro not exercised. |
+| PHYSICAL_MICROPHONE / AUDIBLE_PLAYBACK / FULL_VOICE_CONVERSATION | **NOT_ATTEMPTED** | Yours to perform. |
 
 ## A — Live runtime baseline, measured
 
@@ -90,50 +110,32 @@ old environment — `-Down` first.
 Licence: whisper.cpp is MIT; ggml models from `ggerganov/whisper.cpp` are MIT with the
 OpenAI Whisper weights licence. Neither was committed to Git.
 
-## C — Why the engine does not run here
+## C — The engine, and what changed
 
-```
-> .\main.exe --help                      → prints help (works)
-> .\main.exe -m <missing model> -f …     → exits 1, no message
-> .\main.exe -m <real model> -f <wav>    → exits 1, no message
+The v1.8.0 x64 binary could not run: it dies in startup CPU dispatch (PE `0x8664` on an
+ARMv8 host, exit 1 with no output even for a nonexistent model). That finding stands and is
+why the ARM64 asset matters.
 
-PE machine: 0x8664 (x86-64)      Host: ARMv8 (Snapdragon X Plus)
-```
+The upstream release listing is the trap: the stable tags (`v1.9.4`, `v1.9.5`) carry **zero
+assets**; the Windows ARM64 builds live on the nightly tag that each stable release body
+links to (`b5454` for v1.9.5). Verified through the GitHub API, then downloaded and checked
+byte-for-byte:
 
-It never reaches argument validation, so the failure is in startup CPU dispatch: the x64
-build uses AVX-family instructions that Windows' x64-on-ARM64 emulation does not provide.
-The upstream project has acknowledged that official releases are x64-only and that a native
-ARM64 build requires `clang-cl` (MSVC miscompiles ARM64 NEON intrinsics for this codebase).
+| Asset | Size | SHA-256 |
+|---|---|---|
+| `whisper-bin-win-cpu-arm64.zip` (b5454) | 4,371,193 | `28c37e7b598c3d9bbfef94f3bd67f2ee6f12b7c86f3da5edcf5e4308d615ff6d` |
 
-What is *not* blocked: the adapter, its validation, its exit-code/timeout/cancel handling,
-and the model. Only the executable is.
+Installed at `D:\AI\Runtimes\whisper-arm64\Release\` (the old x64 tree is kept at
+`D:\AI\Runtimes\whisper` for comparison). `whisper-cli.exe -m … -f … -l en -t 4 -nt -np`
+is the supported invocation; the adapter's flags and stdout parsing work unchanged, and
+`read_audio_data:` chatter goes to stderr, not into the transcript.
 
-## D — The one decision I need from you
+## D — What is still yours to do
 
-**Option 1 (recommended): approve a native ARM64 build toolchain.**
-Installs LLVM/clang-cl + CMake + Ninja (WinGet or the VS Build Tools "C++ Clang" component),
-then builds pinned tag `v1.8.0` natively with NEON:
-
-```powershell
-winget install --id Kitware.CMake -e
-winget install --id Ninja-build.Ninja -e
-winget install --id LLVM.LLVM -e
-git clone --depth 1 --branch v1.8.0 https://github.com/ggml-org/whisper.cpp.git D:\AI\Runtimes\whisper-src
-cmake -S D:\AI\Runtimes\whisper-src -B D:\AI\Runtimes\whisper-src\build -G Ninja `
-  -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release `
-  -DGGML_NATIVE=ON -DGGML_SVE=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
-cmake --build D:\AI\Runtimes\whisper-src\build --config Release
-```
-Then set `JARVIS_ASR_EXECUTABLE` to the built `whisper-cli.exe`. Expected: base.en on a
-Snapdragon X Plus should transcribe a 9-second clip in roughly 1–3 s with 3–4 threads; that
-is an expectation, not a measurement, and it will be measured.
-
-**Option 2: skip whisper, use Windows speech.** It works today and needs nothing, but
-dictation quality is poor: on the very fixture above, System.Speech returned `Police` with
-confidence `0.0024` for a clean 9-second en-GB utterance. I would not build the assistant's
-voice on that.
-
-**Option 3: nothing.** Text conversation remains the interface; voice stays unavailable.
+1. **Gateway**: start the stack from the PowerShell session holding your key (sequence in
+   `docs/JARVIS-GENESIS-LIVE.md` §C); then `model-gateway` goes HEALTHY and text
+   conversation works.
+2. **Microphone**: press the control and speak. Nothing above used a microphone.
 
 ## E — Fixture pipeline that is ready
 
