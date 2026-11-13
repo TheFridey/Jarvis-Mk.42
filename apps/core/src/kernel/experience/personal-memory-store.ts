@@ -80,16 +80,47 @@ export class PersonalMemoryStore {
 
   /** Corrections supersede rather than overwrite: the old statement stays auditable. */
   async correct(previousId: string, replacement: NewMemory): Promise<string> {
-    await this.propose(replacement);
+    // Order matters: the partial unique index allows one live statement per subject, so the
+    // old record must step aside before the replacement can exist. If the insert fails, the
+    // old record is restored rather than left orphaned.
     await this.sql`
       update experience.personal_memories
          set superseded_by = ${replacement.id}, revoked_at = now(), revoked_reason = 'superseded'
-       where id = ${previousId}`;
+       where id = ${previousId} and revoked_at is null`;
+    try {
+      await this.propose(replacement);
+    } catch (error) {
+      await this.sql`
+        update experience.personal_memories
+           set superseded_by = null, revoked_at = null, revoked_reason = null
+         where id = ${previousId} and superseded_by = ${replacement.id}`;
+      throw error;
+    }
+    // The owner performed the correction, so the replacement is approved by that act — it does
+    // not go back into the review queue it just came out of.
+    await this.approve(replacement.id, { privacyClass: replacement.privacyClass, cloudEligible: replacement.cloudEligible ?? false });
     return replacement.id;
   }
 
   async revoke(id: string, reason: string): Promise<void> {
     await this.sql`update experience.personal_memories set revoked_at = now(), revoked_reason = ${reason} where id = ${id} and revoked_at is null`;
+  }
+
+  /** Cloud disclosure is per record and reversible without touching the statement. */
+  async setCloudEligible(id: string, eligible: boolean): Promise<void> {
+    await this.sql`update experience.personal_memories set cloud_eligible = ${eligible} where id = ${id} and revoked_at is null`;
+  }
+
+  /**
+   * Deletion removes the statement itself. The row survives as an audit fact ("a memory was
+   * deleted here") because a tombstone that still holds the sentence is revocation, not deletion.
+   */
+  async deleteContent(id: string): Promise<void> {
+    await this.sql`
+      update experience.personal_memories
+         set statement = '[deleted by owner]', subject = '[deleted]', cloud_eligible = false,
+             revoked_at = coalesce(revoked_at, now()), revoked_reason = coalesce(revoked_reason, 'deleted')
+       where id = ${id}`;
   }
 
   /** Everything selection may consider: approved, live and owned by this principal. */

@@ -41,6 +41,7 @@ import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
 import { CompanionService } from '../experience/companion-service.ts';
 import { verifyBeforeDispatch, type ConversationGrant } from '../experience/conversation-privacy.ts';
 import { UtteranceService } from '../voice/utterance-service.ts';
+import { PersonalMemoryStore } from '../experience/personal-memory-store.ts';
 import { synthesiseToWav } from '../voice/speech-synthesis.ts';
 import { resolveAsrConfig, WhisperCppAsrAdapter } from '@jarvis/speech';
 
@@ -492,7 +493,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, business, ids, nodeId: config.nodeId, systemTelemetry, voiceAudio:()=>voice.audioSnapshot(),observeScene:(principalId,nodeId,observation)=>perception.observeScene(principalId,nodeId,observation),referentFocus:()=>perception.focus(config.bootstrapPrincipalId) });
   perception.setSceneProvider(async principalId=>{const snapshot=await desktop.snapshot();if(snapshot.principalId!==principalId)throw new Error('scene principal mismatch');return snapshot.scene;});
   const experience = new ExperienceProjection({ streamId:ids.ulid(), build:()=>desktop.snapshot(), reportError:()=>{void structuredLog({component:'experience-projector',node:config.nodeId,event:'projection.failed',severity:'ERROR'});} });
-  companion=new CompanionService({domains,sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene'])});
+  companion=new CompanionService({domains,sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene']),memory:new PersonalMemoryStore(pg.sql as never)});
   desktop.setCompanion(companion);
   const offExperienceEvents = events.onAppended((event)=>experience.invalidate(channelsForEvent(event.type)));
   const nodeIngress=new NodeIngress({sql:pg.sql,tx,nodes,store:nodeStore,credentials,accessStore,sessions,events,clock,id:()=>ids.ulid(),status:async()=>({mode:await mode.current(),overallHealth:health.report().overall}),health:async(nodeId,online)=>{health.register({subsystem:`node:${nodeId}`,critical:false});await health.heartbeat({subsystem:`node:${nodeId}`,status:online?'HEALTHY':'OFFLINE',message:online?'authenticated heartbeat':'node unavailable'});},reportError:()=>{void structuredLog({component:'node-ingress',node:config.nodeId,event:'transport.failed',severity:'ERROR'});}});

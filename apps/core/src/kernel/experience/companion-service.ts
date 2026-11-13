@@ -1,3 +1,5 @@
+import { selectMemories, memoryContextLines } from './personal-memory.ts';
+import type { PersonalMemoryStore } from './personal-memory-store.ts';
 import type { DomainService } from '../domains/domain-service.ts';
 import { currentDomainScope, domainFor, domainReadSql } from '../domains/scope.ts';
 import { desktopRoute } from '../cognition/desktop-route.ts';
@@ -29,7 +31,7 @@ export class CompanionService {
   private gate=new KeyedMutex();
   private snapshotPending?:Promise<DesktopKernelSnapshot>;
   private snapshot(){return this.snapshotPending??=this.d.snapshot().finally(()=>{this.snapshotPending=undefined;});}
-  constructor(private d:{domains?:DomainService;sql:Sql;snapshot:()=>Promise<DesktopKernelSnapshot>;cognize:(r:CognitionRequest)=>Promise<CognitionResponse>;now:()=>string;id:()=>string;invalidate:()=>void}){}
+  constructor(private d:{domains?:DomainService;sql:Sql;snapshot:()=>Promise<DesktopKernelSnapshot>;cognize:(r:CognitionRequest)=>Promise<CognitionResponse>;now:()=>string;id:()=>string;invalidate:()=>void;memory?:PersonalMemoryStore}){}
   async displays(principalId:string){const rows=await this.d.sql<{node_id:string}[]>`select node_id from nodes.registry where principal_id=${principalId} and node_type='display' and trust_tier in ('owned-mobile','owned-secure') and status='connected' order by node_id limit 16`;return rows.map(row=>({id:row.node_id}));}
   async picture(node:RegisteredNode):Promise<CompanionPicture>{
     const snapshot=await this.snapshot();const picture=companionPicture(snapshot,node);
@@ -93,12 +95,23 @@ export class CompanionService {
       // Cloud turns carry only the turns written under the grant; a private (or ungranted)
       // conversation keeps the existing local behaviour of the last six turns.
       const history=(decision?.allow?priorTurns.filter(r=>allowed.has(r.created_at)):priorTurns).slice(-6);
+      // Approved memory, filtered for where this turn will actually run. Relevance decides:
+      // a greeting retrieves nothing, and a private record never reaches a cloud turn.
+      const memoryRecords = this.d.memory ? await this.d.memory.loadForSelection(node.principalId) : [];
+      const memoryFor = (locality: 'local' | 'cloud'): string => {
+        if (!memoryRecords.length) return '';
+        const { selected } = selectMemories({ records: memoryRecords, query: command.input, principalId: node.principalId, locality });
+        if (!selected.length) return '';
+        return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
+      };
+      const memoryLocal = memoryFor('local');
+      const memoryCloud = memoryFor('cloud');
       const input=turn!.cognition_input??(history.length&&!publicWeb?JSON.stringify({conversation:history.map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
       if(!turn!.cognition_input)await this.d.sql`update experience.conversation_turns set cognition_input=${input} where turn_id=${turnId}`;
       this.d.invalidate();
       try{
         // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        const response=await this.d.cognize({requestId:turnId,domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),...(decision?.allow?{locality:'cloud-ok' as const,cloudAllowed:true,requiredProvider:decision.provider,preferredModels:[decision.model],contextCeiling:decision.ceiling,authorisation:{grantId:decision.grantId,conversationId:turn!.conversation_id,provider:decision.provider}}:(mobile||(conversationId&&!publicWeb))?{locality:'local' as const,cloudAllowed:false}:{locality:command.locality??'prefer-local'}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
+        const response=await this.d.cognize({requestId:turnId,domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input:decision?.allow?input+memoryCloud:input+memoryLocal,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),...(decision?.allow?{locality:'cloud-ok' as const,cloudAllowed:true,requiredProvider:decision.provider,preferredModels:[decision.model],contextCeiling:decision.ceiling,authorisation:{grantId:decision.grantId,conversationId:turn!.conversation_id,provider:decision.provider}}:(mobile||(conversationId&&!publicWeb))?{locality:'local' as const,cloudAllowed:false}:{locality:command.locality??'prefer-local'}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},privacy_class=${classificationForTurn(result.privacyClass)},privacy_regime=${decision?.allow?'CLOUD_PERMITTED':'PRIVATE'},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};

@@ -22,7 +22,7 @@ export const MEMORY_CLOUD_CEILING: PrivacyClass = 'INTERNAL';
 
 export const MEMORY_CONTEXT_LIMIT = 6;
 /** Below this lexical score a memory is noise, not context. */
-export const MEMORY_MIN_SCORE = 0.5;
+export const MEMORY_MIN_SCORE = 0.4;
 
 export type PrivacyClass = 'PUBLIC' | 'INTERNAL' | 'SENSITIVE' | 'RESTRICTED';
 

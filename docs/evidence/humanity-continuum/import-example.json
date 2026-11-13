@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "recordId": "mem_example_prefers_detailed_reports",
+      "category": "communication",
+      "subject": "report-length-preference",
+      "statement": "Prefers concise summaries by default, and a full engineering report when explicitly asked.",
+      "source": "owner-stated-2026-11",
+      "sourceType": "conversation",
+      "confidence": 0.9,
+      "privacyClass": "INTERNAL"
+    }
+  ]
+}
