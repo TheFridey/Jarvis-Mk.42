@@ -1,16 +1,66 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import { writeFileSync } from 'node:fs';
+import { AgentRuntime } from '../cognition/agent-runtime.ts';
+import { HttpModelGatewayClient } from '../cognition/model-client.ts';
 import { CognitionOrchestrator } from '../cognition/cognition-orchestrator.ts';
 import { composeMemoryContext, type MemoryRecord } from './personal-memory.ts';
 
 /**
- * The outbound boundary, with the production orchestrator and a fixture transport.
+ * The outbound boundary — real HTTP.
  *
- * Nothing here is mocked except the network: `CognitionOrchestrator` is the real class, the
- * request it builds is the real shape it hands to the runtime, and the memory block is the text
- * both call sites use. The fixture captures what would have gone to a provider.
+ * Chain under test: CognitionOrchestrator → AgentRuntime (real manifests, real prompt assembly)
+ * → HttpModelGatewayClient (real fetch) → a local fixture endpoint that records the body.
+ * The only fiction is the server: no provider is contacted and nothing is spent.
+ *
+ * The capture is the wire body, not a runtime.invoke argument. If the memory text is not in
+ * `captured.body`, it did not leave the machine.
  */
 
 const PRINCIPAL = 'principal-a';
+let server: Server;
+let baseUrl = '';
+const captured: { path: string; authorization: string; body: string }[] = [];
+
+beforeAll(async () => {
+  server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on('data', chunk => chunks.push(Buffer.from(chunk)));
+    request.on('end', () => {
+      captured.push({ path: request.url ?? '', authorization: String(request.headers.authorization ?? ''), body: Buffer.concat(chunks).toString('utf8') });
+      const proposal = {
+        proposalId: 'p1', correlationId: 'corr', confidence: 0.9, kind: 'answer', text: 'Noted.', citations: [],
+        provenance: { method: 'model', producedBy: 'fixture', producedOn: 'fixture', producedAt: '2026-11-13T10:00:00.000Z', correlationId: 'corr', derivedFromUntrusted: false },
+      };
+      const payload = {
+        modelId: 'fixture-model',
+        usage: { inputTokens: 10, outputTokens: 5, cost: 0 },
+        routing: { phase: 'direct', selectedModelId: 'fixture-model', candidates: [] },
+        provenance: { producer: 'fixture-gateway', producedOn: 'fixture-host', producedAt: '2026-11-13T10:00:00.000Z', derivedFromUntrusted: false },
+        output: { proposals: [proposal], evidence: [] },
+      };
+      // The real client streams when a routing callback is supplied, so the fixture speaks SSE
+      // on /v1/stream and plain JSON on /v1/generate — the same two shapes the gateway serves.
+      if ((request.url ?? '').includes('/v1/stream')) {
+        response.writeHead(200, { 'content-type': 'text/event-stream' });
+        response.end([
+          `data: ${JSON.stringify({ type: 'routing', routing: payload.routing })}`,
+          '',
+          `data: ${JSON.stringify({ type: 'done', response: payload })}`,
+          '', '',
+        ].join(String.fromCharCode(10)));
+      } else {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify(payload));
+      }
+    });
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  baseUrl = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
+});
+
+afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); });
 
 const record = (over: Partial<MemoryRecord>): MemoryRecord => ({
   id: 'm1', principalId: PRINCIPAL, category: 'communication', subject: 'response-length-preference',
@@ -19,105 +69,100 @@ const record = (over: Partial<MemoryRecord>): MemoryRecord => ({
   reviewStatus: 'approved', recordedAt: '2026-11-01T00:00:00.000Z', ...over,
 });
 
-const captured: { input: string; cloudAllowed: boolean; locality: string }[] = [];
-
-const orchestrator = (cloudAllowed: boolean) => new CognitionOrchestrator({
-  // The run-row insert must report a created row, otherwise the orchestrator's idempotency
-  // guard reads it as a duplicate request and refuses — which is the guard working, not the test.
+const orchestrator = (verify?: () => Promise<{ ok: boolean; reason?: string }>) => new CognitionOrchestrator({
   sql: (async (strings: TemplateStringsArray) => (/^insert into cognition\.runs/i.test(String(strings[0]).trim()) ? [{ request_id: 'fixture-run' }] : [])) as never,
   context: {
-    compile: async () => ({ budget: { usedUnits: 0, maxUnits: 8000 }, maxPrivacyClass: 'INTERNAL', sections: [] }),
+    compile: async () => ({ id: 'ctx-fixture', budget: { usedUnits: 10, limitUnits: 4000 }, maxPrivacyClass: 'INTERNAL', sections: [] }),
   } as never,
-  runtime: {
-    invoke: async (_agentId: string, request: { input: { instruction: string; context?: { constraints: string[] } }; cloudAllowed?: boolean; locality?: string }) => {
-      captured.push({ input: request.input.instruction, cloudAllowed: Boolean(request.cloudAllowed), locality: String(request.locality) });
-      return { proposals: [], agentId: 'agents.oracle' };
-    },
-  } as never,
+  runtime: new AgentRuntime(new HttpModelGatewayClient(baseUrl, 'fixture-token'), () => '2026-11-13T10:00:00.000Z'),
   agency: { ingest: async () => ({ accepted: [] }) } as never,
   events: { emit: async () => undefined } as never,
   now: () => '2026-11-13T10:00:00.000Z',
-  cloudAllowed,
+  cloudAllowed: true,
+  // A grant verifier always exists in production; the fixture approves by default and refuses
+  // when a case says so.
+  verifyAuthorisation: verify ?? (async () => ({ ok: true })),
 });
 
-const submit = async (text: string, cloudAllowed = true) => {
+async function send(text: string, options: { memory?: MemoryRecord[]; verify?: () => Promise<{ ok: boolean; reason?: string }> } = {}) {
   captured.length = 0;
-  // The idempotency guard binds a request id to an input hash; the fixture drives the same
-  // production assembly through its private entry point rather than fabricating that binding.
-  const instance = orchestrator(cloudAllowed) as unknown as { process: (request: unknown) => Promise<unknown> };
-  await instance.process({
+  const block = options.memory ? composeMemoryContext(options.memory, { query: text, principalId: PRINCIPAL, locality: 'cloud' }) : '';
+  await orchestrator(options.verify).submit({
     requestId: `req_${Math.random().toString(36).slice(2)}`,
-    principalId: PRINCIPAL, correlationId: 'corr', input: text,
+    principalId: PRINCIPAL, correlationId: 'corr', input: text + block,
     agentId: 'agents.oracle', task: 'reason',
-    locality: cloudAllowed ? 'cloud-ok' : 'local', cloudAllowed,
-    privacyClass: 'INTERNAL',
-  });
-  return captured.at(-1)!;
-};
+    locality: 'cloud-ok', cloudAllowed: true, privacyClass: 'INTERNAL',
+    // Present so the dispatch-time grant verifier runs at all.
+    authorisation: { grantId: 'grant-fixture', conversationId: 'conv-fixture', provider: 'fixture-provider' },
+  } as never);
+  return captured.at(-1);
+}
 
-// SKIPPED: the harness gets as far as the real orchestrator's run-row guard and the real
-// CognitionRequest assembly, then fails on `domainId` assignment because the fixture context
-// compiler does not return the domain scope the orchestrator mutates. Completing it needs the
-// real ContextCompiler with a fixture domain, not a stub — see the LEGACY report for the exact
-// next step. Kept in the tree because the assertions below are the specification.
-describe.skip('memory at the outbound boundary', () => {
-  it('carries an approved INTERNAL cloud-eligible memory into a relevant cloud request', async () => {
-    const records = [record({})];
-    const input = 'How detailed should your technical answers be for me?' + composeMemoryContext(records, { query: 'How detailed should your technical answers be for me?', principalId: PRINCIPAL, locality: 'cloud' });
-    const payload = await submit(input, true);
-    expect(payload.cloudAllowed).toBe(true);
-    expect(payload.input).toContain('response-length-preference');
-    expect(payload.input).toContain('concise technical summaries');
-  });
+describe('memory at the HTTP boundary', () => {
+  const query = 'How detailed should your technical answers be for me?';
 
-  it('omits local-only, SENSITIVE, RESTRICTED, revoked, deleted, superseded and other-principal records', async () => {
-    const records = [
-      record({ id: 'local-only', cloudEligible: false }),
-      record({ id: 'sensitive', privacyClass: 'SENSITIVE' }),
-      record({ id: 'restricted', privacyClass: 'RESTRICTED', cloudEligible: true }),
-      record({ id: 'revoked', revokedAt: '2026-11-10T00:00:00.000Z' }),
-      record({ id: 'deleted', statement: '[deleted by owner]', revokedAt: '2026-11-10T00:00:00.000Z' }),
-      record({ id: 'superseded', supersededBy: 'newer' }),
-      record({ id: 'other', principalId: 'principal-b' }),
-      record({ id: 'irrelevant', subject: 'invoice numbering', statement: 'Invoices start at 1001.', category: 'business' }),
-    ];
-    const query = 'How detailed should your technical answers be for me?';
-    const payload = await submit(query + composeMemoryContext(records, { query, principalId: PRINCIPAL, locality: 'cloud' }), true);
-    expect(payload.input).not.toContain('[deleted by owner]');
-    expect(payload.input).not.toContain('Invoices start at 1001');
-    // Nothing usable was left, so no memory block at all.
-    expect(payload.input).not.toContain('Approved context about the owner');
+  const evidence = (name: string, body: string) => {
+    const path = process.env.JARVIS_WIRE_EVIDENCE;
+    if (!path) return;
+    writeFileSync(path, JSON.stringify({
+      boundary: 'http-body captured at the Model Gateway client',
+      case: name,
+      transport: 'POST /v1/stream (SSE), authorization header redacted',
+      bodyBytes: Buffer.byteLength(body),
+      containsEligibleMemory: body.includes('response-length-preference'),
+      containsDeletedMarker: body.includes('[deleted by owner]'),
+      containsOtherPrincipal: body.includes('invoice numbering'),
+      containsMemoryBlockHeader: body.includes('Approved context about the owner'),
+      // Never the full body: it is fixture text, but the habit matters.
+      excerpt: body.slice(0, 240),
+    }, null, 2));
+  };
+
+  it('puts an approved INTERNAL cloud-eligible memory in an authorised request body', async () => {
+    const payload = await send(query, { memory: [record({})] });
+    expect(payload?.path).toMatch(/\/v1\/(stream|generate)/);
+    expect(payload?.authorization).toContain('fixture-token');
+    expect(payload?.body).toContain('response-length-preference');
+    expect(payload?.body).toContain('concise technical summaries');
+    evidence('eligible-memory-present', payload?.body ?? '');
   });
 
-  it('omits an eligible memory from a local turn only when the selector says so', async () => {
-    const records = [record({})];
-    const query = 'How detailed should your technical answers be?';
-    const local = composeMemoryContext(records, { query, principalId: PRINCIPAL, locality: 'local' });
-    expect(local).toContain('concise technical summaries');
-    const payload = await submit(query + local, false);
-    expect(payload.cloudAllowed).toBe(false);
-    expect(payload.locality).toBe('local');
+  it('omits local-only, SENSITIVE, RESTRICTED, revoked, deleted, superseded, other-principal and irrelevant records', async () => {
+    const payload = await send(query, {
+      memory: [
+        record({ id: 'local-only', cloudEligible: false }),
+        record({ id: 'sensitive', privacyClass: 'SENSITIVE' }),
+        record({ id: 'restricted', privacyClass: 'RESTRICTED', cloudEligible: true }),
+        record({ id: 'revoked', revokedAt: '2026-11-10T00:00:00.000Z' }),
+        record({ id: 'deleted', statement: '[deleted by owner]', revokedAt: '2026-11-10T00:00:00.000Z' }),
+        record({ id: 'superseded', supersededBy: 'newer' }),
+        record({ id: 'other', principalId: 'principal-b' }),
+        record({ id: 'irrelevant', category: 'business', subject: 'invoice numbering', statement: 'Invoices start at 1001.' }),
+      ],
+    });
+    expect(payload?.body).not.toContain('[deleted by owner]');
+    expect(payload?.body).not.toContain('Invoices start at 1001');
+    expect(payload?.body).not.toContain('Approved context about the owner');
   });
 
-  it('drops a memory revoked after selection, before the next dispatch', async () => {
-    const records = [record({})];
-    const query = 'How detailed should your technical answers be?';
-    const first = composeMemoryContext(records, { query, principalId: PRINCIPAL, locality: 'cloud' });
-    expect(first).toContain('concise technical summaries');
-    const revoked = records.map(entry => ({ ...entry, revokedAt: '2026-11-13T10:00:00.000Z' }));
-    const second = composeMemoryContext(revoked, { query, principalId: PRINCIPAL, locality: 'cloud' });
-    expect(second).toBe('');
+  it('sends no memory for a greeting', async () => {
+    const payload = await send('Evening Jarvis.', { memory: [record({ subject: 'financial-independence', category: 'ambition', statement: 'Wants independence from single clients.' })] });
+    expect(payload?.body).not.toContain('financial-independence');
+    expect(payload?.body).not.toContain('Approved context about the owner');
   });
 
-  it('sends no memory at all for a greeting', async () => {
-    const records = [record({}), record({ id: 'm2', subject: 'financial-independence', statement: 'Wants independence from single clients.', category: 'ambition' })];
-    const payload = await submit('Evening Jarvis.' + composeMemoryContext(records, { query: 'Evening Jarvis.', principalId: PRINCIPAL, locality: 'cloud' }), true);
-    expect(payload.input).not.toContain('Approved context about the owner');
-    expect(payload.input).not.toContain('financial-independence');
+  it('refuses to dispatch when the grant verifier says no', async () => {
+    await expect(send(query, { memory: [record({})], verify: async () => ({ ok: false, reason: 'grant revoked' }) }))
+      .rejects.toThrow(/authorisation refused before dispatch/);
+    expect(captured).toHaveLength(0);
   });
 
-  it('keeps the memory block out of the constraints, which stay identity-only', async () => {
-    const payload = await submit('Evening Jarvis.', true);
-    expect(payload.input).not.toContain('JARVIS');
+  it('excludes a memory revoked after selection but before dispatch', async () => {
+    const selected = [record({})];
+    expect(composeMemoryContext(selected, { query, principalId: PRINCIPAL, locality: 'cloud' })).toContain('concise technical summaries');
+    const revoked = selected.map(entry => ({ ...entry, revokedAt: '2026-11-13T09:59:59.000Z' }));
+    expect(composeMemoryContext(revoked, { query, principalId: PRINCIPAL, locality: 'cloud' })).toBe('');
+    const payload = await send(query, { memory: revoked });
+    expect(payload?.body).not.toContain('concise technical summaries');
   });
 });
