@@ -49,7 +49,10 @@ describe('realtime Kernel scene transport',()=>{
     await vi.waitFor(()=>expect(sockets).toHaveLength(1));sockets[0]!.open();sockets[0]!.message({type:'experience.ready',schemaVersion:1,streamId:'s',sequence:1,heartbeatMs:10_000});
     fetch.mockResolvedValueOnce(response({error:'untrusted-provider-detail-canary'},503));
     const command=transport.submitCognition({commandId:'offline',expectedStateVersion:7,input:'Reason about this'});
-    await expect(command).rejects.toThrow('Model inference unavailable. Local state');expect(status).toBe('live');transport.close();
+    await expect(command).rejects.toThrow('Model inference did not complete');expect(status).toBe('live');
+    // The provider's own detail must never reach the operator's screen.
+    await expect(command).rejects.not.toThrow('untrusted-provider-detail-canary');
+    transport.close();
   });
   it('bootstraps once, authenticates the WebSocket subscription, and stops polling',async()=>{const{transport,fetch,sockets}=harness();let status='';transport.subscribeConnection((value)=>{status=value.status});transport.subscribeKernel(()=>undefined);await vi.waitFor(()=>expect(sockets).toHaveLength(1));sockets[0]!.open();const sent=JSON.parse(sockets[0]!.sent[0]!) as{accessToken:string;sessionId:string;channels:string[]};expect(sent).toMatchObject({accessToken:'a'.repeat(43),sessionId:'session'});expect(sent.channels).toContain('scene');sockets[0]!.message({type:'experience.ready',schemaVersion:1,streamId:'s',sequence:1,heartbeatMs:10_000});expect(status).toBe('live');expect(fetch.mock.calls.filter(([url])=>String(url).includes('/desktop/snapshot'))).toHaveLength(1);transport.close()});
   it('applies a typed push update without another snapshot request',async()=>{const{transport,fetch,sockets}=harness();let version=0;transport.subscribeKernel((value)=>{version=value?.stateVersion??version});await vi.waitFor(()=>expect(sockets).toHaveLength(1));sockets[0]!.open();sockets[0]!.message({type:'experience.update',schemaVersion:1,streamId:'s',sequence:1,generatedAt:'2026-09-29T00:00:01Z',stateVersion:8,sceneVersion:8,channels:['system','scene'],full:true,patch:snapshot(8)});expect(version).toBe(8);expect(fetch.mock.calls.filter(([url])=>String(url).includes('/desktop/snapshot'))).toHaveLength(1);transport.close()});

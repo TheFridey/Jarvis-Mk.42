@@ -12,6 +12,22 @@ export class LocalSceneTransport implements SceneTransport { readonly kind='demo
 
 interface SocketLike { readonly readyState:number; onopen:null|(()=>void); onmessage:null|((event:{data:string})=>void); onclose:null|((event:{code:number;reason:string})=>void); onerror:null|(()=>void); send(data:string):void; close(code?:number,reason?:string):void; }
 type SocketFactory=(url:string)=>SocketLike;
+/** Actionable wording per authoritative gateway error code. No keys, no payloads. */
+export function inferenceFailureMessage(code:string|undefined):string{
+  switch(code){
+    case 'NO_ROUTE':return 'No model can serve this request: a private conversation needs a local model, and none is registered. Press ALLOW CLOUD to permit the configured provider, or configure a local model.';
+    case 'AUTHENTICATION':return 'The configured provider rejected the credentials. Check the runtime key on the gateway.';
+    case 'RATE_LIMITED':return 'The configured provider is rate limiting requests. Try again shortly.';
+    case 'TIMEOUT':return 'The configured provider did not answer in time. Try again.';
+    case 'UNAVAILABLE':return 'The configured provider is not answering. Kernel state and permission checks remain available.';
+    case 'BUDGET_EXCEEDED':return 'This request would exceed the configured spending limit.';
+    case 'PROVIDER_ERROR':return 'The configured provider returned an error for this request.';
+    case 'INVALID_RESPONSE':return 'The configured provider returned something unusable for this request.';
+    case 'CANCELLED':return 'The request was cancelled.';
+    default:return 'Model inference did not complete. Kernel state and permission checks remain available.';
+  }
+}
+
 export class KernelSceneTransport implements SceneTransport {
   readonly kind='live' as const;private scene?:SemanticScene;private snapshot?:DesktopKernelSnapshot;private status:KernelConnection={status:'connecting'};private stopped=false;private started=false;private failures=0;private reconnectTimer?:ReturnType<typeof setTimeout>;private heartbeatTimer?:ReturnType<typeof setTimeout>;private socket?:SocketLike;private auth?:{accessToken:string;sessionId:string};private readonly reducer=new ExperienceReducer();
   private readonly sceneListeners=new Set<(scene:SemanticScene)=>void>();private readonly kernelListeners=new Set<(snapshot:DesktopKernelSnapshot|undefined)=>void>();private readonly connectionListeners=new Set<(state:KernelConnection)=>void>();
@@ -75,7 +91,19 @@ export class KernelSceneTransport implements SceneTransport {
   private armHeartbeat(){if(this.heartbeatTimer)clearTimeout(this.heartbeatTimer);this.heartbeatTimer=setTimeout(()=>{this.markStale('experience heartbeat timeout');this.socket?.close(4000,'heartbeat timeout')},30_000)}
   private resync(){this.replaceSocket('snapshot resync');void this.bootstrapAndConnect(true)}
   private replaceSocket(reason:string){const socket=this.socket;this.socket=undefined;socket?.close(1000,reason)}
-  private async command<T=unknown>(path:string,body:unknown):Promise<T>{if(this.status.status!=='live'||!this.snapshot)throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');const response=await this.request(path,{method:'POST',body:JSON.stringify(body)});if(response.status===409){await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')}if(path==='/desktop/cognition'&&response.status===503)throw new Error('Model inference unavailable. Local state, permission checks and configured direct reads remain available while storage is healthy.');if(!response.ok)throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);return response.json() as Promise<T>}
+  private async command<T=unknown>(path:string,body:unknown):Promise<T>{
+    if(this.status.status!=='live'||!this.snapshot)throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
+    const response=await this.request(path,{method:'POST',body:JSON.stringify(body)});
+    if(response.status===409){await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')}
+    if(path==='/desktop/cognition'&&response.status===503){
+      // The Kernel already classified the failure; one generic sentence discarded that.
+      const detail=await response.clone().json().catch(()=>undefined) as {code?:string}|undefined;
+      throw new Error(inferenceFailureMessage(detail?.code));
+    }
+    if(!response.ok)throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);
+    return response.json() as Promise<T>
+  }
+
   private async request(path:string,init:RequestInit={}){
     for(let attempt=0;attempt<2;attempt++){
       const auth=await this.authenticate();

@@ -88,7 +88,7 @@ export class CompanionService {
       const priorTurns=await this.d.sql<TurnRow[]>`select turn_id,conversation_id,principal_id,input,answer,status,privacy_class,privacy_regime,to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at asc`;
       // A recovered input may already contain private history from an older attempt.
       const publicWeb=!mobile&&(!turn!.cognition_input||turn!.cognition_input===command.input)&&isPublicWebRequest(command.input);
-      const decision=publicWeb||mobile?undefined:await this.grantDecision(node.principalId,turn!.conversation_id);
+      const decision=publicWeb||mobile?undefined:await this.grantDecision(node.principalId,turn!.conversation_id,turnId);
       const allowed=new Set(decision?.allow?decision.contextTurns.map(entry=>entry.createdAt):[]);
       // Cloud turns carry only the turns written under the grant; a private (or ungranted)
       // conversation keeps the existing local behaviour of the last six turns.
@@ -120,12 +120,17 @@ export class CompanionService {
   }
 
   /** Everything the policy needs about one conversation, evaluated now. */
-  private async grantDecision(principalId:string,conversationId:string){
+  private async grantDecision(principalId:string,conversationId:string,currentTurnId?:string){
+    // Only *completed* turns, and never the turn asking the question. The current turn is
+    // inserted with status 'running' and no classification before this decision is made, so
+    // including it made every first cloud turn refuse itself as "unclassified history".
     const rows=await this.d.sql<{conversation_id:string;principal_id:string;created_at:string;privacy_class:'PUBLIC'|'INTERNAL'|'SENSITIVE'|'RESTRICTED'|null;privacy_regime:'PRIVATE'|'CLOUD_PERMITTED'}[]>`
       select conversation_id,principal_id,privacy_class,privacy_regime,
              to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at
         from experience.conversation_turns
        where conversation_id=${conversationId} and principal_id=${principalId}
+         and status='completed'
+         and (${currentTurnId ?? null}::text is null or turn_id<>${currentTurnId ?? null})
        order by created_at asc`;
     const turns:ConversationTurn[]=rows.map(row=>({conversationId:row.conversation_id,principalId:row.principal_id,createdAt:row.created_at,privacyClass:row.privacy_class,regime:row.privacy_regime}));
     const grant=await this.liveGrant(conversationId,principalId);

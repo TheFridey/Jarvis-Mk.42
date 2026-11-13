@@ -159,3 +159,18 @@ describe('conversation privacy: history boundaries', () => {
     expect(decision).toMatchObject({ allow: false, reason: 'ceiling_exceeded' });
   });
 });
+
+describe('policy history boundaries', () => {
+  it('a turn with no classification refuses dispatch, which is why the asking turn is excluded', () => {
+    // The current turn is inserted as 'running' with a null class before the decision is
+    // made. If it were included, every first cloud turn would refuse itself.
+    const inFlight = turn({ createdAt: T(-1), privacyClass: null, regime: 'PRIVATE' });
+    expect(evaluate({ turns: [inFlight] })).toMatchObject({ allow: false, reason: 'unclassified_history' });
+    expect(evaluate({ turns: [] })).toMatchObject({ allow: true });
+  });
+
+  it('only completed prior turns are eligible, so a failed turn cannot block the next one', () => {
+    const completed = turn({ createdAt: T(-5) });
+    expect(evaluate({ turns: [completed] })).toMatchObject({ allow: true });
+  });
+});
