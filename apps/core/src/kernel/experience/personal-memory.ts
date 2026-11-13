@@ -174,6 +174,14 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
  * The text a model may see. Subject then statement, no ids, no provenance paths, no
  * classification labels — those are for the operator, not the conversation.
  */
+/** The exact text block that may accompany a turn. One place, so both call sites agree. */
+export function composeMemoryContext(records: MemoryRecord[], input: { query: string; principalId: string; locality: 'local' | 'cloud' }): string {
+  if (!records.length) return '';
+  const { selected } = selectMemories({ records, query: input.query, principalId: input.principalId, locality: input.locality, categories: categoryHintFor(input.query) });
+  if (!selected.length) return '';
+  return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
+}
+
 export function memoryContextLines(selected: SelectedMemory[]): string[] {
   return selected.map(({ record }) => `- ${record.subject}: ${record.statement}`);
 }
