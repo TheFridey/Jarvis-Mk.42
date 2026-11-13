@@ -13,10 +13,11 @@
  * response grows upward into the space that is left and scrolls beyond it, so it
  * can never cover the word, the input or the orb.
  */
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowUpRight, ChevronsDown, ChevronsUp, CornerDownLeft, LayoutDashboard, X } from 'lucide-react';
 import type { DataLiveness } from '../experience-phase-policy.ts';
 import type { PresenceComposition, PresenceReadout, PresenceSatellite, PresenceZones } from './presence-policy.ts';
+import { formatAnswer } from './response-format.ts';
 
 export interface PresenceModeProps {
   readout: PresenceReadout;
@@ -37,6 +38,8 @@ export interface PresenceModeProps {
 
 export function PresenceMode(props: PresenceModeProps) {
   const { readout, liveness, composition, zones, satellites, inputEnabled, reducedMotion, rendererFallback, answer } = props;
+  // Parsing is deterministic but not free; answers change rarely, readouts often.
+  const formatted = useMemo(() => formatAnswer(answer), [answer]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -98,7 +101,17 @@ export function PresenceMode(props: PresenceModeProps) {
             <button type="button" onClick={props.onDismissAnswer} aria-label="Dismiss response" title="Dismiss response"><X size={13} aria-hidden="true"/></button>
           </div>
         </header>
-        <div className="presence-answer-body" tabIndex={0}>{answer}</div>
+        <div className="presence-answer-body" tabIndex={0}>
+          {formatted.segments.map((segment, index) => segment.kind === 'structured'
+            ? <details key={index} className="presence-evidence">
+                <summary>
+                  <span>{segment.summary}</span>
+                  {segment.timestamps.length ? <small>as of {segment.timestamps[segment.timestamps.length - 1]}</small> : null}
+                </summary>
+                <pre>{segment.pretty}</pre>
+              </details>
+            : <p key={index} className="presence-prose">{segment.text}</p>)}
+        </div>
       </section> : null}
 
       <form className="presence-input" onSubmit={event => void submit(event)} role="search">

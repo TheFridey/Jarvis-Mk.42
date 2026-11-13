@@ -188,3 +188,56 @@
 .presence-open .approval-barrier dt{color:var(--c-inkMuted)}
 .presence-open .approval-actions .approve{border-color:color-mix(in srgb,var(--c-execution) 80%,transparent);color:var(--c-forge)}
 .presence-open .approval-actions .deny{color:var(--c-ink)}
+
+/* Response body: prose stays prose, structured evidence becomes collapsible. */
+.presence-answer-body > .presence-prose { margin: 0 0 0.6em; }
+.presence-answer-body > .presence-prose:last-child { margin-bottom: 0; }
+.presence-answer-body { overflow-wrap: anywhere; word-break: break-word; }
+
+.presence-evidence {
+  margin: 0.5em 0 0.7em;
+  border: 1px solid rgba(232, 214, 168, 0.22);
+  border-radius: 8px;
+  background: rgba(12, 10, 8, 0.55);
+}
+.presence-evidence > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0.45em 0.7em;
+  cursor: pointer;
+  color: var(--presence-platinum);
+  font-size: 0.86em;
+  letter-spacing: 0.02em;
+  list-style: none;
+}
+.presence-evidence > summary::-webkit-details-marker { display: none; }
+.presence-evidence > summary::before {
+  content: '▸';
+  color: rgba(232, 214, 168, 0.75);
+  font-size: 0.8em;
+  transition: transform 140ms ease;
+}
+.presence-evidence[open] > summary::before { transform: rotate(90deg); }
+.presence-evidence > summary > small {
+  margin-left: auto;
+  color: var(--presence-muted);
+  font-variant-numeric: tabular-nums;
+}
+.presence-evidence > summary:focus-visible {
+  outline: 2px solid var(--presence-gold);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.presence-evidence > pre {
+  margin: 0;
+  padding: 0 0.7em 0.6em;
+  max-height: 15rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.78em;
+  line-height: 1.5;
+  color: rgba(226, 214, 190, 0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

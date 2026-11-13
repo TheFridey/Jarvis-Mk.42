@@ -60,6 +60,7 @@ export class DiagnosticsService {
       totalEvents,
       outboxPending,
       deadLettered,
+      deadLetteredRecent,
       recentCount,
       dbOk,
       redisOk,
@@ -76,6 +77,7 @@ export class DiagnosticsService {
       this.deps.eventStore.count(),
       this.deps.outbox.pendingCount(),
       this.deps.deadLetter.count(),
+      this.deps.deadLetter.countSince(new Date(this.deps.startedAtMs).toISOString()),
       this.deps.eventStore.countSince(
         new Date(this.deps.clock.epochMs() - 60_000).toISOString(),
       ),
@@ -119,10 +121,13 @@ export class DiagnosticsService {
         : { name: 'memory-subsystem', status: 'OFFLINE' as HealthStatus, placeholder: true },
     ];
 
+    // `deadLettered` is a lifetime total: one event lost last week would otherwise
+    // report this node unhealthy forever. Health asks what happened in *this*
+    // process. The total stays in the report as history.
     const ok =
       dbOk &&
       healthReport.overall !== 'OFFLINE' &&
-      deadLettered === 0;
+      deadLetteredRecent === 0;
 
     return {
       ok,
@@ -139,6 +144,7 @@ export class DiagnosticsService {
         totalAppended: totalEvents,
         outboxPending,
         deadLettered,
+        deadLetteredSinceStart: deadLetteredRecent,
       },
       ...(this.deps.eventFabricDiagnostics?.() ? { eventFabric: this.deps.eventFabricDiagnostics() } : {}),
       state: {

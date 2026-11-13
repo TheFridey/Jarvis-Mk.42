@@ -94,8 +94,13 @@ export function resolveExperiencePhase(picture: JarvisOperatingPicture | undefin
   if (work === 'COMPLETE') return 'COMPLETE';
   if (work === 'ERROR') {
     // Trust the axis when the projection offers no ledger to judge it by.
-    const failure = latestFailure(picture, now);
-    if (!failure || failure.recent) return 'ERROR';
+    const failure = classifyFailure(picture, now);
+    if (!failure) return 'ERROR';
+    // Active work failure is a fault; an unresolved one is degraded availability,
+    // not a fault that is happening right now; a verified outcome and a recovered
+    // history are neither.
+    if (failure.status === 'active') return 'ERROR';
+    if (failure.status === 'unresolved') return 'DEGRADED';
   }
   if (work === 'BLOCKED') return 'BLOCKED';
   const runs = picture.activeModels ?? [];
@@ -123,30 +128,73 @@ export function isIdlePhase(phase: ExperiencePhase): boolean {
  */
 export const FAILURE_EVIDENCE_WINDOW_MS = 5 * 60 * 1000;
 const FAULT_STATES = new Set<string>(['FAILED', 'ABORTED', 'INTERRUPTED', 'VERIFICATION_FAILED', 'UNVERIFIED']);
+/** Post-condition outcomes: the platform ran, the result did not satisfy its contract. */
+const OUTCOME_STATES = new Set<string>(['VERIFICATION_FAILED', 'UNVERIFIED']);
+const SUCCESS_STATES = new Set<string>(['VERIFIED', 'SUCCEEDED', 'COMPLETED', 'PARTIALLY_COMPLETED']);
 
 export interface FailureEvidence { action?: string; state: string; at?: string }
 
-/** The most recent recorded fault, with its age, from the invocation ledger. */
-export function latestFailure(
-  picture: { capabilityActivity?: ReadonlyArray<{ action?: string; state: string; updatedAt?: string }> } | undefined,
-  now = Date.now(),
-): (FailureEvidence & { ageMs?: number; recent: boolean }) | undefined {
+/**
+ * What a fault *is*, now:
+ *
+ *  - `active`     … inside the evidence window; the work axis is describing now.
+ *  - `unresolved` … old, but nothing proves it was fixed: no later success for the
+ *                   same action, and a dependency is not healthy (or we cannot say).
+ *  - `outcome`    … a completed run whose verification failed while the platform is
+ *                   healthy: a business result, not a service incident.
+ *  - `historical` … superseded by a later success of the same action, so it is
+ *                   demonstrably over.
+ *
+ * Elapsed time alone never produces `historical`: that is "do not infer recovery
+ * without evidence". It also never leaves an unresolved problem hidden: a fault we
+ * cannot date is treated as unresolved, not as history.
+ */
+export type FaultStatus = 'active' | 'unresolved' | 'outcome' | 'historical';
+export interface ClassifiedFailure extends FailureEvidence { status: FaultStatus; ageMs?: number; recent: boolean; recoveredBy?: string }
+
+type Ledger = { capabilityActivity?: ReadonlyArray<{ action?: string; state: string; updatedAt?: string }>; systemHealth?: { overall?: string; dependencies?: ReadonlyArray<{ name?: string; status?: string }> } };
+
+/** The most recent recorded fault, classified against the rest of the picture. */
+export function classifyFailure(picture: Ledger | undefined, now = Date.now()): ClassifiedFailure | undefined {
   const activity = picture?.capabilityActivity ?? [];
   let latest: FailureEvidence | undefined;
   let latestAt = Number.NEGATIVE_INFINITY;
-  let undated = false;
   for (const entry of activity) {
     if (!FAULT_STATES.has(entry.state)) continue;
     const at = entry.updatedAt ? Date.parse(entry.updatedAt) : Number.NaN;
     if (Number.isFinite(at) && at > latestAt) { latestAt = at; latest = { state: entry.state, ...(entry.action ? { action: entry.action } : {}), at: entry.updatedAt }; }
     else if (!latest) { latest = { state: entry.state, ...(entry.action ? { action: entry.action } : {}) }; }
-    if (!Number.isFinite(at)) undated = true;
   }
   if (!latest) return undefined;
+
   const ageMs = Number.isFinite(latestAt) ? Math.max(0, now - latestAt) : undefined;
-  // An undateable fault is assumed current: hiding a fault we cannot age would be
-  // the dangerous direction. A dated fault uses the window.
-  return { ...latest, ...(ageMs !== undefined ? { ageMs } : {}), recent: ageMs === undefined ? undated : ageMs <= FAILURE_EVIDENCE_WINDOW_MS };
+  // Undateable: assume it is current. Hiding a fault we cannot age is the
+  // dangerous direction, so this is treated as an active fault, not history.
+  if (ageMs === undefined) return { ...latest, status: 'active', recent: true };
+
+  if (ageMs <= FAILURE_EVIDENCE_WINDOW_MS) return { ...latest, ageMs, status: 'active', recent: true };
+
+  // Recovery evidence 1: the same action succeeded afterwards.
+  const recoveredBy = latest.action
+    ? activity.find(entry => entry.action === latest.action && SUCCESS_STATES.has(entry.state) && Number.isFinite(Date.parse(entry.updatedAt ?? '')) && Date.parse(entry.updatedAt!) > latestAt)
+    : undefined;
+
+  // Recovery evidence 2: the platform reports itself healthy now — per dependency
+  // when dependencies are listed, otherwise by its overall verdict.
+  const dependencies = picture?.systemHealth?.dependencies ?? [];
+  const unhealthy = dependencies.filter(dependency => dependency.status && !['HEALTHY', 'AVAILABLE', 'UP'].includes(dependency.status));
+  const platformHealthy = dependencies.length ? !unhealthy.length : (picture?.systemHealth?.overall ?? 'HEALTHY') === 'HEALTHY';
+
+  if (recoveredBy) return { ...latest, ageMs, status: 'historical', recent: false, recoveredBy: recoveredBy.state };
+  if (OUTCOME_STATES.has(latest.state) && platformHealthy) return { ...latest, ageMs, status: 'outcome', recent: false };
+  if (!platformHealthy) return { ...latest, ageMs, status: 'unresolved', recent: false };
+  // No later success and no health observation either way: we cannot claim recovery.
+  return { ...latest, ageMs, status: 'unresolved', recent: false };
+}
+
+/** Backwards-compatible view used by presence: the newest fault and whether it is current. */
+export function latestFailure(picture: Ledger | undefined, now = Date.now()): (FailureEvidence & { ageMs?: number; recent: boolean; status: FaultStatus }) | undefined {
+  return classifyFailure(picture, now);
 }
 
 export type FlowStage = 'INPUT' | 'INTERPRET' | 'CONTEXT' | 'ROUTE' | 'MODEL' | 'RESULT' | 'POLICY' | 'APPROVAL' | 'EXECUTE' | 'VERIFY' | 'COMPLETE';

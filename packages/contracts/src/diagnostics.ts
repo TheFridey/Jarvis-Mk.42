@@ -38,7 +38,10 @@ export interface DiagnosticsReport {
     ratePerMinute: number;
     totalAppended: number;
     outboxPending: number;
+    /** Lifetime total. History: it does not, on its own, describe current health. */
     deadLettered: number;
+    /** Dead letters recorded since this process started. This is what `ok` uses. */
+    deadLetteredSinceStart: number;
   };
 
   eventFabric?: {

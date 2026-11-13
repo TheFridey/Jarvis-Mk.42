@@ -11,7 +11,7 @@
  * visible no matter how calm the presentation is.
  */
 import { agentField, type AgentNodeState } from '../agent-field-policy.ts';
-import { latestFailure, type ExperiencePhase, type DataLiveness } from '../experience-phase-policy.ts';
+import { classifyFailure, type ExperiencePhase, type DataLiveness } from '../experience-phase-policy.ts';
 import { polar, spatialLayout, type Point, type SpatialLayout } from '../spatial-layout-policy.ts';
 import type { CoreSystemTargets } from '../core-visual-policy.ts';
 import type { OperatingAgentJob } from '@jarvis/scene';
@@ -188,11 +188,16 @@ export function presenceDetail(input: PresenceInput): string {
   if (state === 'THINKING') return phase === 'ROUTING' ? 'Selecting a route.' : 'Reasoning.';
   const agents = picture?.agentJobs?.filter(job => !TERMINAL_JOB_STATES.has(job.state)).length ?? 0;
   if (agents > 0) return `${agents} agent job${agents === 1 ? '' : 's'} in flight.`;
-  if (phase === 'DEGRADED' || picture?.systemHealth?.overall === 'DEGRADED') return 'Subsystem health degraded. Availability is reduced.';
-  const past = latestFailure(picture, now);
+  const past = classifyFailure(picture, now);
+  // A named unresolved fault is more useful than the generic degraded sentence.
+  if (!past && (phase === 'DEGRADED' || picture?.systemHealth?.overall === 'DEGRADED')) return 'Subsystem health degraded. Availability is reduced.';
   if (past) {
-    const when = past.ageMs === undefined ? 'at an unknown time' : `at ${new Date((past.at ? Date.parse(past.at) : now - (past.ageMs ?? 0))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    return `Standing by. Last work fault: ${past.action ? `${past.action} · ` : ''}${past.state} ${when}.`;
+    const when = past.at && Number.isFinite(Date.parse(past.at)) ? `at ${new Date(Date.parse(past.at)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'at an unknown time';
+    const what = `${past.action ? `${past.action} · ` : ''}${past.state}`;
+    if (past.status === 'unresolved') return `Unresolved: ${what} ${when}. No successful retry observed.`;
+    if (past.status === 'outcome') return `Standing by. Last verification: ${what} ${when}.`;
+    if (past.status === 'historical') return `Standing by. Recovered since ${what} ${when}.`;
+    return `Standing by. Last work fault: ${what} ${when}.`;
   }
   return liveness.synthetic ? 'Synthetic data. No live execution.' : 'Standing by.';
 }

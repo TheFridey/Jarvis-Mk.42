@@ -211,6 +211,19 @@ async function main() {
         }
       }
     };
+    // Evidence hygiene: a live Kernel can push real business content into the
+    // response surface. Dismissing it keeps the capture about the interface.
+    let dismissedAnswer;
+    if (flag('dismiss-answer')) {
+      const dismissed = await cdp.send('Runtime.evaluate', {
+        // Remove the surface outright: a live Kernel can repopulate it mid-capture,
+        // and an evidence image must not carry business records.
+        expression: `(() => { const nodes = document.querySelectorAll('.presence-answer'); const had = nodes.length > 0; nodes.forEach(node => node.remove()); return had; })()`,
+        returnByValue: true,
+      });
+      dismissedAnswer = Boolean(dismissed?.result?.value);
+      await new Promise(done => setTimeout(done, 1200));
+    }
     const base = await evaluate(`(${MEASURE})(${JSON.stringify({ frames: FRAMES })})`);
     // Reduced motion: a real emulated media feature, then re-measure idle.
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
@@ -224,6 +237,7 @@ async function main() {
       browser: version.Browser, userAgent: version['User-Agent'],
       hardwareAccelerated: base.webgl.unmasked ? !software : null,
       ...base, reducedMotionIdle: reduced,
+      ...(dismissedAnswer !== undefined ? { dismissedAnswer } : {}),
       caveats: [
         'Hardware acceleration is inferred from the unmasked WebGL renderer string; it is not a driver-level audit.',
         ...(software ? ['Renderer string indicates software rasterisation: treat these numbers as a floor, not GPU performance.'] : []),

@@ -88,7 +88,7 @@ function base(now: number, scene: SemanticScene): DesktopKernelSnapshot {
     selectedContext: { contextId: null, projectId: null }, principalId: 'demo-principal',
     diagnostics: {
       ok: true, generatedAt: iso(now), identity: { nodeId: 'demo-node', instanceId: 'demo-instance', version: 'demo' }, mode: 'AMBIENT', uptimeSeconds: 18_240,
-      events: { ratePerMinute: 38, totalAppended: 120_442, outboxPending: 0, deadLettered: 0 },
+      events: { ratePerMinute: 38, totalAppended: 120_442, outboxPending: 0, deadLettered: 0, deadLetteredSinceStart: 0 },
       eventFabric: { phase: 'HEALTHY', degradeAfterMs: 30_000, outageStartedAt: null, graceDeadlineAt: null, lastConnectedAt: iso(now, -18_000_000), lastVerifiedAt: iso(now, -2000), lastRelaySuccessAt: iso(now, -1000), lastError: null, waitingForRelayEvidence: false },
       state: { stateVersion: 4200, lastMutationAt: iso(now, -9000), snapshotCheckpointEventId: null }, sessions: { active: 1, byType: { desktop: 1 } },
       objectives: { active: 1, placeholder: false }, nodes: { connected: 1, ids: ['demo-node'] }, dependencies: dependencies(now), health, alerts: { active: 0, items: [] },
