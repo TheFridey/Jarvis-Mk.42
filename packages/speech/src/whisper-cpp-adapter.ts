@@ -1,7 +1,9 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AsrAdapter, AudioFrame } from '../adapters.ts';
+/** Minimal local contract, so this package has no dependency on the voice application. */
+export interface AudioFrame { samples: Float32Array; sampleRate: number; capturedAt: number }
+export interface AsrAdapter { transcribe(frames: AudioFrame[], final: boolean, signal: AbortSignal): Promise<string> }
 
 /**
  * whisper.cpp local ASR.

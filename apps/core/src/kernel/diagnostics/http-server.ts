@@ -45,6 +45,7 @@ export interface DiagnosticsHttpDeps {
   health: HealthManager;
   desktop: DesktopGateway;
   voice: VoiceGateway;
+  speech?: { utterance: { transcribe(input: { body: Buffer; contentType: string }): Promise<unknown> }; synthesise(text: string): Promise<Uint8Array> };
   vision: VisionGateway;
   identity:IdentityManager;sessions:SessionManager;credentials:SessionCredentialManager;nodeStore:NodeStore;ids:IdGen;nodeId:string;principalId:string;
   experience:ExperienceProjection;
@@ -203,6 +204,31 @@ export class DiagnosticsHttp {
         if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req), { authTrustLevel: auth.trust === 'verified' ? 'verified' : 'trusted' }));
         return send(405, { error: 'method not allowed' });
       }
+      // Local speech. The browser captures, the Kernel transcribes with the installed engine,
+      // and the transcript returns to the operator's input. Nothing leaves the machine.
+      if(path==='/voice/utterance'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['desktop.write'],'strong');if(!auth)return send(401,{error:'unauthorised'});
+        if(!this.deps.speech)return send(503,{code:'ASR_UNAVAILABLE',error:'local speech recognition is not configured'});
+        let audio:Buffer;
+        try{audio=await this.rawBody(req);}catch{return send(413,{code:'AUDIO_TOO_LARGE',error:'utterance exceeds the maximum size'});}
+        const result=await this.deps.speech.utterance.transcribe({body:audio,contentType:String(req.headers['content-type']??'')});
+        const shaped=result as {ok:boolean;problem?:string};
+        return send(shaped.ok?200:422,{...shaped,principalId:auth.principalId,nodeId:auth.nodeId});
+      }
+      if(path==='/voice/speak'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['desktop.write'],'strong');if(!auth)return send(401,{error:'unauthorised'});
+        if(!this.deps.speech)return send(503,{code:'TTS_UNAVAILABLE',error:'local speech synthesis is not configured'});
+        const parsed=z.object({text:z.string().min(1).max(2000)}).strict().safeParse(await this.body<unknown>(req));
+        if(!parsed.success)return send(400,{code:'INVALID_TEXT',error:'invalid speech request'});
+        try{
+          const wav=await this.deps.speech.synthesise(parsed.data.text);
+          res.writeHead(200,{'content-type':'audio/wav','content-length':String(wav.byteLength),'cache-control':'no-store'});
+          res.end(Buffer.from(wav));
+          return;
+        }catch{return send(503,{code:'TTS_FAILED',error:'local speech synthesis failed'});}
+      }
       if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['voice.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});const result=await this.deps.voice.handle(command);this.deps.experience.invalidate(['telemetry','system','scene']);return send(200,result)}
       if(path==='/vision/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['vision.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VisionEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});return send(200,await this.deps.vision.handle(command))}
       if(path==='/vision/stream'){if(method!=='GET')return send(405,{error:'method not allowed'});if(!await this.authorise(req,['vision.read']))return send(401,{error:'unauthorised'});res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-cache','connection':'keep-alive'});const unsubscribe=this.deps.vision.subscribe(frame=>res.write(`${JSON.stringify(frame)}\n`));const heartbeat=setInterval(()=>res.write('\n'),15000);req.once('close',()=>{clearInterval(heartbeat);unsubscribe()});return}
@@ -228,6 +254,8 @@ export class DiagnosticsHttp {
   private allowedOrigin(origin: string) { return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === 'tauri://localhost' || origin === 'http://tauri.localhost'; }
   private binding(req:import('node:http').IncomingMessage){return{nodeId:String(req.headers['x-jarvis-node-id']??''),sessionId:String(req.headers['x-jarvis-session-id']??'')||undefined}}
   private authorise(req:import('node:http').IncomingMessage,scopes:string[],minimumStrength?:'strong'){return this.deps.credentials.authenticate(req.headers.authorization,{...this.binding(req),scopes,...(minimumStrength?{minimumStrength,recentWithinMs:5*60_000}:{})})}
+  private async rawBody(req: import('node:http').IncomingMessage, limit = 1_200_000): Promise<Buffer> { const chunks: Buffer[] = []; let size = 0; for await (const chunk of req) { const buffer = Buffer.from(chunk); size += buffer.length; if (size > limit) throw Object.assign(new Error('request body too large'), { code: 'TOO_LARGE' }); chunks.push(buffer); } return Buffer.concat(chunks); }
+
   private async body<T>(req: import('node:http').IncomingMessage): Promise<T> { const chunks: Buffer[] = []; let size = 0; for await (const chunk of req) { const buffer = Buffer.from(chunk); size += buffer.length; if (size > 1_000_000) throw new Error('request body too large'); chunks.push(buffer); } return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T; }
 
   async close(): Promise<void> {

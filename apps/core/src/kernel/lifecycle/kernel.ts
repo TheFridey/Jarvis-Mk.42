@@ -40,6 +40,9 @@ import { startTelemetry, stopTelemetry, structuredLog } from '@jarvis/telemetry'
 import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
 import { CompanionService } from '../experience/companion-service.ts';
 import { verifyBeforeDispatch, type ConversationGrant } from '../experience/conversation-privacy.ts';
+import { UtteranceService } from '../voice/utterance-service.ts';
+import { synthesiseToWav } from '../voice/speech-synthesis.ts';
+import { resolveAsrConfig, WhisperCppAsrAdapter } from '@jarvis/speech';
 
 import { assertSecureIngressConfig, type KernelConfig } from '../../runtime/config.ts';
 import { SystemClock, type Clock } from '../../runtime/clock.ts';
@@ -501,7 +504,13 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     const apiKey=process.env.JARVIS_LIVEKIT_API_KEY,apiSecret=process.env.JARVIS_LIVEKIT_API_SECRET;if(!apiKey||!apiSecret)throw new Error('RTC requires local LiveKit credentials');
     rtc=new RtcService({url:process.env.JARVIS_LIVEKIT_URL??'ws://127.0.0.1:7880',apiKey,apiSecret,voice,invalidate:()=>experience.invalidate(['system','telemetry','scene']),validate:async binding=>{const auth=await credentials.authenticate('Bearer '+binding.accessToken,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:['voice.write']});const node=auth?await nodeStore.get(binding.nodeId):null;return Boolean(auth&&auth.principalId===binding.principalId&&node&&!['revoked','isolated','disconnected'].includes(node.status)&&['kernel-local','owned-secure'].includes(node.trustTier)&&!['mobile','display'].includes(node.nodeType));}});
   }
-  const diagnosticsHttp = new DiagnosticsHttp({ domains,objectives, rtc,diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
+  // Local speech: the browser sends PCM, this transcribes with the installed ARM64 engine.
+  // Resolved lazily so a missing engine is a reported problem, not a boot failure.
+  const speechConfig = resolveAsrConfig();
+  const speechAdapter = speechConfig.engine === 'whisper-cpp' && speechConfig.config && speechConfig.readiness.ready ? new WhisperCppAsrAdapter(speechConfig.config) : undefined;
+  const utterance = new UtteranceService({ adapter: () => speechAdapter, timeoutMs: 25_000 });
+  const speech = { utterance, synthesise: (text: string) => synthesiseToWav(text) };
+  const diagnosticsHttp = new DiagnosticsHttp({ domains,objectives, rtc,diagnostics, state, health, desktop, voice, speech, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
   notifications.setSurfaceProvider(async()=>[...await diagnosticsHttp.deliverySurfaces(),...await nodeIngress.deliverySurfaces()]);
   notifications.registerSink(record=>diagnosticsHttp.deliverNotification(record));
 

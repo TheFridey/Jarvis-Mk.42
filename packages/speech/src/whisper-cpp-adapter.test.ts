@@ -10,7 +10,7 @@ import {
   WhisperCppAsrAdapter,
   type WhisperCppConfig,
 } from './whisper-cpp-adapter.ts';
-import type { AudioFrame } from '../adapters.ts';
+import type { AudioFrame } from './whisper-cpp-adapter.ts';
 
 /**
  * Controlled fixture processes: the engine is replaced by a node script that behaves like

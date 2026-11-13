@@ -32,6 +32,8 @@ export interface PresenceModeProps {
   /** Composed by the parent so the trusted RTC session lives in one place. */
   voiceControl?: ReactNode;
   /** Conversation privacy: what the Kernel has authorised, and the two operator actions. */
+  /** Local dictation: start capture, return the recognised text (empty when nothing heard). */
+  onDictate?: () => Promise<{ text: string; problem?: string }>;
   privacy?: { regime: 'PRIVATE' | 'CLOUD_PERMITTED'; provider?: string; busy: boolean; note?: string; onGrant: () => void; onRevoke: () => void };
   onAsk: (text: string) => Promise<void> | void;
   onDismissAnswer: () => void;
@@ -45,6 +47,21 @@ export function PresenceMode(props: PresenceModeProps) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [dictating, setDictating] = useState(false);
+  const [dictateProblem, setDictateProblem] = useState('');
+  // Dictation fills the input and stops there. Submitting is the operator's decision, so a
+  // misheard sentence can never become an instruction.
+  const dictate = async () => {
+    if (!props.onDictate || dictating) return;
+    setDictating(true); setDictateProblem('');
+    try {
+      const result = await props.onDictate();
+      if (result.text) setText(previous => (previous ? previous + ' ' : '') + result.text);
+      else if (result.problem) setDictateProblem(result.problem);
+    } catch (error) {
+      setDictateProblem(error instanceof Error ? error.message.slice(0, 120) : 'Dictation failed.');
+    } finally { setDictating(false); }
+  };
   const inputId = useId();
   const layer = useRef<HTMLDivElement>(null);
   const { core, coreRadius } = composition.layout;
@@ -126,6 +143,14 @@ export function PresenceMode(props: PresenceModeProps) {
           title={props.privacy.regime === 'CLOUD_PERMITTED' ? 'Revoke cloud permission for this conversation' : 'Allow this conversation to use the authorised provider'}>
           {props.privacy.regime === 'CLOUD_PERMITTED' ? 'MAKE PRIVATE' : 'ALLOW CLOUD'}
         </button>
+      </div> : null}
+
+      {props.onDictate ? <div className="presence-dictate">
+        <button type="button" disabled={!inputEnabled || dictating || busy} onClick={() => void dictate()}
+          aria-label={dictating ? 'Listening' : 'Dictate'} title={dictating ? 'Listening…' : 'Dictate with your microphone'}>
+          {dictating ? '●' : 'MIC'}
+        </button>
+        {dictateProblem ? <small role="status">{dictateProblem}</small> : null}
       </div> : null}
 
       <form className="presence-input" onSubmit={event => void submit(event)} role="search">

@@ -44,6 +44,14 @@ export class KernelSceneTransport implements SceneTransport {
   async submitCognition(command:DesktopCognitionCommand){return this.command<CognitionResponse>('/desktop/cognition',command)}
   async grantConversation(command:DesktopConversationGrantCommand){return this.command<DesktopConversationPrivacy>('/desktop/conversations/grant',command)}
   async revokeConversation(command:DesktopConversationRevokeCommand){return this.command<DesktopConversationPrivacy>('/desktop/conversations/revoke',command)}
+  /** Local speech: the browser posts captured audio, the Kernel transcribes it. */
+  async transcribeUtterance(wav: Blob): Promise<{ok:boolean;transcript?:string;problem?:string;detail?:string}>{
+    if(this.status.status!=='live')throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
+    const response=await this.request('/voice/utterance',{method:'POST',body:wav,headers:{'content-type':'audio/wav'}});
+    const body=await response.json().catch(()=>({ok:false,problem:'engine_unavailable'})) as {ok:boolean;transcript?:string;problem?:string;detail?:string};
+    if(response.status===401)throw new Error('Voice admission was refused. Sign in again.');
+    return body;
+  }
   async conversationPrivacy(conversationId:string){return this.command<DesktopConversationPrivacy>('/desktop/conversations/privacy',{conversationId})}
   private readonly notificationListeners=new Set<(record:{title:string;body:string})=>void>();
   subscribeNotifications(listener:(record:{title:string;body:string})=>void){this.notificationListeners.add(listener);return()=>{this.notificationListeners.delete(listener);};}

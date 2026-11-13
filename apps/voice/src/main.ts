@@ -4,7 +4,7 @@ import { HttpVoiceKernel } from './kernel-client.ts'; import { VoiceEngine } fro
 import { WakePhraseActivation } from './activation.ts';
 import { LocalVoiceSidecar } from './local-sidecar.ts';
 import { VoiceQualification } from './qualification.ts';
-import { describeAsr, resolveAsrConfig } from './asr/env.ts';
+import { describeAsr, resolveAsrConfig } from '@jarvis/speech';
 const kernel=new HttpVoiceKernel({url:process.env.JARVIS_CORE_URL??'http://127.0.0.1:7420',bootstrapCredential:process.env.JARVIS_BOOTSTRAP_CREDENTIAL??'dev-bootstrap-secret',principalId:process.env.JARVIS_VOICE_PRINCIPAL??'principal-operator',nodeId:process.env.JARVIS_NODE_ID??'local-server'});
 const node=process.env.JARVIS_NODE_ID??'local-server';
 startTelemetry({serviceName:'jarvis-voice',serviceVersion:'0.43.0',nodeId:node,otlpEndpoint:process.env.JARVIS_OTLP_ENDPOINT,disabled:process.env.JARVIS_TELEMETRY_DISABLED==='true'});

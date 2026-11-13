@@ -12,6 +12,7 @@ const alias = {
   '@jarvis/permissions': r('./packages/permissions/src/index.ts'),
   '@jarvis/capability-sdk': r('./packages/capability-sdk/src/index.ts'),
   '@jarvis/scene': r('./packages/scene/src/index.ts'),
+  '@jarvis/speech': r('./packages/speech/src/index.ts'),
   '@jarvis/spatial': r('./packages/spatial/src/index.ts'),
   '@jarvis/adapter-host': r('./apps/adapter-host/src/index.ts'),
 };

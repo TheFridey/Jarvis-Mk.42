@@ -34,6 +34,7 @@ import { useScene } from './use-scene.ts';
 import { latestConversationAnswer } from './conversation-answer.ts';
 import { ResponsePanel } from './response-panel.tsx';
 import { PresenceMode } from './presence/presence-mode.tsx';
+import { UtteranceRecorder } from './voice-capture.ts';
 import { COMMAND_MODE_KEY, PRESENCE_MODE_KEY, PRESENCE_MODE_STORAGE, presenceComposition, presenceInputEnabled, presenceMotion, presenceReadout, presenceSatellites, presenceZones } from './presence/presence-policy.ts';
 import { PresenceMic } from './presence/presence-mic.tsx';
 
@@ -169,6 +170,22 @@ export function JarvisExperience() {
   const privacyTransport = (value: unknown): value is PrivacyTransport =>
     typeof (value as PrivacyTransport | undefined)?.grantConversation === 'function' &&
     typeof (value as PrivacyTransport | undefined)?.revokeConversation === 'function';
+  // Local dictation: capture here, transcribe in the Kernel, put the text in the input.
+  const dictate = async (): Promise<{ text: string; problem?: string }> => {
+    type SpeechTransport = { transcribeUtterance: (wav: Blob) => Promise<{ ok: boolean; transcript?: string; problem?: string; detail?: string }> };
+    const speech = transport as unknown as Partial<SpeechTransport>;
+    if (typeof speech.transcribeUtterance !== 'function') return { text: '', problem: 'Kernel transport unavailable.' };
+    const recorder = new UtteranceRecorder({ maxMs: 20_000 });
+    try { await recorder.start(); } catch { return { text: '', problem: 'Microphone permission denied.' }; }
+    // Capture ends on silence or at the 20 s ceiling; the operator speaks one sentence.
+    const capture = await recorder.wait();
+    if (!capture) return { text: '', problem: 'Nothing was captured.' };
+    const result = await speech.transcribeUtterance(capture.wav);
+    if (result.problem === 'silence' || !result.transcript) return { text: '', problem: 'No speech detected. Try again, a little louder.' };
+    if (!result.ok) return { text: '', problem: result.detail ?? result.problem ?? 'Recognition failed.' };
+    return { text: result.transcript };
+  };
+
   const toggleCloud = async () => {
     if (!kernel || privacyBusy) return;
     if (!privacyTransport(transport)) { setPrivacy({regime:'PRIVATE',note:'Kernel transport unavailable'}); return; }
@@ -206,6 +223,7 @@ export function JarvisExperience() {
     {presenceOn ? <PresenceMode readout={readout} liveness={liveness} composition={composition} zones={zones} satellites={satellites}
       inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
       voiceControl={<PresenceMic transport={transport} live={kernelLive} available={rtcAvailable} liveness={liveness} picture={kernel}/>}
+      onDictate={dictate}
       privacy={{ regime: privacy.regime, ...(privacy.provider ? { provider: privacy.provider } : {}), ...(privacy.note ? { note: privacy.note } : {}), busy: privacyBusy, onGrant: () => void toggleCloud(), onRevoke: () => void toggleCloud() }}
       answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
     {!presenceOn ? <>

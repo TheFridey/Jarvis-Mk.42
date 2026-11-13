@@ -1,32 +1,33 @@
 {
-  "name": "@jarvis/core",
-  "version": "0.43.0",
-  "private": true,
-  "description": "The JARVIS Kernel - the Nervous System. TypeScript/Node modular monolith with explicit constructor injection (ADR-0008, ADR-0040).",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "start": "tsx src/main.ts"
-  },
-  "dependencies": {
-    "@jarvis/adapter-host": "workspace:*",
-    "@jarvis/contracts": "workspace:*",
-    "@jarvis/persistence": "workspace:*",
-    "@jarvis/scene": "workspace:*",
-    "@jarvis/telemetry": "workspace:*",
-    "@jarvis/validation": "workspace:*",
-    "@livekit/rtc-node": "^1.1.0",
-    "ioredis": "^5.4.1",
-    "livekit-server-sdk": "^2.19.1",
-    "nats": "^2.28.2",
-    "ulid": "^2.3.0",
-    "ws": "^8.18.0",
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {
-    "@types/ws": "^8.18.0"
-  }
+ "name": "@jarvis/core",
+ "version": "0.43.0",
+ "private": true,
+ "description": "The JARVIS Kernel - the Nervous System. TypeScript/Node modular monolith with explicit constructor injection (ADR-0008, ADR-0040).",
+ "type": "module",
+ "exports": {
+  ".": "./src/index.ts"
+ },
+ "scripts": {
+  "dev": "tsx watch src/main.ts",
+  "start": "tsx src/main.ts"
+ },
+ "dependencies": {
+  "@jarvis/adapter-host": "workspace:*",
+  "@jarvis/contracts": "workspace:*",
+  "@jarvis/persistence": "workspace:*",
+  "@jarvis/scene": "workspace:*",
+  "@jarvis/telemetry": "workspace:*",
+  "@jarvis/validation": "workspace:*",
+  "@livekit/rtc-node": "^1.1.0",
+  "ioredis": "^5.4.1",
+  "livekit-server-sdk": "^2.19.1",
+  "nats": "^2.28.2",
+  "ulid": "^2.3.0",
+  "ws": "^8.18.0",
+  "zod": "^3.23.8",
+  "@jarvis/speech": "workspace:*"
+ },
+ "devDependencies": {
+  "@types/ws": "^8.18.0"
+ }
 }
