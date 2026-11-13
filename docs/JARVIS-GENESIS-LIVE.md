@@ -162,6 +162,15 @@ session admitted → speak → envelope moves the orb → transcript appears →
 drives the orb → press stop → indicators clear and tracks are released. Every step is
 observable in the UI; none is claimed here.
 
+### Dev server note (found while verifying)
+
+`next dev` fails the page with HTTP 500 — a Client Manifest error
+(`segment-explorer-node.js#SegmentViewNode`) that the built export does not have. The
+launcher therefore serves `apps/desktop/out` with `scripts/serve-export.mjs` (no
+dependencies, loopback only, `JARVIS_DESKTOP_PORT` respected), and the acceptance path uses
+the artifact that actually ships. Verified: `http://127.0.0.1:4300/?mode=presence` returns
+200 with the JARVIS page.
+
 ## F — Response presentation
 
 Unchanged and verified: the shipped component renders prose as prose, structured evidence

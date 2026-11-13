@@ -144,6 +144,8 @@ foreach ($service in 'postgres', 'redis', 'nats') {
 # 127.0.0.1, never localhost: localhost resolves to ::1 first here and times out
 # against Docker's published ports. Set before migrations, which read the same var.
 $env:JARVIS_TELEMETRY_DISABLED = '1'
+$env:JARVIS_DESKTOP_PORT = "$DesktopPort"
+$env:JARVIS_PRESENCE_URL = $presenceUrl
 $env:JARVIS_DB_URL = 'postgres://jarvis:jarvis@127.0.0.1:5433/jarvis'
 $env:JARVIS_REDIS_URL = 'redis://127.0.0.1:6380'
 $env:JARVIS_NATS_URL = 'nats://127.0.0.1:4222'
@@ -177,11 +179,10 @@ for ($i = 0; $i -lt 90; $i++) { if (Test-Kernel) { $up = $true; break }; Start-S
 if (-not $up) { Bad 'kernel did not answer /healthz within 3 minutes - see .logs/kernel.log'; }
 else { Ok 'kernel healthy on http://127.0.0.1:7420' }
 
-if (-not (Test-Path (Join-Path $repo 'apps/desktop/.next'))) { $Build = $true }
-if ($Build) { Say '  building the desktop (first run or -Build)'; Pnpm --filter '@jarvis/desktop' build; Ok 'desktop built' }
-# -H 127.0.0.1: without it Next binds ::1 only on this host, and both the browser
-# and the qualifier reach 127.0.0.1, so the page would look down while it is up.
-$tracked += Start-Tracked 'desktop' 'node' @($pnpmPath, '--filter', '@jarvis/desktop', 'exec', 'next', 'dev', '-H', '127.0.0.1', '-p', "$DesktopPort")
+if ($Build -or -not (Test-Path (Join-Path $repo 'apps/desktop/out/index.html'))) { Say '  building the desktop export'; Pnpm --filter '@jarvis/desktop' build; Ok 'desktop export built' }
+# The production export is served, not `next dev`: it is what ships, and the dev server
+# currently fails the page with a Client Manifest error that the built output does not have.
+$tracked += Start-Tracked 'desktop' 'node' @((Join-Path $repo 'scripts/serve-export.mjs'))
 Ok "presence starting on $presenceUrl"
 
 $tracked | ConvertTo-Json | Set-Content -Path $pidFile -Encoding UTF8
