@@ -56,7 +56,7 @@
 /* ---------- bottom stack: answer → input → footer, never overlapping ---------- */
 /* Centred without a transform: a transformed ancestor would make the docked
    response column position itself against the stack instead of the viewport. */
-.presence-stack{position:fixed;left:0;right:0;bottom:0;margin:0 auto;width:min(700px,calc(100vw - 32px));
+.presence-stack{position:fixed;left:0;right:0;bottom:0;margin:0 auto;width:min(700px,calc(100vw - 32px));max-height:var(--presence-stack-max,72vh);
   display:flex;flex-direction:column;gap:10px;align-items:stretch;padding-bottom:12px;pointer-events:none}
 .presence-stack>*{pointer-events:auto}
 

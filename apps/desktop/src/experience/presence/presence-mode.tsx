@@ -70,7 +70,7 @@ export function PresenceMode(props: PresenceModeProps) {
   };
 
   return <div ref={layer} className={`presence-layer presence-${readout.state.toLowerCase()}${reducedMotion ? ' reduced' : ''}${answer ? ' has-answer' : ''}${expanded ? ' answer-expanded' : ''}`}
-    data-presence-state={readout.state} style={{ ['--presence-horizon' as string]: `${zones.horizon}px`, ['--presence-answer-max' as string]: `${zones.answerMaxHeight}px` }}>
+    data-presence-state={readout.state} style={{ ['--presence-horizon' as string]: `${zones.horizon}px`, ['--presence-answer-max' as string]: `${zones.answerMaxHeight}px`, ['--presence-stack-max' as string]: `${zones.stackMax}px` }}>
 
     <div className="presence-word-block" style={{ left: core.x, top: zones.horizon }}>
       <div className="presence-word" role="status" aria-live="polite" aria-label={`JARVIS ${readout.word}. ${readout.detail}`}>

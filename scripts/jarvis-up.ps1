@@ -45,13 +45,37 @@ function Pnpm {
   if ($LASTEXITCODE -ne 0) { throw "pnpm failed: $args" }
 }
 
+# pnpm and tsx spawn children; killing the wrapper leaves the real server listening.
+# Terminate the whole owned tree, children first, then verify the port is free.
+function Get-ChildIds([int]$ParentId) {
+  $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$ParentId" -ErrorAction SilentlyContinue)
+  $ids = @()
+  foreach ($child in $children) { $ids += Get-ChildIds -ParentId $child.ProcessId }
+  foreach ($child in $children) { $ids += [int]$child.ProcessId }
+  return $ids
+}
+
+function Stop-Tree([int]$RootId, [string]$Name) {
+  $ids = @(Get-ChildIds -ParentId $RootId) + @($RootId)
+  $stopped = 0
+  foreach ($id in $ids) {
+    if ($id -eq $PID) { continue }   # never stop this script
+    if (Get-Process -Id $id -ErrorAction SilentlyContinue) {
+      Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+      $stopped++
+    }
+  }
+  if ($stopped -gt 0) { Ok "stopped $Name (pid $RootId and $($stopped - 1) child process(es))" }
+}
+
+function Test-PortOpen([int]$Port) {
+  try { $client = New-Object System.Net.Sockets.TcpClient; $client.Connect('127.0.0.1', $Port); $client.Close(); return $true } catch { return $false }
+}
+
 function Stop-Tracked {
   if (-not (Test-Path $pidFile)) { return }
   $tracked = Get-Content $pidFile -Raw | ConvertFrom-Json
-  foreach ($entry in $tracked) {
-    $process = Get-Process -Id $entry.pid -ErrorAction SilentlyContinue
-    if ($process) { Stop-Process -Id $entry.pid -Force -ErrorAction SilentlyContinue; Ok "stopped $($entry.name) (pid $($entry.pid))" }
-  }
+  foreach ($entry in $tracked) { Stop-Tree -RootId ([int]$entry.pid) -Name $entry.name }
   Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
 }
 
@@ -71,8 +95,19 @@ function Test-Kernel {
 if ($Down) {
   Say 'JARVIS - shutdown'
   Stop-Tracked
+  $lingering = @()
+  foreach ($port in 7420, 7430, $DesktopPort) { if (Test-PortOpen $port) { $lingering += $port } }
+  if ($lingering.Count -gt 0) {
+    Bad "ports still listening after shutdown: $($lingering -join ', ')"
+    foreach ($port in $lingering) {
+      $owner = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
+      if ($owner) { Warn "port $port held by pid $owner - not this script's tracked process; inspect before killing" }
+    }
+    Say 'Shutdown incomplete. Nothing else was stopped.'
+    return
+  }
   if (-not $Check) { & docker compose -f $compose stop postgres redis nats | Out-Null; Ok 'data plane stopped (volumes kept)' }
-  Say "Presence and kernel are stopped. Redis/NATS data and the database volume are preserved."
+  Say "Stopped: kernel, gateway, presence. Ports released. Database volume and Redis/NATS data preserved."
   return
 }
 

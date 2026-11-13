@@ -196,7 +196,9 @@ export function presenceDetail(input: PresenceInput): string {
     const what = `${past.action ? `${past.action} · ` : ''}${past.state}`;
     if (past.status === 'unresolved') return `Unresolved: ${what} ${when}. No successful retry observed.`;
     if (past.status === 'outcome') return `Standing by. Last verification: ${what} ${when}.`;
-    if (past.status === 'historical') return `Standing by. Recovered since ${what} ${when}.`;
+    // A recovered fault is history. One short clause is enough on the standby line; the
+    // full record stays in the accessible label and in diagnostics.
+    if (past.status === 'historical') return `Standing by. Recovered ${when}.`;
     return `Standing by. Last work fault: ${what} ${when}.`;
   }
   return liveness.synthetic ? 'Synthetic data. No live execution.' : 'Standing by.';
@@ -405,6 +407,8 @@ export interface PresenceZones {
   answerMaxHeight: number;
   /** Wide screens dock the response beside the orb; narrow ones stack it. */
   answerDocked: boolean;
+  /** Maximum height of the bottom-anchored stack, so it never reaches the detail band. */
+  stackMax: number;
   inputTop: number;
   inputBottom: number;
 }
@@ -425,6 +429,9 @@ export function presenceZones(viewport: { width: number; height: number }, compo
   const inputTop = inputBottom - inputHeight;
   const detailBottom = composition.horizon + 74;
   const answerTop = detailBottom + 10;
+  // The stack (privacy chip, response, input) is bottom-anchored and grows upward. Its
+  // ceiling is the detail band, so a two-line status and a chip cannot collide.
+  const stackMax = Math.max(120, height - detailBottom - 12);
   // On a wide screen the response lives in its own column beside the orb, so it
   // may be tall. Below 1100px there is no column, so it is bounded by the space
   // between the readout and the input and scrolls inside it.
@@ -432,6 +439,7 @@ export function presenceZones(viewport: { width: number; height: number }, compo
   return {
     horizon: composition.horizon,
     detailBottom,
+    stackMax,
     answerTop,
     answerDocked,
     answerMaxHeight: answerDocked ? Math.max(180, Math.round(height * .46)) : Math.max(64, inputTop - 14 - answerTop),

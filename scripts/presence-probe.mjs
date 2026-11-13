@@ -72,6 +72,18 @@ const PROBE = `(() => {
                 satellites: document.querySelectorAll('.presence-satellite').length,
                 buttons: document.querySelectorAll('.presence-layer button').length },
     viewport: { w: innerWidth, h: innerHeight },
+    overlap: (() => {
+      const detail = document.querySelector('.presence-detail');
+      const chip = document.querySelector('.presence-privacy');
+      const input = document.querySelector('.presence-input');
+      const stack = document.querySelector('.presence-stack');
+      const rect = el => el ? el.getBoundingClientRect() : null;
+      const clash = (a, b) => { if (!a || !b) return false; return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom); };
+      const d = rect(detail), c = rect(chip), i = rect(input), st = rect(stack);
+      return { detailVsChip: clash(d, c), detailVsInput: clash(d, i), chipVsInput: clash(c, i),
+               stackTop: st ? Math.round(st.top) : null, detailBottom: d ? Math.round(d.bottom) : null,
+               chipTop: c ? Math.round(c.top) : null };
+    })(),
     text: (document.querySelector('.presence-layer')?.innerText ?? '').replace(/\s+/g, ' ').slice(0, 400),
   };
 })()`;
