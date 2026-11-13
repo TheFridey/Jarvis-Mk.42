@@ -173,3 +173,46 @@ export function classificationForTurn(privacyClass: PrivacyClass | string | unde
   if (privacyClass && Object.hasOwn(RANK, privacyClass)) return privacyClass as PrivacyClass;
   return 'RESTRICTED';
 }
+
+/**
+ * The authorisation reference carried by a request: which grant, for which conversation,
+ * for which provider. Deliberately small — it is a pointer, not a permission.
+ */
+export interface AuthorisationRef {
+  grantId: string;
+  conversationId: string;
+  provider: string;
+}
+
+export type DispatchVerdict = { ok: true } | { ok: false; reason: GrantRefusal; detail: string };
+
+/**
+ * Re-check authority immediately before a provider request is dispatched.
+ *
+ * The build-time decision is necessary but not sufficient: a grant can be revoked between
+ * the moment a turn is accepted and the moment the request leaves. This re-reads the grant
+ * and refuses if anything changed. It cannot un-send a request that has already gone; it
+ * closes the window before dispatch, which is the only window that exists.
+ */
+export async function verifyBeforeDispatch(
+  load: (grantId: string) => Promise<ConversationGrant | null | undefined>,
+  ref: AuthorisationRef | undefined,
+  now = Date.now(),
+): Promise<DispatchVerdict> {
+  // A cloud route without a reference is itself a defect: refuse rather than trust it.
+  if (!ref) return { ok: false, reason: 'no_grant', detail: 'Cloud dispatch attempted without an authorisation reference.' };
+  const grant = await load(ref.grantId);
+  if (!grant) return { ok: false, reason: 'no_grant', detail: 'The authorisation no longer exists.' };
+  if (grant.grantId !== ref.grantId) return { ok: false, reason: 'malformed_grant', detail: 'The stored grant does not match the reference.' };
+  if (grant.conversationId !== ref.conversationId) return { ok: false, reason: 'conversation_mismatch', detail: 'The grant authorises a different conversation.' };
+  if (grant.provider !== ref.provider) return { ok: false, reason: 'provider_mismatch', detail: 'The grant authorises a different provider.' };
+  if (grant.revokedAt) return { ok: false, reason: 'revoked', detail: 'The grant was revoked before dispatch.' };
+  if (grant.policyVersion !== CONVERSATION_POLICY_VERSION) return { ok: false, reason: 'policy_version_mismatch', detail: 'The grant predates the current privacy policy.' };
+  if (grant.expiresAt !== undefined && grant.expiresAt !== null) {
+    const expires = instant(grant.expiresAt);
+    if (expires === undefined) return { ok: false, reason: 'expired', detail: 'The grant expiry cannot be read.' };
+    if (expires <= now) return { ok: false, reason: 'expired', detail: 'The grant expired before dispatch.' };
+  }
+  if (rank(grant.ceiling) > rank(CLOUD_CEILING)) return { ok: false, reason: 'ceiling_above_cloud', detail: 'The grant ceiling cannot be used for cloud inference.' };
+  return { ok: true };
+}

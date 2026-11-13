@@ -39,6 +39,7 @@ import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { startTelemetry, stopTelemetry, structuredLog } from '@jarvis/telemetry';
 import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
 import { CompanionService } from '../experience/companion-service.ts';
+import { verifyBeforeDispatch, type ConversationGrant } from '../experience/conversation-privacy.ts';
 
 import { assertSecureIngressConfig, type KernelConfig } from '../../runtime/config.ts';
 import { SystemClock, type Clock } from '../../runtime/clock.ts';
@@ -375,7 +376,22 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
   const capabilityContracts = (ov.capabilities ?? []).map((entry) => capabilityContract(entry.manifest));
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso(), new AgentJobStore(pg.sql, events), () => capabilityContracts);
-  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ domains, sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research, businessAnswer:async(principalId,text,correlationId)=>{
+  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ domains, sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research,
+  // Re-read the grant at the moment of dispatch: revocation must take effect before the
+  // request leaves, not merely on the next turn.
+  verifyAuthorisation: async ref => {
+    const verdict = await verifyBeforeDispatch(async grantId => {
+      const [row] = await pg.sql<{ grant_id:string;conversation_id:string;principal_id:string;provider:string;model:string;purpose:'conversation';ceiling:ConversationGrant['ceiling'];policy_version:number;created_at:string;expires_at:string|null;revoked_at:string|null }[]>`
+        select grant_id, conversation_id, principal_id, provider, model, purpose, ceiling, policy_version,
+               to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at,
+               case when expires_at is null then null else to_char(expires_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end as expires_at,
+               case when revoked_at is null then null else to_char(revoked_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end as revoked_at
+          from experience.conversation_grants where grant_id = ${grantId}`;
+      if (!row) return undefined;
+      return { grantId: row.grant_id, conversationId: row.conversation_id, principalId: row.principal_id, provider: row.provider, model: row.model, purpose: 'conversation', ceiling: row.ceiling, policyVersion: row.policy_version, createdAt: row.created_at, expiresAt: row.expires_at, revokedAt: row.revoked_at } satisfies ConversationGrant;
+    }, ref);
+    return verdict.ok ? { ok: true } : { ok: false, reason: verdict.reason, detail: verdict.detail };
+  }, businessAnswer:async(principalId,text,correlationId)=>{
     if(currentDomainScope()?.kind==='SYSTEM'&&/^(?:jarvis[, ]+)?check production[.!]?$/i.test(text.trim())){
       const telemetry=await systemTelemetry.snapshot();
       const findings=telemetryMonitor.evaluate(telemetry);

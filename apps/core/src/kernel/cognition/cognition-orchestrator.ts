@@ -67,7 +67,7 @@ export function routingPolicy(input: {
 
 export class CognitionOrchestrator {
   private readonly inFlight = new Set<string>();
-  constructor(private readonly d:{domains?:DomainService;sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean;
+  constructor(private readonly d:{domains?:DomainService;sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean;verifyAuthorisation?:(ref:{grantId:string;conversationId:string;provider:string})=>Promise<{ok:boolean;reason?:string;detail?:string}>;
     deliverContinuation?:(response:CognitionResponse,parentJobId:string)=>Promise<CognitionResponse>;
     /** True when a policy-permitted local model route exists. RESTRICTED context
      *  fails closed when this is false — it is never downgraded to cloud. */
@@ -112,6 +112,12 @@ export class CognitionOrchestrator {
       if('refuse' in decision) throw new Error(decision.refuse);
       const locality=decision.locality, cloudAllowed=decision.cloudAllowed;
       await this.emit(EventNames.CognitionAgentInvoked,req,{agentId:req.agentId,contextId:context.id,contextUnits:context.budget.usedUnits,maxPrivacyClass:pc,locality,cloudAllowed});
+      // Last check before anything leaves the machine: a grant revoked while the context
+      // was being compiled must not authorise this request.
+      if(cloudAllowed&&req.authorisation){
+        const verdict=await this.d.verifyAuthorisation?.(req.authorisation);
+        if(!verdict?.ok)throw new Error(`authorisation refused before dispatch: ${verdict?.reason??'no verifier'}`);
+      }
       const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:boundedOutput(req.maxOutput),...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality,determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:pc,realtime:req.realtime,cloudAllowed,preferredModels:req.preferredModels??(process.env.JARVIS_PREFERRED_MODELS??'gpt-6.1-sol').split(',').map(id=>id.trim()).filter(Boolean),operatorPreferences:{preferredProviders:req.preferredProviders},...(req.requiredProvider?{requiredProvider:req.requiredProvider}:{})},async routing=>{await this.d.sql`update cognition.runs set privacy_class=${pc},routing_observability=${JSON.stringify(routing)},model_id=${routing.selectedModelId??null} where request_id=${req.requestId}`;if(routing.selectedModelId)await this.emit(EventNames.CognitionModelSelected,req,{phase:routing.phase,modelId:routing.selectedModelId,candidates:routing.candidates.map(candidate=>({modelId:candidate.modelId,state:candidate.state,reason:candidate.reason})),selectionReason:routing.selectionReason});}, { jobId: req.requestId, objectiveId: req.objectiveId, parentJobId: req.parentJobId, identityHash });
       result.domainId=req.domainId;
       const answer=result.proposals.find(p=>p.kind==='answer');

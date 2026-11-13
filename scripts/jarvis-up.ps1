@@ -86,11 +86,22 @@ Ok "node $(& node --version) - pnpm $pnpmVersion"
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Bad 'docker not on PATH'; return }
 try { & docker info --format '{{.ServerVersion}}' | Out-Null; Ok "docker engine reachable" } catch { Bad 'docker engine not reachable - start Docker Desktop, then rerun'; return }
 
+# Source the local LiveKit environment file when it exists. Values are never printed.
+$rtcEnvFile = Join-Path $repo 'artifacts/local-runtime/pki/livekit.env'
+$rtcYaml = Join-Path $repo 'artifacts/local-runtime/pki/livekit.yaml'
+if (Test-Path $rtcEnvFile) {
+  Get-Content $rtcEnvFile | ForEach-Object {
+    if ($_ -match '^\s*(JARVIS_LIVEKIT_[A-Z_]+)=(.*)$') { Set-Item -Path ('env:' + $Matches[1]) -Value $Matches[2] }
+  }
+}
+
 $gatewayConfigured = [bool]$env:OPENROUTER_API_KEY -and [bool]$env:JARVIS_OPENROUTER_MODEL
 $rtcConfigured = [bool]$env:JARVIS_LIVEKIT_URL -and [bool]$env:JARVIS_LIVEKIT_API_KEY -and [bool]$env:JARVIS_LIVEKIT_API_SECRET
+if ($rtcConfigured) { Ok 'rtc: local LiveKit credentials loaded (values not shown)' }
+elseif (Test-Path $rtcYaml) { Warn 'rtc: livekit.yaml exists but livekit.env does not - run: pnpm rtc:config' }
+else { Warn 'rtc: no local LiveKit configuration - run: node <pinned pnpm> rtc:config (voice stays unavailable)' }
 if ($gatewayConfigured) { Ok "model gateway: provider key present, model $($env:JARVIS_OPENROUTER_MODEL)" }
 else { Warn 'model gateway: no provider key in this shell - inference will fail closed (set OPENROUTER_API_KEY + JARVIS_OPENROUTER_MODEL to enable)' }
-if ($rtcConfigured) { Ok 'rtc: LiveKit credentials present' } else { Warn 'rtc: no LiveKit credentials - voice stays unavailable, text still works' }
 
 if ($Check) {
   Say ''
@@ -103,6 +114,19 @@ if ($Check) {
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 Stop-Tracked
 $tracked = @()
+
+# An env change only reaches a process that starts after it. If a Kernel or Gateway is
+# already listening from an earlier run, this script cannot reconfigure it: say so instead
+# of starting a second one that quietly fails to bind.
+foreach ($port in 7420, 7430) {
+  $inUse = $false
+  try { $client = New-Object System.Net.Sockets.TcpClient; $client.Connect('127.0.0.1', $port); $inUse = $true; $client.Close() } catch { }
+  if ($inUse) {
+    $owner = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
+    Bad "port $port is already in use (pid $owner) - stop it first, then rerun, so the new configuration is actually applied"
+    return
+  }
+}
 
 Say ''
 Say 'Data plane'
@@ -128,6 +152,13 @@ Say ''
 Say 'Migrations'
 Pnpm --filter '@jarvis/persistence' db:migrate
 Ok 'database schema current'
+
+Say ''
+if ($rtcConfigured) {
+  Say 'RTC'
+  & docker compose -f (Join-Path $repo 'infrastructure/docker/rtc.compose.yml') up -d | Out-Null
+  Ok 'livekit container started (loopback 7880/7881/7882)'
+}
 
 Say ''
 Say 'Services'
