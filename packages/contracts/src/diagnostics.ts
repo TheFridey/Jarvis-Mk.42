@@ -42,6 +42,15 @@ export interface DiagnosticsReport {
     deadLettered: number;
     /** Dead letters recorded since this process started. This is what `ok` uses. */
     deadLetteredSinceStart: number;
+    /**
+     * Durable incidents still without a resolution. The dead-letter schema records no
+     * acknowledgement, replay or resolution state, so no recorded dead letter can be
+     * proven resolved: this currently equals the lifetime total. It is reported so a
+     * restart cannot make the backlog invisible, and it is deliberately not part of `ok`
+     * — a health endpoint must not depend on a permanent historical backlog, but the
+     * backlog must still be visible to an operator.
+     */
+    deadLetteredUnresolved: number;
   };
 
   eventFabric?: {

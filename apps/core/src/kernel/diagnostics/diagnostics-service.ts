@@ -145,6 +145,7 @@ export class DiagnosticsService {
         outboxPending,
         deadLettered,
         deadLetteredSinceStart: deadLetteredRecent,
+        deadLetteredUnresolved: deadLettered,
       },
       ...(this.deps.eventFabricDiagnostics?.() ? { eventFabric: this.deps.eventFabricDiagnostics() } : {}),
       state: {

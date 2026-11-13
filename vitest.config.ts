@@ -28,6 +28,9 @@ const includes: Record<string, string[]> = {
 
 export default defineConfig({
   resolve: { alias },
+  // Tests may render shipped React components; the app compiles JSX with the
+  // automatic runtime, so the test transform must agree with it.
+  esbuild: { jsx: 'automatic', jsxImportSource: 'react' },
   test: {
     globals: false,
     environment: 'node',

@@ -25,6 +25,46 @@ export function cognitionIdentity(req: CognitionRequest, cloudAllowed: boolean):
   const scope=req.contextScope??null;
   const identity:unknown[]=[req.requestId,req.principalId,req.correlationId,req.agentId,req.input,req.task,req.locality??'any',req.maxCost??null,req.maxLatencyMs??null,req.realtime??false,req.cloudAllowed??cloudAllowed,req.preferredModels??[],req.preferredProviders??[],req.objectiveId??null,req.parentJobId??null,req.workflowRef??null];if(req.perceptionRef||req.analysisOnly)identity.push(req.perceptionRef??null,req.analysisOnly??false);if(req.evidenceRef)identity.push(req.evidenceRef);if(scope)identity.push({contextScope:scope});if(req.domainId)identity.push({domainId:req.domainId,purpose:req.domainPurpose??'general',sources:req.sourceDomainIds??[],fusionGrants:req.fusionGrantIds??[]});return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
 }
+/**
+ * Output-token policy. The authoritative ceiling is defined here, next to the call
+ * that spends the tokens; a client may ask for less, never for more, and nonsense is
+ * treated as "no preference" rather than as an error.
+ */
+export const MAX_COGNITION_OUTPUT = 2000;
+export function boundedOutput(requested?: number): number {
+  if (requested === undefined || !Number.isFinite(requested)) return MAX_COGNITION_OUTPUT;
+  const whole = Math.floor(requested);
+  if (whole <= 0) return MAX_COGNITION_OUTPUT;
+  return Math.min(whole, MAX_COGNITION_OUTPUT);
+}
+
+/**
+ * Where a request may be routed, given what its context contains. Extracted so the
+ * privacy decision is testable in isolation and cannot drift from the call site that
+ * spends money or moves data.
+ *
+ * The ceiling is content-derived: a conversation cannot authorise its way out of a
+ * RESTRICTED context, and sensitivity always wins over a caller's preference for cloud.
+ */
+export type RoutingDecision =
+  | { locality: 'local' | 'prefer-local' | 'any' | 'cloud-ok'; cloudAllowed: boolean }
+  | { refuse: string };
+export function routingPolicy(input: {
+  privacyClass: 'PUBLIC' | 'INTERNAL' | 'SENSITIVE' | 'RESTRICTED';
+  requestedLocality?: 'local' | 'prefer-local' | 'any' | 'cloud-ok';
+  cloudAllowed: boolean;
+  localModelAvailable: boolean;
+}): RoutingDecision {
+  const sensitive = input.privacyClass === 'SENSITIVE' || input.privacyClass === 'RESTRICTED';
+  if (input.privacyClass === 'RESTRICTED' && !input.localModelAvailable) {
+    return { refuse: 'context contains RESTRICTED knowledge and no policy-permitted local model route is available — refusing to route (privacy fail-closed)' };
+  }
+  return {
+    locality: sensitive ? 'local' : (input.requestedLocality ?? 'any'),
+    cloudAllowed: sensitive ? false : input.cloudAllowed,
+  };
+}
+
 export class CognitionOrchestrator {
   private readonly inFlight = new Set<string>();
   constructor(private readonly d:{domains?:DomainService;sql:Sql;context:ContextCompiler;runtime:AgentRuntime;agency:AgencyIngress;events:EventManager;now:()=>string;cloudAllowed:boolean;
@@ -67,14 +107,12 @@ export class CognitionOrchestrator {
       // dropped before routing can consider it; the package's own maxPrivacyClass
       // then drives model locality (privacy-aware routing, not label loosening).
       const context=await this.d.context.compile({correlationId:req.correlationId,intent:req.input,intentClass:req.task,budgetUnits:req.evidenceRef?9000:4000,maxPrivacyClass:req.contextScope==='public-web'?'PUBLIC':'RESTRICTED',...(req.contextScope?{scope:req.contextScope}:{}),principalId:req.principalId,domainId:req.domainId,perceptionRef:req.perceptionRef,...(req.evidenceRef?{evidenceRef:req.evidenceRef}:{})});
-      const pc=context.maxPrivacyClass, sensitive=pc==='SENSITIVE'||pc==='RESTRICTED';
-      if(pc==='RESTRICTED'&&!(this.d.localModelAvailable?.()??false)){
-        throw new Error('context contains RESTRICTED knowledge and no policy-permitted local model route is available — refusing to route (privacy fail-closed)');
-      }
-      const locality=sensitive?'local':(req.locality??'any');
-      const cloudAllowed=sensitive?false:(req.cloudAllowed??this.d.cloudAllowed);
+      const pc=context.maxPrivacyClass;
+      const decision=routingPolicy({privacyClass:pc,requestedLocality:req.locality,cloudAllowed:req.cloudAllowed??this.d.cloudAllowed,localModelAvailable:this.d.localModelAvailable?.()??false});
+      if('refuse' in decision) throw new Error(decision.refuse);
+      const locality=decision.locality, cloudAllowed=decision.cloudAllowed;
       await this.emit(EventNames.CognitionAgentInvoked,req,{agentId:req.agentId,contextId:context.id,contextUnits:context.budget.usedUnits,maxPrivacyClass:pc,locality,cloudAllowed});
-      const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:2000,...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality,determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:pc,realtime:req.realtime,cloudAllowed,preferredModels:req.preferredModels??(process.env.JARVIS_PREFERRED_MODELS??'gpt-6.1-sol').split(',').map(id=>id.trim()).filter(Boolean),operatorPreferences:{preferredProviders:req.preferredProviders}},async routing=>{await this.d.sql`update cognition.runs set privacy_class=${pc},routing_observability=${JSON.stringify(routing)},model_id=${routing.selectedModelId??null} where request_id=${req.requestId}`;if(routing.selectedModelId)await this.emit(EventNames.CognitionModelSelected,req,{phase:routing.phase,modelId:routing.selectedModelId,candidates:routing.candidates.map(candidate=>({modelId:candidate.modelId,state:candidate.state,reason:candidate.reason})),selectionReason:routing.selectionReason});}, { jobId: req.requestId, objectiveId: req.objectiveId, parentJobId: req.parentJobId, identityHash });
+      const {result,response}=await this.d.runtime.invoke(req.agentId,{task:req.task,capabilities:['json'],input:{instruction:req.input,context,constraints:['Return JSON with a proposals array','Never claim to execute tools or capabilities','Every proposal must include complete provenance and correlationId']},budget:{contextUnits:context.budget.usedUnits,maxOutput:boundedOutput(req.maxOutput),...(req.maxCost!==undefined?{maxCost:req.maxCost}:{}),...(req.maxLatencyMs!==undefined?{maxLatencyMs:req.maxLatencyMs}:{})},locality,determinism:'low-temp',correlationId:req.correlationId,principalId:req.principalId,privacyClass:pc,realtime:req.realtime,cloudAllowed,preferredModels:req.preferredModels??(process.env.JARVIS_PREFERRED_MODELS??'gpt-6.1-sol').split(',').map(id=>id.trim()).filter(Boolean),operatorPreferences:{preferredProviders:req.preferredProviders}},async routing=>{await this.d.sql`update cognition.runs set privacy_class=${pc},routing_observability=${JSON.stringify(routing)},model_id=${routing.selectedModelId??null} where request_id=${req.requestId}`;if(routing.selectedModelId)await this.emit(EventNames.CognitionModelSelected,req,{phase:routing.phase,modelId:routing.selectedModelId,candidates:routing.candidates.map(candidate=>({modelId:candidate.modelId,state:candidate.state,reason:candidate.reason})),selectionReason:routing.selectionReason});}, { jobId: req.requestId, objectiveId: req.objectiveId, parentJobId: req.parentJobId, identityHash });
       result.domainId=req.domainId;
       const answer=result.proposals.find(p=>p.kind==='answer');
       for(const proposal of result.proposals)await this.emit(EventNames.CognitionProposalCreated,req,{proposalId:proposal.proposalId,kind:proposal.kind,confidence:proposal.confidence});

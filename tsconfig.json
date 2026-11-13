@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    // Tests render shipped .tsx components; the app itself compiles with the automatic runtime.
+    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
       "@jarvis/contracts": ["packages/contracts/src/index.ts"],

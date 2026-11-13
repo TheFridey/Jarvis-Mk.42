@@ -9,7 +9,7 @@ export class AgentJobAccessError extends Error {
   constructor() { super('agent job not found for principal'); this.name='AgentJobAccessError'; }
 }
 export interface AgentManifest { id: string; version: string; displayName: string; role: string; leasePolicy: { maxWallTimeMs: number; maxContextUnits: number; maxCostUnits: number }; proposalScope: { kinds: string[]; capabilities: string[] }; modelHints: { tasks: ModelTask[]; locality: Locality }; notes?: string; }
-export interface CognitionRequest extends DomainRequest { requestId: string; principalId: PrincipalId; correlationId: CorrelationId; input: string; agentId: AgentId; task: ModelTask; locality?: Locality; maxCost?: number; maxLatencyMs?: number; realtime?: boolean; cloudAllowed?: boolean; preferredModels?: string[]; preferredProviders?: string[]; objectiveId?:string; workflowRef?:string; parentJobId?:string; perceptionRef?:string;analysisOnly?:boolean;
+export interface CognitionRequest extends DomainRequest { requestId: string; principalId: PrincipalId; correlationId: CorrelationId; input: string; agentId: AgentId; task: ModelTask; locality?: Locality; maxCost?: number; /** Client hint for output tokens; clamped by policy, never raised. */ maxOutput?: number; maxLatencyMs?: number; realtime?: boolean; cloudAllowed?: boolean; preferredModels?: string[]; preferredProviders?: string[]; objectiveId?:string; workflowRef?:string; parentJobId?:string; perceptionRef?:string;analysisOnly?:boolean;
   /** Kernel-held verified capability output (untrusted content) injected as required context. */
   evidenceRef?:string;
   contextScope?:'public-web'; }
