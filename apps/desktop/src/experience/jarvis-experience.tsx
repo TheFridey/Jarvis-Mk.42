@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, useReducedMotion } from 'motion/react';
 import { Activity, Command, Layers, Sparkles } from 'lucide-react';
 import { CinematicHud } from './cinematic-hud.tsx';
@@ -130,11 +130,22 @@ export function JarvisExperience() {
   const [proposalText, setProposalText] = useState('');
   const [commandResult, setCommandResult] = useState('');
   const deliveredAnswer=latestConversationAnswer(kernel?.cognitionResponses??[]);
-  useEffect(()=>{if(deliveredAnswer?.answer){setCommandResult(deliveredAnswer.answer);if(deliveredAnswer.conversationId)setConversationId(deliveredAnswer.conversationId)}},[deliveredAnswer?.requestId]);
+  // Delivered answers are only adopted when this session asked for them. Adopting whichever
+  // answer the projection last saw meant a historical business brief greeted the owner on
+  // open, which is neither conversational nor private.
+  const askedThisSession = useRef(false);
+  useEffect(()=>{
+    if(!askedThisSession.current)return;
+    if(deliveredAnswer?.answer){setCommandResult(deliveredAnswer.answer);if(deliveredAnswer.conversationId)setConversationId(deliveredAnswer.conversationId)}
+  },[deliveredAnswer?.requestId]);
   const panels = scene.objects.filter(object => object.kind !== 'jarvis-core');
   const send = (intent: SceneIntent) => void submit(intent).catch(() => setCommandResult('Presentation update conflicted; live state retained.'));
   const kernelLive = connection.status === 'live';
-  useEffect(() => transport.subscribeNotifications?.(record => setCommandResult(`${record.title}: ${record.body}`)), [transport]);
+  // A notification is not an answer. Piping notifications into the response surface put
+  // historical business briefs (invoice payloads included) in front of the owner the moment
+  // presence opened. Answers come only from a turn the operator initiated; alerts stay in
+  // the command centre, where they are labelled as notifications.
+  useEffect(() => transport.subscribeNotifications?.(() => undefined), [transport]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (typing(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -179,7 +190,7 @@ export function JarvisExperience() {
     } finally { setPrivacyBusy(false); }
   };
 
-  const ask = async (text: string) => { try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(text.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: text, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
+  const ask = async (text: string) => { askedThisSession.current = true; try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(text.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: text, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
   const runProposal = async () => { await ask(proposalText); setProposalOpen(false); };
   const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
   const developer = process.env.NODE_ENV === 'development';

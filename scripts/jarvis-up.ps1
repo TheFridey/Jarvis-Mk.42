@@ -183,6 +183,19 @@ if (-not $up) { Bad 'kernel did not answer /healthz within 3 minutes - see .logs
 else { Ok 'kernel healthy on http://127.0.0.1:7420' }
 
 if ($Build -or -not (Test-Path (Join-Path $repo 'apps/desktop/out/index.html'))) { Say '  building the desktop export'; Pnpm --filter '@jarvis/desktop' build; Ok 'desktop export built' }
+
+# A leftover frontend from an earlier run keeps the port and quietly shadows the new one.
+# Only a process whose command line points at this repository is touched.
+$stale = Get-NetTCPConnection -LocalPort $DesktopPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($stale) {
+  $staleProc = Get-CimInstance Win32_Process -Filter "ProcessId=$($stale.OwningProcess)" -ErrorAction SilentlyContinue
+  if ($staleProc -and $staleProc.CommandLine -and $staleProc.CommandLine -like "*Jarvis-Sentience*") {
+    Stop-Process -Id $stale.OwningProcess -Force -ErrorAction SilentlyContinue
+    Ok "stopped a stale frontend on port $DesktopPort (pid $($stale.OwningProcess))"
+  } else {
+    Warn "port $DesktopPort is held by pid $($stale.OwningProcess), which is not this project - leaving it alone"
+  }
+}
 # The production export is served, not `next dev`: it is what ships, and the dev server
 # currently fails the page with a Client Manifest error that the built output does not have.
 $tracked += Start-Tracked 'desktop' 'node' @((Join-Path $repo 'scripts/serve-export.mjs'))
