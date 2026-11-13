@@ -48,3 +48,4 @@ __pycache__/
 
 # Local operator runtime state
 .logs/
+scripts/*.bak

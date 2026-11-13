@@ -210,16 +210,32 @@ if ($gatewayConfigured) { $env:JARVIS_MODEL_CLOUD_ALLOWED = '1' } else { $env:JA
 # even with valid LiveKit credentials in the environment.
 if ($rtcConfigured) { $env:JARVIS_RTC_ENABLED = '1' } else { $env:JARVIS_RTC_ENABLED = '0' }
 
+# Preflight: a path is validated before anything is launched. A stray control character in
+# an environment value once turned D:\JarvisData\Speech	mp into a literal tab, so the
+# launcher failed half-way through with 'Illegal characters in path' and left a Gateway
+# running with no Kernel beside it.
+function Assert-CleanPath([string] $name, [string] $value) {
+  if (-not $value.Trim()) { throw "$name is empty" }
+  $bad = @($value.ToCharArray() | Where-Object { [int]$_ -lt 32 -or [int]$_ -eq 127 })
+  if ($bad.Count -gt 0) { throw "$name contains a control character" }
+}
+
+foreach ($pair in @(
+  @{ Name = 'JARVIS_ASR_TEMP_DIR'; Value = 'D:/JarvisData/Speech/tmp' },
+  @{ Name = 'JARVIS_ASR_EXECUTABLE'; Value = 'D:/AI/Runtimes/whisper-arm64/Release/whisper-cli.exe' },
+  @{ Name = 'JARVIS_ASR_MODEL_PATH'; Value = 'D:/AI/Models/SpeechRecognition/ggml-base.en.bin' }
+)) { Assert-CleanPath $pair.Name $pair.Value }
+
 # Local speech recognition: point the Kernel at the engine that is actually installed.
 # Without this the voice endpoint answers 503 and the microphone appears broken.
-$asrExe = 'D:\AI\Runtimes\whisper-arm64\Release\whisper-cli.exe'
-$asrModel = 'D:\AI\Models\SpeechRecognition\ggml-base.en.bin'
+$asrExe = 'D:/AI/Runtimes/whisper-arm64/Release/whisper-cli.exe'
+$asrModel = 'D:/AI/Models/SpeechRecognition/ggml-base.en.bin'
 if (Test-Path $asrExe) {
   if (Test-Path $asrModel) {
     $env:JARVIS_ASR_ENGINE = 'whisper-cpp'
     $env:JARVIS_ASR_EXECUTABLE = $asrExe
     $env:JARVIS_ASR_MODEL_PATH = $asrModel
-    $env:JARVIS_ASR_TEMP_DIR = 'D:\JarvisData\Speech	mp'
+    $env:JARVIS_ASR_TEMP_DIR = "D:/JarvisData/Speech/tmp"
     New-Item -ItemType Directory -Force -Path $env:JARVIS_ASR_TEMP_DIR | Out-Null
     Write-Host 'speech: whisper.cpp ready'
   } else { Write-Host 'speech: model missing, dictation unavailable' }

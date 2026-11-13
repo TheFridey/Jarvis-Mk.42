@@ -182,9 +182,11 @@ export function JarvisExperience() {
     try { await recorder.start(); } catch { return { text: '', problem: 'Microphone permission denied.' }; }
     // Capture ends on silence or at the 20 s ceiling; the operator speaks one sentence.
     const capture = await recorder.wait();
-    if (!capture) return { text: '', problem: 'Nothing was captured.' };
+    if (!capture) return { text: '', problem: 'No speech detected. Press the microphone and speak.' };
     const result = await speech.transcribeUtterance(capture.wav);
-    if (result.problem === 'silence' || !result.transcript) return { text: '', problem: 'No speech detected. Try again, a little louder.' };
+    if (result.problem === 'silence' || !result.transcript) {
+      return { text: '', problem: capture.ended === 'max-duration' ? 'That was a long one — try a shorter sentence.' : 'No speech detected. Try again, a little louder.' };
+    }
     if (!result.ok) return { text: '', problem: result.detail ?? result.problem ?? 'Recognition failed.' };
     return { text: result.transcript };
   };

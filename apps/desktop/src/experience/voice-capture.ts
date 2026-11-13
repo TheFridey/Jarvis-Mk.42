@@ -1,109 +1,137 @@
+import { VoiceActivityDetector, type VadPhase } from './voice-vad.ts';
+
 /**
  * Browser microphone capture for a single utterance.
  *
- * Push-to-talk: the caller starts it from a real user gesture and calls `stop()` when the
- * button is released, or silence ends it. Everything happens locally — the encoded WAV is
- * handed back to be posted to the Kernel's own voice endpoint, which owns transcription
- * authority. This module holds no permissions of its own and makes no decisions.
+ * Push once, speak, and capture ends when the voice actually stops — measured against the
+ * room rather than a fixed threshold, so a fan or a fridge no longer keeps the microphone
+ * open until the ceiling. A small ring of recent frames is kept so the first phoneme of the
+ * first word is not lost to start-up, which is the other half of why "Go Tom Phil" arrived
+ * as "Tom Phil".
+ *
+ * Everything is local. The WAV is handed back to be posted to the Kernel's own voice
+ * endpoint, which owns transcription authority; this module holds no permissions.
  */
 
 export interface CapturedUtterance {
   wav: Blob;
   durationMs: number;
   peak: number;
+  /** Why capture ended — reported to the operator, never guessed. */
+  ended: 'speech-end' | 'max-duration' | 'manual' | 'no-speech';
 }
 
 export interface CaptureOptions {
-  /** Hard ceiling; the adapter enforces the same bound server-side. */
   maxMs?: number;
-  /** Stop when this long has passed below the silence threshold, after speech began. */
-  silenceMs?: number;
   onLevel?: (rms: number) => void;
+  onPhase?: (phase: VadPhase) => void;
 }
 
 const TARGET_RATE = 16_000;
-const SILENCE_RMS = 0.006;
+const FRAME = 1024;
+const PRE_ROLL_FRAMES = 8; // about 0.5 s of recent audio, kept until speech begins
 
 export class UtteranceRecorder {
   private stream?: MediaStream;
   private context?: AudioContext;
   private processor?: ScriptProcessorNode;
+  private detector: VoiceActivityDetector;
   private chunks: Float32Array[] = [];
-  private startedAt = 0;
-  private speechAt = 0;
-  private quietSince = 0;
+  private preRoll: Float32Array[] = [];
+  private speechStarted = false;
   private closed = false;
   private peak = 0;
-  private resolveStop?: (result: CapturedUtterance | null) => void;
+  private reason: CapturedUtterance['ended'] = 'manual';
+  private resolve?: (result: CapturedUtterance | null) => void;
   private finished?: Promise<CapturedUtterance | null>;
 
-  constructor(private readonly options: CaptureOptions = {}) {}
+  constructor(private readonly options: CaptureOptions = {}) {
+    this.detector = new VoiceActivityDetector({ maxUtteranceMs: options.maxMs ?? 20_000, noSpeechMs: 8000 });
+  }
 
-  /** Must be awaited inside a user gesture handler: the browser prompt depends on it. */
+  get phase(): VadPhase { return this.detector.currentPhase; }
+
+  /** Must be called from a user gesture: the browser permission prompt depends on it. */
   async start(): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('This browser cannot capture audio.');
-    this.finished = new Promise(resolve => { this.resolveStop = resolve; });
+    this.finished = new Promise(resolve => { this.resolve = resolve; });
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
+    // A device that disappears mid-utterance ends the capture rather than hanging it.
+    for (const track of this.stream.getTracks()) track.addEventListener('ended', () => this.cancel());
     // A 16 kHz context makes the browser resample for us; the server refuses anything else.
     this.context = new AudioContext({ sampleRate: TARGET_RATE });
     const source = this.context.createMediaStreamSource(this.stream);
-    const processor = this.context.createScriptProcessor(1024, 1, 1);
+    const processor = this.context.createScriptProcessor(FRAME, 1, 1);
     this.processor = processor;
     processor.onaudioprocess = event => this.collect(event.inputBuffer.getChannelData(0));
     source.connect(processor);
-    // A muted sink keeps the graph alive without playing the microphone back.
-    const silence = this.context.createGain();
-    silence.gain.value = 0;
-    processor.connect(silence);
-    silence.connect(this.context.destination);
-    this.startedAt = performance.now();
+    const sink = this.context.createGain();
+    sink.gain.value = 0; // never play the microphone back
+    processor.connect(sink);
+    sink.connect(this.context.destination);
+    this.options.onPhase?.(this.detector.currentPhase);
   }
 
   private collect(samples: Float32Array): void {
     if (this.closed) return;
-    const now = performance.now();
     const copy = new Float32Array(samples);
-    this.chunks.push(copy);
     let sum = 0;
     for (const sample of copy) sum += sample * sample;
     const rms = Math.sqrt(sum / Math.max(1, copy.length));
     this.peak = Math.max(this.peak, rms);
     this.options.onLevel?.(rms);
 
-    if (rms > SILENCE_RMS) { this.speechAt = now; this.quietSince = 0; }
-    else if (this.speechAt > 0) { if (!this.quietSince) this.quietSince = now; }
+    const frameMs = (copy.length / TARGET_RATE) * 1000;
+    const events = this.detector.push({ rms, frameMs });
+    this.options.onPhase?.(this.detector.currentPhase);
 
-    const elapsed = now - this.startedAt;
-    const quietFor = this.quietSince ? now - this.quietSince : 0;
-    if (elapsed >= (this.options.maxMs ?? 20_000)) void this.stop();
-    else if (this.speechAt > 0 && quietFor >= (this.options.silenceMs ?? 900)) void this.stop();
+    if (!this.speechStarted) this.preRoll = [...this.preRoll, copy].slice(-PRE_ROLL_FRAMES);
+    this.chunks.push(copy);
+
+    for (const event of events) {
+      if (event === 'speech-start') {
+        // Prepend the pre-roll so the leading phoneme survives, then stop growing it.
+        this.speechStarted = true;
+        const head = [...this.preRoll];
+        this.chunks = [...head, ...this.chunks];
+        this.preRoll = [];
+      }
+      if (event === 'speech-end') { this.reason = 'speech-end'; void this.stop(); }
+      if (event === 'max-duration') { this.reason = 'max-duration'; void this.stop(); }
+      if (event === 'no-speech') { this.reason = 'no-speech'; void this.stop(); }
+    }
   }
 
-  /** Ends capture, releases the device and returns the encoded utterance. */
+  /** Ends capture now, releases the device and returns the encoded utterance. */
   async stop(): Promise<CapturedUtterance | null> {
     if (this.closed) return null;
     this.closed = true;
+    const reason = this.reason;
     const samples = this.merge();
     const peak = this.peak;
-    const resolveStop = this.resolveStop;
+    const resolve = this.resolve;
     this.release();
-    const result = samples.length ? { wav: encodeWav(samples), durationMs: Math.round((samples.length / TARGET_RATE) * 1000), peak } : null;
-    resolveStop?.(result);
+    const result = reason === 'no-speech' || samples.length === 0
+      ? null
+      : { wav: encodeWav(samples), durationMs: Math.round((samples.length / TARGET_RATE) * 1000), peak, ended: reason };
+    resolve?.(result);
     return result;
   }
 
   /** Cancellation: same cleanup, no audio returned. */
   cancel(): void {
+    if (this.closed) return;
     this.closed = true;
+    const resolve = this.resolve;
     this.chunks = [];
-    const resolveStop = this.resolveStop;
+    this.preRoll = [];
     this.release();
-    resolveStop?.(null);
+    resolve?.(null);
   }
 
-  /** Resolves when capture ends by silence or by the time limit — press once, then speak. */
+  /** Resolves when capture ends — by silence, by the ceiling, or by cancellation. */
   wait(): Promise<CapturedUtterance | null> {
     return this.finished ?? Promise.resolve(null);
   }
@@ -118,10 +146,12 @@ export class UtteranceRecorder {
 
   private release(): void {
     try { this.processor?.disconnect(); } catch { /* already gone */ }
-    try { this.stream?.getTracks().forEach(track => track.stop()); } catch { /* already gone */ }
+    try { this.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); }); } catch { /* already gone */ }
     void this.context?.close().catch(() => undefined);
     this.processor = undefined; this.stream = undefined; this.context = undefined;
-    this.resolveStop = undefined;
+    this.resolve = undefined;
+    this.chunks = [];
+    this.preRoll = [];
   }
 }
 
