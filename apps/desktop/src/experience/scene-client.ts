@@ -52,6 +52,20 @@ export class KernelSceneTransport implements SceneTransport {
     if(response.status===401)throw new Error('Voice admission was refused. Sign in again.');
     return body;
   }
+  /** Local synthesis: text in, WAV out, produced on this machine. */
+  async synthesiseSpeech(text:string):Promise<Blob>{
+    if(this.status.status!=='live')throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
+    const response=await this.request('/voice/speak',{method:'POST',body:JSON.stringify({text}),headers:{'content-type':'application/json'}});
+    if(!response.ok)throw new Error('Local speech synthesis is unavailable.');
+    return await response.blob();
+  }
+
+  /** Best-effort: publish real playback amplitude so the orb reacts to actual audio. */
+  async reportPlayback(amplitude:number,tts:'idle'|'synthesizing'|'playing'|'cancelled',nodeId:string,principalId:string):Promise<void>{
+    try{
+      await this.request('/voice/events',{method:'POST',body:JSON.stringify({type:'audio.state',principalId,nodeId,state:{observedAt:new Date().toISOString(),wakeConfidence:null,vad:'silence',amplitude:0,tts,playbackAmplitude:Math.max(0,Math.min(1,amplitude)),deviceState:'ready'}}),headers:{'content-type':'application/json'}});
+    }catch{/* the orb is a nicety; playback must not depend on it */}
+  }
   async conversationPrivacy(conversationId:string){return this.command<DesktopConversationPrivacy>('/desktop/conversations/privacy',{conversationId})}
   private readonly notificationListeners=new Set<(record:{title:string;body:string})=>void>();
   subscribeNotifications(listener:(record:{title:string;body:string})=>void){this.notificationListeners.add(listener);return()=>{this.notificationListeners.delete(listener);};}

@@ -32,6 +32,8 @@ export interface PresenceModeProps {
   /** Composed by the parent so the trusted RTC session lives in one place. */
   voiceControl?: ReactNode;
   /** Conversation privacy: what the Kernel has authorised, and the two operator actions. */
+  /** Local speech output: explicit toggle, real playing state. */
+  speech?: { enabled: boolean; speaking: boolean; onToggle: () => void };
   /** Local dictation: start capture, return the recognised text (empty when nothing heard). */
   onDictate?: () => Promise<{ text: string; problem?: string }>;
   privacy?: { regime: 'PRIVATE' | 'CLOUD_PERMITTED'; provider?: string; busy: boolean; note?: string; onGrant: () => void; onRevoke: () => void };
@@ -151,6 +153,11 @@ export function PresenceMode(props: PresenceModeProps) {
           {dictating ? '●' : 'MIC'}
         </button>
         {dictateProblem ? <small role="status">{dictateProblem}</small> : null}
+        {props.speech ? <button type="button" className={props.speech.enabled ? 'on' : ''}
+          aria-pressed={props.speech.enabled} onClick={props.speech.onToggle}
+          title={props.speech.enabled ? 'Spoken answers on' : 'Spoken answers off'}>
+          {props.speech.speaking ? '♪' : props.speech.enabled ? 'VOICE ON' : 'VOICE OFF'}
+        </button> : null}
       </div> : null}
 
       <form className="presence-input" onSubmit={event => void submit(event)} role="search">

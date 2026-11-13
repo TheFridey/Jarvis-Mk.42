@@ -209,6 +209,21 @@ if ($gatewayConfigured) { $env:JARVIS_MODEL_CLOUD_ALLOWED = '1' } else { $env:JA
 # RTC is constructed only when this flag is set; without it the Kernel reports rtc OFFLINE
 # even with valid LiveKit credentials in the environment.
 if ($rtcConfigured) { $env:JARVIS_RTC_ENABLED = '1' } else { $env:JARVIS_RTC_ENABLED = '0' }
+
+# Local speech recognition: point the Kernel at the engine that is actually installed.
+# Without this the voice endpoint answers 503 and the microphone appears broken.
+$asrExe = 'D:\AI\Runtimes\whisper-arm64\Release\whisper-cli.exe'
+$asrModel = 'D:\AI\Models\SpeechRecognition\ggml-base.en.bin'
+if (Test-Path $asrExe) {
+  if (Test-Path $asrModel) {
+    $env:JARVIS_ASR_ENGINE = 'whisper-cpp'
+    $env:JARVIS_ASR_EXECUTABLE = $asrExe
+    $env:JARVIS_ASR_MODEL_PATH = $asrModel
+    $env:JARVIS_ASR_TEMP_DIR = 'D:\JarvisData\Speech	mp'
+    New-Item -ItemType Directory -Force -Path $env:JARVIS_ASR_TEMP_DIR | Out-Null
+    Write-Host 'speech: whisper.cpp ready'
+  } else { Write-Host 'speech: model missing, dictation unavailable' }
+} else { Write-Host 'speech: engine missing, dictation unavailable' }
 $tracked += Start-Tracked 'kernel' 'node' @($pnpmPath, '--filter', '@jarvis/core', 'start')
 Ok 'kernel starting (log: .logs/kernel.log)'
 

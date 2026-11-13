@@ -53,6 +53,9 @@ export function JarvisExperience() {
   // Conversation privacy. The Kernel is the source of truth; this is only what it told us.
   const [privacy,setPrivacy]=useState<{regime:'PRIVATE'|'CLOUD_PERMITTED';provider?:string;note?:string}>({regime:'PRIVATE'});
   const [privacyBusy,setPrivacyBusy]=useState(false);
+  // Audio output is an explicit operator decision; it is never enabled automatically.
+  const [speechEnabled,setSpeechEnabled]=useState(false);
+  const [speaking,setSpeaking]=useState(false);
   useEffect(()=>{try{const saved=localStorage.getItem('jarvis:preferred-model:v1');if(saved!==null)setPreferredModel(saved);}catch{}},[]);
   const updatePreferredModel=(value:string)=>{setPreferredModel(value);try{localStorage.setItem('jarvis:preferred-model:v1',value);}catch{}};
   const [conversationId, setConversationId] = useState<string | undefined>();
@@ -186,6 +189,26 @@ export function JarvisExperience() {
     return { text: result.transcript };
   };
 
+  /** Play an answer with the local synthesiser. Real audio, real end, no autoplay. */
+  const speak = async (text: string) => {
+    type SpeechTransport = { synthesiseSpeech: (value: string) => Promise<Blob> };
+    const speech = transport as unknown as Partial<SpeechTransport>;
+    if (typeof speech.synthesiseSpeech !== 'function' || !text.trim()) return;
+    setSpeaking(true);
+    let url: string | undefined;
+    try {
+      const wav = await speech.synthesiseSpeech(text);
+      url = URL.createObjectURL(wav);
+      const audio = new Audio(url);
+      audio.onended = () => { if (url) URL.revokeObjectURL(url); setSpeaking(false); };
+      audio.onerror = () => { if (url) URL.revokeObjectURL(url); setSpeaking(false); };
+      await audio.play();
+    } catch {
+      if (url) URL.revokeObjectURL(url);
+      setSpeaking(false);
+    }
+  };
+
   const toggleCloud = async () => {
     if (!kernel || privacyBusy) return;
     if (!privacyTransport(transport)) { setPrivacy({regime:'PRIVATE',note:'Kernel transport unavailable'}); return; }
@@ -207,7 +230,9 @@ export function JarvisExperience() {
     } finally { setPrivacyBusy(false); }
   };
 
-  const ask = async (text: string) => { askedThisSession.current = true; try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(text.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: text, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); setCommandResult(result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`); } } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
+  const ask = async (text: string) => { askedThisSession.current = true; try { if (!kernel) throw new Error('Kernel offline'); if (/^put that on the wall[.!]?$/i.test(text.trim())) { const target = selected[0] ?? kernel.referentFocus?.objectId; if (!target) throw new Error('Select a Scene resource first'); if (!('presentOnWall' in transport) || typeof transport.presentOnWall !== 'function') throw new Error('Kernel transport unavailable'); await transport.presentOnWall(target, kernel.sceneVersion); setCommandResult('Scene resource presented on wall'); } else { const result = await submitCognition({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, input: text, ...(preferredModel.trim()?{preferredModels:[preferredModel.trim()]}:{}), ...(conversationId ? { conversationId } : {}) }); setConversationId(result.conversationId); const answerText = result.answer ?? `${result.result.proposals.length} proposal(s) returned by ${result.result.agentId}`;
+          setCommandResult(answerText);
+          if (speechEnabled && answerText.trim()) void speak(answerText); } } catch (error) { setCommandResult(error instanceof Error ? error.message : String(error)); } };
   const runProposal = async () => { await ask(proposalText); setProposalOpen(false); };
   const cancelJob = async (jobId: string) => { if (!kernel || !kernelLive) throw new Error('Kernel disconnected'); const response = await transport.cancelAgentJob({ commandId: crypto.randomUUID(), expectedStateVersion: kernel.stateVersion, jobId }); if (!response.cancelled) throw new Error('Job already terminal; capability effects require their own Kernel controls'); };
   const developer = process.env.NODE_ENV === 'development';
@@ -224,6 +249,7 @@ export function JarvisExperience() {
       inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
       voiceControl={<PresenceMic transport={transport} live={kernelLive} available={rtcAvailable} liveness={liveness} picture={kernel}/>}
       onDictate={dictate}
+      speech={{ enabled: speechEnabled, speaking, onToggle: () => setSpeechEnabled(value => !value) }}
       privacy={{ regime: privacy.regime, ...(privacy.provider ? { provider: privacy.provider } : {}), ...(privacy.note ? { note: privacy.note } : {}), busy: privacyBusy, onGrant: () => void toggleCloud(), onRevoke: () => void toggleCloud() }}
       answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
     {!presenceOn ? <>

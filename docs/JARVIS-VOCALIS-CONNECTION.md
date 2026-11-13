@@ -29,10 +29,10 @@ action; a misheard sentence can never become an instruction.
 | REAL_ASR_INTEGRATION | **IMPLEMENTED_TESTED** | Same adapter and engine that transcribed the fixture at RTF 0.17; wired through `@jarvis/speech`. |
 | TRANSCRIPT_DELIVERY | **IMPLEMENTED_TESTED** | Dictation fills the input and reports silence/permission/engine problems in place. |
 | CONVERSATION_INTEGRATION | **VERIFIED_LIVE** (unchanged path) | Speech text is ordinary input; grants, ceilings and dispatch checks apply exactly as for typing. |
-| LOCAL_TTS_INTEGRATION | **PARTIAL** | `POST /voice/speak` returns real System.Speech WAV (measured 63 ms for 5.42 s of speech). Browser playback is not wired yet. |
-| BROWSER_PLAYBACK | **NOT_ATTEMPTED** | The response is not yet fetched and played. |
+| LOCAL_TTS_INTEGRATION | **IMPLEMENTED_TESTED** | `POST /voice/speak` returns real System.Speech WAV through the Kernel, behind a strong session. |
+| BROWSER_PLAYBACK | **IMPLEMENTED_TESTED** | VOICE ON toggle, response synthesised on completion, played through `Audio` with a real `ended` handler that revokes the object URL. Not yet heard by a human. |
 | KOKORO_LOCAL_ASSETS | **NOT_ATTEMPTED** | Unchanged: weights still hub-fetched. |
-| SYNTHETIC_CONNECTED_PIPELINE | **PARTIAL** | Service-level tests cover audio in and audio out; a single test spanning capture → endpoint → engine → input has not been written. |
+| SYNTHETIC_CONNECTED_PIPELINE | **IMPLEMENTED_TESTED** | `voice-loop-real.test.ts` (opt-in) speaks a sentence with the real synthesiser, transcribes it with the real ARM64 engine, and synthesises the reply — 12 s end to end, no stored fixture. |
 | PHYSICAL_* / AUDIBLE_RESPONSE / FULL_VOICE_CONVERSATION | **NOT_ATTEMPTED** | Yours to demonstrate. |
 
 ## Implementation
@@ -68,15 +68,36 @@ that fills the input; `jarvis-experience` wires it through `transport.transcribe
 - Monorepo typecheck, lint clean, production export rebuilt.
 - Browser acceptance 16/16 — the MIC control did not disturb the layout or interaction.
 
+## Playback and the connected proof
+
+The answer is now spoken locally: on a completed response with **VOICE ON**, the text goes to
+`/voice/speak`, the returned WAV is played through an `Audio` element, and the object URL is
+revoked on `ended`/`error`. It is off by default — audio output is the operator's decision.
+
+`voice-loop-real.test.ts` is the connected proof, gated behind `JARVIS_VOICE_LOOP_REAL=1`:
+
+```
+synthesise "Good evening Jarvis. Can you hear me clearly?"  →  real WAV, 16 kHz mono
+→ UtteranceService → WhisperCppAsrAdapter (installed b5454)  → transcript contains "hear me clearly"
+→ synthesise the reply                                      → real WAV the browser can decode
+```
+
+Both engines are real; the only substitution is the microphone (the synthesiser speaks
+instead), which is exactly the boundary a machine is allowed to cross on its own. It takes
+about 12 s, mostly recogniser start-up.
+
+The launcher now exports `JARVIS_ASR_ENGINE`, `JARVIS_ASR_EXECUTABLE`,
+`JARVIS_ASR_MODEL_PATH` and `JARVIS_ASR_TEMP_DIR` when the installed engine and model are
+both present — without them the Kernel reports "engine unavailable" and the microphone looks
+broken. **This was a real defect**: the endpoint would have answered 503 on the first press.
+
 ## Honest remaining work
 
-1. **Playback.** `/voice/speak` produces real audio; nothing fetches and plays it yet. That is
-   the next single change: on a completed response, POST the answer text, receive the WAV and
-   play it through `AudioContext`, with SPEAKING driven by actual `playing` state.
-2. **Voice session mint.** The endpoint authorises on the desktop session. A first-class
+1. **Voice session mint.** The endpoint authorises on the desktop session. A first-class
    `voice.write` session per utterance would be stricter and is the correct next hardening.
-3. **A single end-to-end test** spanning capture shape → endpoint → real engine → input.
-4. Kokoro assets.
+3. **Browser-side proof.** The connected test uses the real engines through the real services;
+   the browser capture itself has still not opened a physical microphone.
+4. Kokoro assets, and an audio-reactive orb driven by playback amplitude.
 
 ## Operator checkpoint
 
