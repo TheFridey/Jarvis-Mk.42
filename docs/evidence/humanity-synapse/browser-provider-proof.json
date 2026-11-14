@@ -1,0 +1,89 @@
+{
+  "cases": [
+    {
+      "case": "isolated database migrated with the real migrations",
+      "passed": true
+    },
+    {
+      "case": "synthetic repository holds the profile",
+      "passed": true,
+      "detail": "14 active"
+    },
+    {
+      "case": "real gateway started on an isolated port",
+      "passed": true
+    },
+    {
+      "case": "real kernel started from production bootstrap",
+      "passed": true
+    },
+    {
+      "case": "kernel registered under the synthetic principal",
+      "passed": true,
+      "detail": "synthetic-convergence-owner"
+    },
+    {
+      "case": "authenticated desktop session issued",
+      "passed": true,
+      "detail": "status 201"
+    },
+    {
+      "case": "conversation cloud grant issued by the Kernel",
+      "passed": true,
+      "detail": "{\"conversationId\":\"conv-mwghtz8j\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7D6XJ5XN08KBPH3568GQW8A\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
+    },
+    {
+      "case": "career history reaches the provider",
+      "passed": false,
+      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=14950"
+    },
+    {
+      "case": "project inventory reaches the provider",
+      "passed": false,
+      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=18969"
+    },
+    {
+      "case": "profile overview spans categories",
+      "passed": false,
+      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=19866"
+    },
+    {
+      "case": "encouragement is grounded in records",
+      "passed": false,
+      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=19755"
+    },
+    {
+      "case": "general knowledge carries no personal context",
+      "passed": false,
+      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=17956"
+    },
+    {
+      "case": "greeting carries no autobiography",
+      "passed": false,
+      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=17876"
+    }
+  ],
+  "providerBodies": 1,
+  "passed": 7,
+  "total": 13,
+  "generatedAt": "2026-11-14T14:21:14.395Z",
+  "composition": {
+    "real": [
+      "Kernel bootstrap",
+      "HTTP auth",
+      "desktop cognition route",
+      "memory repository (isolated PostgreSQL)",
+      "retrieval intent",
+      "ContextCompiler",
+      "AgentRuntime",
+      "gateway client",
+      "Gateway process",
+      "OpenAICompatibleAdapter"
+    ],
+    "substituted": [
+      "browser → HTTP client",
+      "provider → loopback fixture"
+    ],
+    "database": "jarvis_convergence_mwghs6ov"
+  }
+}
