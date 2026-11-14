@@ -1,0 +1,76 @@
+{
+  "boundary": "final provider request body, captured at the mock provider behind the real adapter",
+  "chain": [
+    "composeMemoryContext (real selector)",
+    "CognitionOrchestrator (real)",
+    "AgentRuntime (real)",
+    "HttpModelGatewayClient (real fetch)",
+    "Model Gateway process (real)",
+    "OpenAICompatibleAdapter (real)",
+    "mock provider (fixture)"
+  ],
+  "substituted": [
+    "ContextCompiler (fixed INTERNAL ceiling)",
+    "cognition.runs SQL (run-row insert only)"
+  ],
+  "egressPrevention": "gateway started with JARVIS_OPENROUTER_BASE_URL on loopback and JARVIS_ALLOW_PROVIDER_REDIRECT=1; it refuses to start with a redirect otherwise",
+  "providerPath": "/v1/chat/completions",
+  "cases": [
+    {
+      "case": "eligible-internal-with-consent",
+      "passed": true,
+      "present": "present",
+      "absentOk": true,
+      "bodyBytes": 8510
+    },
+    {
+      "case": "internal-without-consent",
+      "passed": true,
+      "absentOk": true,
+      "bodyBytes": 8346
+    },
+    {
+      "case": "pending-and-sensitive-and-restricted",
+      "passed": true,
+      "absentOk": true,
+      "bodyBytes": 8346
+    },
+    {
+      "case": "revoked-deleted-superseded",
+      "passed": true,
+      "absentOk": true,
+      "bodyBytes": 8346
+    },
+    {
+      "case": "cross-principal",
+      "passed": true,
+      "absentOk": true,
+      "bodyBytes": 8346
+    },
+    {
+      "case": "prompt-injection-record",
+      "passed": true,
+      "present": "present",
+      "absentOk": true,
+      "bodyBytes": 8552
+    },
+    {
+      "case": "irrelevant-eligible",
+      "passed": true,
+      "absentOk": true,
+      "bodyBytes": 8346
+    },
+    {
+      "case": "revoked-after-selection",
+      "passed": true,
+      "absentOk": true,
+      "bodyBytes": 8346
+    },
+    {
+      "case": "authority-intact-under-injection",
+      "passed": true,
+      "bodyBytes": 8346
+    }
+  ],
+  "generatedAt": "2026-11-14T11:06:39.985Z"
+}

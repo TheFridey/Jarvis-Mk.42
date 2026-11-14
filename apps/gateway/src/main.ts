@@ -16,7 +16,13 @@ if(process.env.ANTHROPIC_API_KEY)register(process.env.JARVIS_ANTHROPIC_MODEL??'c
 if(process.env.OPENROUTER_API_KEY){
  const model=process.env.JARVIS_OPENROUTER_MODEL?.trim();
  if(!model)throw new Error('JARVIS_OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured');
- register(model,'openrouter',new OpenAICompatibleAdapter('openrouter','https://openrouter.ai/api/v1',process.env.OPENROUTER_API_KEY),'cloud-ok');
+ // Isolated-configuration seam: the default is unchanged, and only an explicit override can
+  // point provider traffic elsewhere. Used by the offline wire-proof, never by production runs.
+  const openrouterBase = process.env.JARVIS_OPENROUTER_BASE_URL?.trim() || 'https://openrouter.ai/api/v1';
+  if (openrouterBase !== 'https://openrouter.ai/api/v1' && process.env.JARVIS_ALLOW_PROVIDER_REDIRECT !== '1') {
+    throw new Error('JARVIS_OPENROUTER_BASE_URL requires JARVIS_ALLOW_PROVIDER_REDIRECT=1');
+  }
+  register(model,'openrouter',new OpenAICompatibleAdapter('openrouter',openrouterBase,process.env.OPENROUTER_API_KEY),'cloud-ok');
 }
 if(process.env.JARVIS_LOCAL_MODEL_URL)register(process.env.JARVIS_LOCAL_MODEL??'local-model','local-openai-compatible',new OpenAICompatibleAdapter('local-openai-compatible',process.env.JARVIS_LOCAL_MODEL_URL,process.env.JARVIS_LOCAL_MODEL_KEY),'local');
 const gateway=new ModelGateway(registry),token=process.env.JARVIS_GATEWAY_TOKEN??DEVELOPMENT_GATEWAY_TOKEN;

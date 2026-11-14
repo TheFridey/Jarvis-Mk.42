@@ -92,6 +92,42 @@ export function rememberRequest(input: string): string | undefined {
   return body.slice(0, 2000);
 }
 
+/**
+ * How much memory a moment deserves.
+ *
+ * Conversational mode changes relevance and budget only. It never changes eligibility: a request
+ * for a deeper hype session does not widen who may see what, and no phrase in a message can raise
+ * a privacy ceiling or grant consent.
+ */
+export type RetrievalMode = 'CASUAL' | 'ADVISOR' | 'REFLECTIVE' | 'HYPE' | 'OPERATOR';
+
+export interface RetrievalBudget { mode: RetrievalMode; limit: number; minScore: number }
+
+export function retrievalModeFor(input: string): RetrievalMode {
+  const text = input.toLowerCase();
+  if (/\b(hype|pump me up|big me up|go deeper|more personal)\b/.test(text)) return 'HYPE';
+  if (/\b(how far have we come|looking back|over the (years|months)|what i'?ve built|journey)\b/.test(text)) return 'REFLECTIVE';
+  if (/\b(restart|deploy|install|run|execute|audit|commit|build|migrate|diagnostics|status)\b/.test(text)) return 'OPERATOR';
+  if (/\b(business mode|strategy|pricing|price|margin|revenue|should we|project|roadmap)\b/.test(text)) return 'ADVISOR';
+  return 'CASUAL';
+}
+
+const BUDGETS: Record<RetrievalMode, { limit: number; minScore: number }> = {
+  // A greeting should carry at most a communication preference, and only if it is plainly relevant.
+  // The budget, not the threshold, is what keeps chat light — raising the bar here would drop a
+  // plainly relevant preference because the phrasing did not match its subject words.
+  CASUAL: { limit: 2, minScore: 0.4 },
+  OPERATOR: { limit: 3, minScore: 0.5 },
+  ADVISOR: { limit: 5, minScore: 0.4 },
+  REFLECTIVE: { limit: 7, minScore: 0.35 },
+  HYPE: { limit: 8, minScore: 0.35 },
+};
+
+export function retrievalBudgetFor(input: string): RetrievalBudget {
+  const mode = retrievalModeFor(input);
+  return { mode, ...BUDGETS[mode] };
+}
+
 export interface SelectionInput {
   records: MemoryRecord[];
   query: string;
@@ -177,7 +213,8 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
 /** The exact text block that may accompany a turn. One place, so both call sites agree. */
 export function composeMemoryContext(records: MemoryRecord[], input: { query: string; principalId: string; locality: 'local' | 'cloud' }): string {
   if (!records.length) return '';
-  const { selected } = selectMemories({ records, query: input.query, principalId: input.principalId, locality: input.locality, categories: categoryHintFor(input.query) });
+  const budget = retrievalBudgetFor(input.query);
+  const { selected } = selectMemories({ records, query: input.query, principalId: input.principalId, locality: input.locality, categories: categoryHintFor(input.query), limit: budget.limit, minScore: budget.minScore });
   if (!selected.length) return '';
   return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
 }
