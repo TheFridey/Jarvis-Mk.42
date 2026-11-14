@@ -123,6 +123,10 @@ export class AgentRuntime {
       parsed = z.array(proposal).max(32).safeParse(envelope?.proposals ?? response.output);
       if(parsed.success)break;
       const issue=parsed.error.issues[0];
+      // A protected request is never repaired by a second inference: the repair pass replays the same
+      // personal context to a provider the Kernel has not re-consented, and the Gateway fallback guard
+      // does not cover a second invocation started here. Refuse, and say which it was.
+      if(bounded.disclosure==='personal-memory')throw new ModelGatewayError('INVALID_RESPONSE','structured output was malformed and repair retransmission was refused for a personal-memory request',false);
       if(formatAttempt===1)throw new ModelGatewayError('INVALID_RESPONSE',`invalid structured model output at proposals.${issue?.path.join('.')}: ${issue?.message??'invalid proposals'}`,false);
       // A completed but malformed cognitive response caused no effects. One
       // correction pass keeps the same privacy, scope, lease and total budgets.

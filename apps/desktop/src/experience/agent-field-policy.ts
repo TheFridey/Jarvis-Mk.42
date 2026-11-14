@@ -14,6 +14,8 @@ export interface AgentNode {
   modelId?: string;
   stage?: string;
   jobCount: number;
+  /** Jobs actually outstanding. `jobCount` counts history, which must never read as a queue. */
+  activeJobCount: number;
 }
 
 const ACTIVE: OperatingAgentJob['state'][] = ['RUNNING', 'LEASED', 'WAITING', 'QUEUED', 'BLOCKED'];
@@ -30,7 +32,11 @@ export function agentField(jobs: OperatingAgentJob[], current: boolean, limit = 
   for (const job of jobs) byAgent.set(job.agentId, [...(byAgent.get(job.agentId) ?? []), job]);
   const jobAgent = new Map(jobs.map(job => [job.jobId, job.agentId]));
   const nodes: AgentNode[] = [...byAgent.entries()].map(([agentId, list]) => {
-    const job = [...list].sort((a, b) => rank(a) - rank(b))[0]!;
+    // History is not a queue. A finished job must never lend its agent the "waiting" state, and the
+    // count the interface shows is work actually outstanding - the live readout was growing by one on
+    // every conversation because it counted every job the agent had ever run.
+    const outstanding = list.filter(job => ACTIVE.includes(job.state));
+    const job = [...(outstanding.length ? outstanding : list)].sort((a, b) => rank(a) - rank(b))[0]!;
     const state = agentNodeState(job);
     const parentAgentId = job.parentJobId ? jobAgent.get(job.parentJobId) : undefined;
     return {
@@ -42,6 +48,7 @@ export function agentField(jobs: OperatingAgentJob[], current: boolean, limit = 
       ...(job.selectedModelId ? { modelId: job.selectedModelId } : {}),
       ...(job.activityStage ? { stage: job.activityStage } : {}),
       jobCount: list.length,
+      activeJobCount: outstanding.length,
     };
   });
   // The limit favours animated work, but orbit order is by identity so a state change never swaps two agents' slots.

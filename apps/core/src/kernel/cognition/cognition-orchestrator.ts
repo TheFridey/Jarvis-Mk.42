@@ -31,7 +31,10 @@ export function cognitionIdentity(req: CognitionRequest, cloudAllowed: boolean):
  * that spends the tokens; a client may ask for less, never for more, and nonsense is
  * treated as "no preference" rather than as an error.
  */
-export const MAX_COGNITION_OUTPUT = 2000;
+// Raised from 2000: a deep personalised answer legitimately needs more than that, and a truncated
+// one was being reported to the owner as an unexplained 422. The per-request allowance below decides
+// what any single turn may ask for, so this is a ceiling, not a new default.
+export const MAX_COGNITION_OUTPUT = 8192;
 export function boundedOutput(requested?: number): number {
   if (requested === undefined || !Number.isFinite(requested)) return MAX_COGNITION_OUTPUT;
   const whole = Math.floor(requested);

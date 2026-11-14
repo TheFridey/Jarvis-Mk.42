@@ -21,6 +21,8 @@ export function inferenceFailureMessage(code:string|undefined):string{
     case 'TIMEOUT':return 'The configured provider did not answer in time. Try again.';
     case 'UNAVAILABLE':return 'The configured provider is not answering. Kernel state and permission checks remain available.';
     case 'BUDGET_EXCEEDED':return 'This request would exceed the configured spending limit.';
+    case 'CANCELLED':return 'The request was cancelled before it finished. Nothing was retried.';
+    case 'INVALID_RESPONSE':return 'The response reached its generation limit or arrived malformed before it could finish. I have not automatically sent your information again.';
     case 'PROVIDER_ERROR':return 'The configured provider returned an error for this request.';
     case 'INVALID_RESPONSE':return 'The configured provider returned something unusable for this request.';
     case 'CANCELLED':return 'The request was cancelled.';
@@ -116,8 +118,14 @@ export class KernelSceneTransport implements SceneTransport {
   private async command<T=unknown>(path:string,body:unknown):Promise<T>{
     if(this.status.status!=='live'||!this.snapshot)throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
     const response=await this.request(path,{method:'POST',body:JSON.stringify(body)});
-    if(response.status===409){await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')}
-    if(path==='/desktop/cognition'&&response.status===503){
+    if(response.status===409){
+      // CANCELLED is the Kernel's model cancellation, not a stale state version: refreshing the
+      // snapshot and resubmitting would transmit a protected request a second time.
+      const cancelled=await response.clone().json().catch(()=>undefined) as {code?:string}|undefined;
+      if(cancelled?.code==='CANCELLED')throw new Error(inferenceFailureMessage('CANCELLED'));
+      await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')
+    }
+    if(path==='/desktop/cognition'&&(response.status===503||response.status===422)){
       // The Kernel already classified the failure; one generic sentence discarded that.
       const detail=await response.clone().json().catch(()=>undefined) as {code?:string}|undefined;
       throw new Error(inferenceFailureMessage(detail?.code));

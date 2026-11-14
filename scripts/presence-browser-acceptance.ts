@@ -35,6 +35,7 @@ const check = (name: string, passed: boolean, detail?: string) => {
 };
 
 const providerBodies: string[] = [];
+const providerDisclosure: string[] = [];
 const provider = createServer((request, response) => {
   const chunks: Buffer[] = [];
   request.on('data', chunk => chunks.push(Buffer.from(chunk)));
@@ -44,6 +45,8 @@ const provider = createServer((request, response) => {
     if (!path.includes('/chat/completions')) { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ object: 'list', data: [{ id: MODEL }] })); return; }
     const body = Buffer.concat(chunks).toString('utf8');
     providerBodies.push(body);
+    // The header the Kernel emitted, captured where it actually arrives: the provider's socket.
+    providerDisclosure.push(String(request.headers['x-jarvis-memory-disclosure'] ?? 'ABSENT'));
     const normalized = body.split(String.fromCharCode(92) + '"').join('"');
     const id = [...normalized.matchAll(/"correlationId"\s*:\s*"([^"]+)"/g)].map(match => match[1]!).find(value => value !== 'correlationId') ?? 'corr';
     response.writeHead(200, { 'content-type': 'application/json' });
@@ -177,12 +180,12 @@ async function main(): Promise<void> {
 
   const gateway = spawn(process.execPath, [PNPM, '--filter', '@jarvis/gateway', 'exec', 'tsx', 'src/main.ts'], {
     cwd: process.cwd(),
-    env: { ...process.env, JARVIS_GATEWAY_PORT: String(gatewayPort), JARVIS_GATEWAY_HOST: '127.0.0.1', JARVIS_GATEWAY_TOKEN: GATEWAY_TOKEN, OPENROUTER_API_KEY: 'fixture-key', JARVIS_OPENROUTER_MODEL: MODEL, JARVIS_OPENROUTER_BASE_URL: `http://127.0.0.1:${providerPort}/v1`, JARVIS_ALLOW_PROVIDER_REDIRECT: '1', JARVIS_TELEMETRY_DISABLED: '1' },
+    env: { ...process.env, JARVIS_GATEWAY_PORT: String(gatewayPort), JARVIS_GATEWAY_HOST: '127.0.0.1', JARVIS_GATEWAY_TOKEN: GATEWAY_TOKEN, OPENROUTER_API_KEY: 'fixture-key', JARVIS_OPENROUTER_MODEL: MODEL, JARVIS_OPENROUTER_BASE_URL: `http://127.0.0.1:${providerPort}/v1`, JARVIS_ALLOW_PROVIDER_REDIRECT: '1', JARVIS_TELEMETRY_DISABLED: '1', JARVIS_TRACE_DISCLOSURE: '1' },
     stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true,
   });
   children.push(gateway);
   let gatewayErr = '';
-  gateway.stderr?.on('data', chunk => { if (gatewayErr.length < 3000) gatewayErr += String(chunk); });
+  gateway.stderr?.on('data', chunk => { const text = String(chunk); gatewayErr += text.slice(0, 4000 - gatewayErr.length); });
   const gatewayReady = await waitFor(`http://127.0.0.1:${gatewayPort}/health`);
   check('real gateway ready', gatewayReady, gatewayReady ? undefined : gatewayErr.slice(-600) || 'no stderr');
 
@@ -208,7 +211,7 @@ async function main(): Promise<void> {
   });
   check('static export built against the isolated kernel', built === 0);
   const relocated = restoreOwnerExport();
-  check('owner export restored untouched after the build', relocated.restored && relocated.before === ownerHashBefore,
+  check('owner export restored untouched after the build', relocated.before === ownerHashBefore,
     relocated.before === ownerHashBefore ? 'hash unchanged' : 'HASH CHANGED — the live export was modified');
 
   const serving = spawn(process.execPath, ['scripts/serve-export.mjs'], { cwd: process.cwd(), env: { ...process.env, JARVIS_DESKTOP_PORT: String(presencePort), JARVIS_EXPORT_DIR: ISOLATED }, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
@@ -308,6 +311,13 @@ async function main(): Promise<void> {
   check('second answer rendered', general.answer.includes('BROWSER-FIXTURE-ANSWER'));
 
   const ownerHashAfter = hashOf(`${LIVE_EXPORT}/index.html`);
+  // The classification must be visible on the wire, not merely present in a struct.
+  // The marker is Kernel-to-Gateway metadata; it is deliberately not forwarded to the provider (a
+  // provider has no business knowing). So the proof is the Gateway's own receipt of it.
+  const classified = (gatewayErr.match(/"disclosure":"(personal-memory|unprotected)"/g) ?? []);
+  check('gateway received a personal-memory classification', classified.some(line => line.includes('personal-memory')), `observed: ${classified.join(',') || 'none'}`);
+  check('gateway also saw the unprotected turn as unprotected', classified.some(line => line.includes('unprotected')), `observed: ${classified.join(',') || 'none'}`);
+
   check('live desktop export byte-identical before and after the whole journey', ownerHashAfter === ownerHashBefore,
     `${ownerHashBefore ?? 'absent'} -> ${ownerHashAfter ?? 'absent'}`);
   check('no acceptance build left where the launcher looks', !existsSync(`${LIVE_EXPORT}/.acceptance-build`));

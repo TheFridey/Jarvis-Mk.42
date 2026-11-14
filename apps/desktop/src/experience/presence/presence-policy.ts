@@ -363,6 +363,8 @@ export interface PresenceSatellite {
   point: Point;
   jobId: string;
   jobCount: number;
+  /** Outstanding jobs only: history must not read as a queue. */
+  activeJobCount: number;
   parentAgentId?: string;
 }
 
@@ -384,7 +386,7 @@ export function presenceSatellites(jobs: ReadonlyArray<OperatingAgentJob>, optio
       key: node.agentId, agentId: node.agentId, name: node.name, state: node.state,
       animated: !options.reducedMotion && node.animated,
       angle, point: polar(options.core, options.radius, angle),
-      jobId: node.jobId, jobCount: node.jobCount,
+      jobId: node.jobId, jobCount: node.jobCount, activeJobCount: node.activeJobCount,
       ...(node.parentAgentId ? { parentAgentId: node.parentAgentId } : {}),
     };
   });

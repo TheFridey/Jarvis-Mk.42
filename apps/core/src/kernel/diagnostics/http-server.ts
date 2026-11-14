@@ -250,7 +250,17 @@ export class DiagnosticsHttp {
       if (err instanceof AgentJobAccessError) return send(403, { error:err.code });
       if (err instanceof ModelGatewayError) {
         const unavailable=['NO_ROUTE','UNAVAILABLE','TIMEOUT','RATE_LIMITED','AUTHENTICATION','PROVIDER_ERROR'].includes(err.code);
-        return send(unavailable?503:err.code==='CANCELLED'?409:422,{
+        const status = unavailable ? 503 : err.code === 'CANCELLED' ? 409 : 422;
+        // A classified inference failure used to leave no trace at all: the branch returned before the
+        // generic logger. Allowlisted fields only - never a provider body, a prompt, a statement or an
+        // arbitrary exception message, because those can carry personal content.
+        process.stderr.write(JSON.stringify({
+          component: 'diagnostics', event: 'inference.failed', severity: 'ERROR', node: this.deps.nodeId,
+          status, code: err.code, provider: (err as { provider?: string }).provider ?? null,
+          retryable: (err as { retryable?: boolean }).retryable ?? null,
+          stage: 'model-inference',
+        }) + String.fromCharCode(10));
+        return send(status,{
           code:err.code,
           error:unavailable?'Model inference is unavailable; no permitted provider completed this request. Kernel state and permission checks remain available while storage is healthy.':`Model request could not complete (${err.code}).`,
         });

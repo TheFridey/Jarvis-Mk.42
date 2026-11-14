@@ -106,7 +106,7 @@ export function PresenceMode(props: PresenceModeProps) {
         style={{ left: satellite.point.x, top: satellite.point.y }}>
         <i className="presence-orb" aria-hidden="true"><b/><b/></i>
         <span className="presence-satellite-name">{satellite.name}</span>
-        <small>{satellite.state}{satellite.jobCount > 1 ? ` · ${satellite.jobCount} JOBS` : ''}{satellite.parentAgentId ? ' · CHILD' : ''}</small>
+        <small>{satellite.state}{satellite.activeJobCount > 1 ? ` · ${satellite.activeJobCount} JOBS` : ''}{satellite.parentAgentId ? ' · CHILD' : ''}</small>
       </li>)}
     </ul> : null}
 

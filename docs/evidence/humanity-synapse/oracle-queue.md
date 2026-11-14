@@ -1,31 +1,31 @@
 # ORACLE waiting counter
 
-## Finding (metadata only, live database)
+## Cause
 
-```
-select state, count(*) from cognition.agent_jobs group by 1;
-COMPLETE 55
-FAILED   22
-```
+Two independent defects, both in the projection rather than the queue:
 
-**Zero rows are queued, leased, running or waiting.** All 77 jobs belong to `agents.oracle`, which
-matches the counter the owner watched move from 69 to 75.
+1. `desktop-gateway.ts` marked a job active when `state in ('RUNNING','WAITING')` and the lease was
+   live, with no check that the job had finished. A job that completed without transitioning its state
+   presented as active indefinitely.
+2. `agent-field-policy.ts` reported `jobCount` as every job the agent had ever run, and
+   `presence-mode.tsx` rendered that number next to the state, so the readout grew by one per
+   conversation regardless of work outstanding.
 
-## Conclusion
+Database truth, metadata only: `cognition.agent_jobs` holds 77 rows for `agents.oracle` - 55 COMPLETE,
+22 FAILED, zero in any active state. Nothing was ever waiting.
 
-The counter is a **presentation defect**: the interface presents the agent's historical job
-population as work waiting to be done. Nothing is pending, no worker is idle because of it, and it
-cannot consume inference — the rows are finished (55) or failed (22).
+## Correction
 
-The practical consequence is that the readout grows over time, because it counts history.
+- `activity_confirmed` now requires `finished_at is null`.
+- An agent's state is derived only from outstanding jobs, so finished work cannot lend it a waiting
+  state.
+- `activeJobCount` is what the interface shows; `jobCount` (history) remains available and is no longer
+  presented as a queue.
 
-## Not done
+Verified by test: three jobs for one agent (two finished, one running) yield `jobCount: 3`,
+`activeJobCount: 1`, state WORKING.
 
-I did not locate and correct the aggregation. The defect is in how the desktop projection derives
-the oracle's state from its jobs: a completed job should not present as WAITING. The narrow fix is
-to count only genuinely active states (`QUEUED`, `LEASED`, `RUNNING`) and to show a historical total
-separately, if at all.
+## Remaining
 
-## Owner action
-
-None for correctness or privacy. The readout is noise until the projection is corrected.
+No remediation of historical rows is proposed: they are accurate history. If the readout should say
+"COMPLETE - 0 JOBS" rather than "COMPLETE", that is a display preference, not a defect.

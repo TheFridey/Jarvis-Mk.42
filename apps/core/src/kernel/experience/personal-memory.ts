@@ -83,7 +83,7 @@ export interface MemoryRecord {
 
 export type ExclusionReason =
   | 'wrong_principal' | 'revoked' | 'superseded' | 'not_approved' | 'rejected'
-  | 'cloud_ineligible' | 'ceiling_exceeded' | 'irrelevant' | 'budget';
+  | 'cloud_ineligible' | 'ceiling_exceeded' | 'irrelevant' | 'budget' | 'already_provided';
 
 /**
  * Broad conversational requests that refer to a kind of memory rather than words inside one.
@@ -173,6 +173,11 @@ export interface SelectionInput {
   categories?: MemoryCategory[];
   /** Prefer one fact per subject before a second. Defaults to on. */
   diversify?: boolean;
+  /**
+   * Records this conversation has already been given. A follow-up that asks for more must not be
+   * answered with the same fourteen facts in a different order: repetition reads as amnesia.
+   */
+  exclude?: string[];
 }
 
 export interface SelectedMemory { record: MemoryRecord; score: number }
@@ -215,6 +220,7 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
   const minScore = input.minScore ?? MEMORY_MIN_SCORE;
   const selected: SelectedMemory[] = [];
   const excluded: ExcludedMemory[] = [];
+  const alreadyGiven = new Set(input.exclude ?? []);
 
   for (const record of input.records) {
     // Order matters: provenance and governance before relevance, so a revoked private record
@@ -234,6 +240,7 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
     const categoryFit = input.categories?.includes(record.category) ? 0.75 : 0;
     const score = Math.max(lexical, categoryFit + Math.min(lexical, 0.2));
     if (score < minScore) { excluded.push({ id: record.id, reason: 'irrelevant' }); continue; }
+    if (alreadyGiven.has(record.id)) { excluded.push({ id: record.id, reason: 'already_provided' }); continue; }
     selected.push({ record, score });
   }
 

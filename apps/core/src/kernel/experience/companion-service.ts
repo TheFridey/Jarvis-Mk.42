@@ -1,3 +1,4 @@
+import { retrievalIntentFor, outputAllowanceFor } from './retrieval-intent.ts';
 import { categoryHintFor, memoryContextLines, recallDiagnostics, rememberRequest, selectMemories } from './personal-memory.ts';
 import type { PersonalMemoryStore } from './personal-memory-store.ts';
 import type { DomainService } from '../domains/domain-service.ts';
@@ -27,6 +28,33 @@ export function companionPicture(p:DesktopKernelSnapshot,node:RegisteredNode):Co
     business:Object.entries(p.scalesmiths?.readings??{}).map(([name,r])=>({name,status:r.status})),
     nextMeeting:nextMeetingTime(p)};
 }
+/**
+ * The Kernel's own classification of what it is about to send. Personal memory in the dedicated
+ * block is personal context; so is conversation history, because a previous turn may already carry
+ * retrieved memory and revocation cannot remove what has been sent. Public-web analysis is not:
+ * it is a read of someone else's page, not of the owner.
+ */
+export function carriesPersonalContext(input: { memoryBlock: string; historyTurns: number; publicWeb: boolean }): boolean {
+  if (input.publicWeb) return false;
+  return input.memoryBlock.length > 0 || input.historyTurns > 0;
+}
+
+
+/**
+ * Migration 0021 adds `memory_record_ids`. A Kernel must not refuse to converse because an operator
+ * has not migrated yet, and it must not write a column that is not there, so the capability is
+ * detected once and the feature degrades to "no follow-up exclusion" rather than failing the turn.
+ */
+let memoryIdsColumn: boolean | undefined;
+async function supportsMemoryIds(sql: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>): Promise<boolean> {
+  if (memoryIdsColumn !== undefined) return memoryIdsColumn;
+  try {
+    const rows = await sql`select 1 from information_schema.columns where table_schema='experience' and table_name='conversation_turns' and column_name='memory_record_ids' limit 1`;
+    memoryIdsColumn = Array.isArray(rows) && rows.length > 0;
+  } catch { memoryIdsColumn = false; }
+  return memoryIdsColumn;
+}
+
 export class CompanionService {
   private gate=new KeyedMutex();
   private snapshotPending?:Promise<DesktopKernelSnapshot>;
@@ -87,7 +115,10 @@ export class CompanionService {
       // Every completed turn of this conversation, oldest first, with the classification
       // and regime it was produced under. The policy needs the whole conversation: one
       // sensitive turn blocks cloud for the rest of it.
-      const priorTurns=await this.d.sql<TurnRow[]>`select turn_id,conversation_id,principal_id,input,answer,status,privacy_class,privacy_regime,to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at asc`;
+      // Two queries, not a dynamic column: the ids are only asked for when the migration has run.
+      const priorTurns=(await supportsMemoryIds(this.d.sql as never))
+        ? await this.d.sql<TurnRow[]>`select turn_id,conversation_id,principal_id,input,answer,status,privacy_class,privacy_regime,memory_record_ids,to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at asc`
+        : await this.d.sql<TurnRow[]>`select turn_id,conversation_id,principal_id,input,answer,status,privacy_class,privacy_regime,to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at from experience.conversation_turns where conversation_id=${turn!.conversation_id} and principal_id=${node.principalId} and turn_id<>${turnId} and status='completed' order by created_at asc`;
       // A recovered input may already contain private history from an older attempt.
       const publicWeb=!mobile&&(!turn!.cognition_input||turn!.cognition_input===command.input)&&isPublicWebRequest(command.input);
       const decision=publicWeb||mobile?undefined:await this.grantDecision(node.principalId,turn!.conversation_id,turnId);
@@ -95,6 +126,9 @@ export class CompanionService {
       // Cloud turns carry only the turns written under the grant; a private (or ungranted)
       // conversation keeps the existing local behaviour of the last six turns.
       const history=(decision?.allow?priorTurns.filter(r=>allowed.has(r.created_at)):priorTurns).slice(-6);
+      // What this conversation has already been told. A follow-up that repeats the same facts reads
+      // as amnesia, so those records are excluded from the next selection and nothing else changes.
+      const alreadyGiven=((priorTurns.at(-1) as {memory_record_ids?:string[]}|undefined)?.memory_record_ids)??[];
       // Approved memory, filtered for where this turn will actually run. Relevance decides:
       // a greeting retrieves nothing, and a private record never reaches a cloud turn.
       const memoryRecords = this.d.memory ? await this.d.memory.loadForSelection(node.principalId) : [];
@@ -114,18 +148,18 @@ export class CompanionService {
         // Revalidate at the dispatch boundary: a grant that is still valid does not mean a
       // particular memory is still eligible. Re-select from fresh rows so a revocation, deletion
       // or supersession that landed during compilation cannot be transmitted.
-      const memoryVerified = await (async (): Promise<string> => {
-        if (!this.d.memory) return decision?.allow ? memoryCloud : memoryLocal;
+      const memoryVerified = await (async (): Promise<{ text: string; ids: string[] }> => {
+        if (!this.d.memory) return { text: decision?.allow ? memoryCloud : memoryLocal, ids: [] };
         const fresh = await this.d.memory.loadForSelection(node.principalId);
-        const { selected } = selectMemories({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', categories: categoryHintFor(command.input) });
+        const { selected } = selectMemories({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', categories: categoryHintFor(command.input), ...(retrievalIntentFor(command.input).intent === 'FOLLOW_UP' && alreadyGiven.length ? { exclude: alreadyGiven } : {}) });
         if (process.env.JARVIS_MEMORY_TRACE === '1') {
           // Counts only — never a statement. Enough to tell a principal mismatch from an empty
           // table from an irrelevance decision, which is the difference this defect hid behind.
           const diag = recallDiagnostics({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local' });
           process.stderr.write(JSON.stringify({ component: 'memory_recall', correlationId: turnId, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', ...diag }) + String.fromCharCode(10));
         }
-        if (!selected.length) return '';
-        return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
+        if (!selected.length) return { text: '', ids: [] };
+        return { text: ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10)), ids: selected.map(entry => entry.record.id) };
       })();
       // An explicit "remember this" creates a pending candidate — never an approval, and never a
       // claim of storage the Kernel did not make.
@@ -133,9 +167,14 @@ export class CompanionService {
       if (recall && this.d.memory) {
         await this.d.memory.propose({ id: `mem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, principalId: node.principalId, category: 'preference', subject: 'Owner stated preference', statement: recall, source: 'conversation-request', confidence: 0.9, privacyClass: 'SENSITIVE', cloudEligible: false });
       }
-      const response=await this.d.cognize({requestId:turnId,domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input:input+memoryVerified,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),...(decision?.allow?{locality:'cloud-ok' as const,cloudAllowed:true,requiredProvider:decision.provider,preferredModels:[decision.model],contextCeiling:decision.ceiling,authorisation:{grantId:decision.grantId,conversationId:turn!.conversation_id,provider:decision.provider}}:(mobile||(conversationId&&!publicWeb))?{locality:'local' as const,cloudAllowed:false}:{locality:command.locality??'prefer-local'}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
+      // The Kernel classifies its own output. A verified memory block is personal context, and so is
+      // conversation history once any turn in it carried memory or reported it - revocation cannot
+      // remove what has already been sent. Callers cannot set this, and the model never sees it.
+      const memoryBearing = carriesPersonalContext({ memoryBlock: memoryVerified.text, historyTurns: history.length, publicWeb });
+      const response=await this.d.cognize({requestId:turnId,memoryBearing,maxOutput:outputAllowanceFor(retrievalIntentFor(command.input).intent),domainId:domainFor(node.principalId),domainPurpose:currentDomainScope()?.purpose,sourceDomainIds:command.sourceDomainIds,fusionGrantIds:command.fusionGrantIds,principalId:node.principalId,correlationId:turnId,input:input+memoryVerified.text,agentId:mobile?'agents.oracle':command.agentId??'agents.oracle',task:mobile?'reason':command.task??'reason',...(!mobile&&command.preferredModels?{preferredModels:command.preferredModels}:{}),...(decision?.allow?{locality:'cloud-ok' as const,cloudAllowed:true,requiredProvider:decision.provider,preferredModels:[decision.model],contextCeiling:decision.ceiling,authorisation:{grantId:decision.grantId,conversationId:turn!.conversation_id,provider:decision.provider}}:(mobile||(conversationId&&!publicWeb))?{locality:'local' as const,cloudAllowed:false}:{locality:command.locality??'prefer-local'}),...(publicWeb?{contextScope:'public-web' as const}:{}),...(mobile?{analysisOnly:true}:{})});
         const result={...response,conversationId:turn!.conversation_id};
         await this.d.sql`update experience.conversation_turns set answer=${result.answer??null},response=${JSON.stringify(result)},privacy_class=${classificationForTurn(result.privacyClass)},privacy_regime=${decision?.allow?'CLOUD_PERMITTED':'PRIVATE'},status='completed',finished_at=${this.d.now()} where turn_id=${turnId}`;
+        if(memoryVerified.ids.length&&await supportsMemoryIds(this.d.sql as never))await this.d.sql`update experience.conversation_turns set memory_record_ids=${memoryVerified.ids} where turn_id=${turnId}`;
         this.d.invalidate();return {turnId,conversationId:turn!.conversation_id,answer:result.answer??null,result};
       }catch(error){await this.d.sql`update experience.conversation_turns set status='failed',finished_at=${this.d.now()} where turn_id=${turnId}`;this.d.invalidate();throw error;}
     });
