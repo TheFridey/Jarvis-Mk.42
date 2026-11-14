@@ -2,42 +2,38 @@
 
 ## The defect
 
-`http-server.ts` returned the classified HTTP response for a `ModelGatewayError` before reaching the
-generic failure logger. The owner's stderr therefore contained one provider-request event for
-correlation `cd714b2f-8b24-4e0b-93b5-98bb980ebed6` and nothing explaining the 422 - the classification
-existed and was thrown away.
+`http-server.ts` returned the classified response for a `ModelGatewayError` before reaching the generic
+failure logger, so the owner's stderr held one provider event and no explanation.
 
-## Now logged (allowlisted, metadata only)
+## Now logged
 
 ```
-{"component":"diagnostics","event":"inference.failed","severity":"ERROR","node":"...",
- "status":422,"code":"INVALID_RESPONSE","provider":"openrouter","retryable":true,
- "stage":"model-inference"}
+{"component":"diagnostics","event":"inference.failed","severity":"ERROR","node":"local-server",
+ "status":503,"code":"NO_ROUTE","provider":null,"retryable":false,"stage":"model-inference"}
 ```
 
-Deliberately absent: request body, prompt, memory statements, raw provider error text, exception
-messages, credentials. The generic handler's `redactFailure()` is pattern-based and cannot promise that
-arbitrary personal content is removed, so classified failures use fields that are safe by construction
-rather than sanitised after the fact.
+Allowlisted fields only: status, code, provider, retryable, stage. No body, prompt, statement,
+exception text or credential.
+
+This was exercised for real during verification: a turn submitted while the interface was still
+thinking was refused with `NO_ROUTE 503`, and the classification appeared in the Kernel's stderr - the
+kind of failure that was previously invisible.
 
 ## Frontend
 
 | Kernel response | Before | Now |
 |---|---|---|
 | 503 | classified message | unchanged |
-| 422 | `KERNEL_COMMAND_REJECTED_422` | classified message stating the answer was cut short and nothing was resent |
-| 409 CANCELLED | treated as state-version conflict, refreshed and resubmitted | classified cancellation, no resubmission |
+| 422 | `KERNEL_COMMAND_REJECTED_422` | classified: cut short, nothing resent |
+| 409 CANCELLED | "state conflict", refreshed and resubmitted | classified cancellation, no resubmission |
 | 409 state version | refresh | unchanged |
-| malformed error body | n/a | generic message |
 
 ## Disclosure trace
 
-`JARVIS_TRACE_DISCLOSURE=1` makes the Gateway log `{"event":"disclosure.classified","disclosure":...,
-"correlationId":...}` - the classification only, which is what proves the marker survived the hop.
+`JARVIS_TRACE_DISCLOSURE=1` makes the Gateway log `{"event":"disclosure.classified","disclosure":...}`;
+this is what the browser journey asserts.
 
 ## Not established
 
-The original live 422 cannot be re-classified after the fact: it was never logged, and no record of the
-provider's `finish_reason` was kept. Truncation of a 16-record deep encouragement at 2000 tokens after
-23.8 s is the only explanation consistent with every observed number, and it is now reproducible and
-fixed, but it remains inference rather than a captured fact.
+The original live 422 cannot be re-classified after the fact. Truncation of a 16-record deep
+encouragement at the 2000-token ceiling after 23.8 s remains the only consistent explanation.

@@ -30,22 +30,22 @@
     {
       "case": "conversation cloud grant issued by the Kernel",
       "passed": true,
-      "detail": "{\"conversationId\":\"conv-mwgjgkcq\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7D9GZHA7VFM9GGJ023TFNPQ\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
+      "detail": "{\"conversationId\":\"conv-mwgws0a4\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7DYVM4WA80TTN7WK839AW2G\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
     },
     {
       "case": "career history reaches the provider",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=15502"
+      "detail": "missing=[] leaked=[] bytes=15504"
     },
     {
       "case": "project inventory reaches the provider",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=21775"
+      "detail": "missing=[] leaked=[] bytes=22424"
     },
     {
       "case": "profile overview spans categories",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=24204"
+      "detail": "missing=[] leaked=[] bytes=23563"
     },
     {
       "case": "encouragement is grounded in records",
@@ -55,18 +55,18 @@
     {
       "case": "general knowledge carries no personal context",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=22101"
+      "detail": "missing=[] leaked=[] bytes=22748"
     },
     {
       "case": "greeting carries no autobiography",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=22244"
+      "detail": "missing=[] leaked=[] bytes=22241"
     }
   ],
   "providerBodies": 1,
   "passed": 13,
   "total": 13,
-  "generatedAt": "2026-11-14T15:06:54.034Z",
+  "generatedAt": "2026-11-14T21:19:42.222Z",
   "composition": {
     "real": [
       "Kernel bootstrap",
@@ -84,6 +84,6 @@
       "browser → HTTP client",
       "provider → loopback fixture"
     ],
-    "database": "jarvis_convergence_mwgjf0gz"
+    "database": "jarvis_convergence_mwgwp5ml"
   }
 }

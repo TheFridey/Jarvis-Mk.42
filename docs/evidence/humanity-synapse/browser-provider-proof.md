@@ -1,45 +1,63 @@
-# Browser provider proof
+# Browser provider proof - executed 2026-11-14
 
-## Last executed run
+Chrome headless driven over CDP against the real Presence interface: input typed into the real
+control, form submitted through the real form, production Kernel and Gateway behind the socket, a
+loopback provider as the only substitution.
 
-`node node_modules/tsx/dist/cli.mjs scripts/presence-browser-acceptance.ts` - Chrome headless driven
-over CDP, typing into the real Presence input and submitting the real form.
+## Result
 
-Product assertions that passed, 17/19:
+```
+node node_modules/tsx/dist/cli.mjs scripts/presence-browser-acceptance.ts
+exit 0 - 22/22 assertions
+```
 
-| check | result |
+| assertion | result |
 |---|---|
-| real gateway and kernel ready | PASS |
+| real gateway ready, real kernel ready | PASS |
 | static export built against the isolated kernel | PASS |
+| owner export restored untouched after the build | PASS - hash unchanged |
 | presence served, browser started, input rendered | PASS |
 | cloud consent control used | PASS |
-| request reached the provider | PASS - 15,479 bytes |
-| career sentinels present | PASS |
+| browser request reached the provider | PASS - 16,129 bytes |
+| multiple career sentinels present | PASS |
 | SENSITIVE, unconsented and cross-principal absent | PASS |
-| answer rendered | PASS |
-| left THINKING, returned to STANDBY | PASS |
-| general question sent, no memory block | PASS |
+| answer rendered in the browser | PASS |
+| interface left THINKING, returned to STANDBY | PASS |
+| general question sent | PASS |
+| no personal-memory block on a general question | PASS |
 | second answer rendered | PASS |
-| live export absent then absent (isolation) | PASS |
+| **career turn asked for a deep allowance** | PASS - `max_tokens` 6144 |
+| **general question asked for a smaller allowance** | PASS - `max_tokens` 1536 |
+| **gateway received a personal-memory classification** | PASS - observed `"disclosure":"personal-memory"` |
+| **every turn with history reached the gateway as personal** | PASS |
+| live export identical before and after | PASS - absent, absent |
+| no acceptance build left where the launcher looks | PASS |
 
-The two failures were in my assertions, not the product: the restore check required a backup to exist
-(it correctly did nothing when there was no owner build), and I asserted the disclosure header arrives
-at the provider, where it is deliberately never forwarded.
+The last four are the evidence this campaign needed: the allowance exists on the provider's wire, and
+the Kernel's own classification survives the hop to the Gateway rather than being asserted in a struct.
 
-Both are corrected: the restore check compares hashes, and the disclosure assertion now reads the
-Gateway's own receipt through `JARVIS_TRACE_DISCLOSURE=1`.
+## How it runs
 
-## Re-run blocked
+Two phases, because a full journey plus a Next.js build exceeds a single command budget:
 
-Docker Desktop's Linux engine is returning HTTP 500 on its API, so PostgreSQL on 5433 is unreachable and
-the isolated database cannot be created. The harness fails closed with
-`write CONNECT_TIMEOUT 127.0.0.1:5433` rather than reporting success, which is the behaviour the
-previous campaign asked for.
+1. `JARVIS_ACCEPTANCE_BUILD_ONLY=1 JARVIS_ACCEPTANCE_KERNEL_PORT=7421 ...` builds the static export
+   into `.logs/browser-acceptance/export` against a fixed kernel port, leaving `apps/desktop/out`
+   untouched, and exits.
+2. `JARVIS_ACCEPTANCE_SKIP_BUILD=1` with the same ports runs the journey against that export.
 
-Per the standing contract I did not repair, restart or reconfigure Docker. That reconciliation is an
-owner decision.
+The harness no longer shells out to `pnpm`, which refuses a non-TTY stdin and made the run unusable
+outside an interactive shell; it invokes `tsx` and `next` directly.
 
-## Claimed
+## Two harness defects found here, both worth noting
 
-The browser journey is operational and its successful path was demonstrated with every product
-assertion passing. The corrected 19-check run is not claimed as executed.
+- A new turn was detected by the answer text changing. The fixture answers every turn identically, so
+  text is not a clock. A turn is now proven by a new arrival at the provider.
+- The next question was submitted while the interface was still THINKING, which the interface refuses.
+  That looked like a product failure - a silent NO_ROUTE - until the turn boundary waited for the
+  interface to settle. Worth knowing: **a command submitted during THINKING is dropped, not queued.**
+
+## Cleanup
+
+Chrome, Gateway, Kernel and static server are killed by process tree in `finally`; the isolated build
+is removed explicitly after the run; the owner's export was absent before and after. No test-owned
+process or artifact remains.

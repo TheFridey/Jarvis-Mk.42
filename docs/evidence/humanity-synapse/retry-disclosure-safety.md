@@ -1,58 +1,34 @@
-# Retry-time disclosure safety
+# Retry and disclosure safety - wire evidence
 
-## The risk
+## Counted on real sockets
 
-`ModelGateway.generate` walks routing candidates: a failed provider is followed by the next with the
-same request. For ordinary traffic that is resilience; for a request carrying consented personal
-memory it is a second disclosure, made by a component that cannot see consent.
+`apps/core/src/kernel/cognition/agent-runtime-wire.test.ts` puts a real HTTP server behind the real
+`HttpModelGatewayClient` and counts arrivals:
 
-## Implementation (unchanged from the previous pass, now tested)
+| scenario | arrivals | disclosure header |
+|---|---:|---|
+| protected, malformed proposals | **1** | `1` |
+| unprotected, malformed proposals | **2** (one repair) | `0`, `0` |
+| protected, provider 500 | **1** | `1` |
+| protected, requested allowance 6144 | 1 | - (`max_tokens` 6144 observed) |
 
-1. `ModelRequest.disclosure?: 'personal-memory'` — written by the Kernel only. Companion sets
-   `memoryBearing` whenever the memory block is non-empty; the orchestrator forwards it.
-2. `HttpModelGatewayClient` sends the trusted header `x-jarvis-memory-disclosure`.
-3. `ModelGateway.generate` refuses to continue to another candidate and throws
-   `retry refused for a personal-memory request`, marked `retryable: false`.
+`apps/gateway/src/truncation.test.ts` proves the adapter's truncation classification on the wire:
+`finish_reason: 'length'` becomes `INVALID_RESPONSE` after exactly one arrival.
 
-## Behavioural evidence — two loopback providers, real request counts
+## What each layer guarantees
 
-`apps/gateway/src/retry-disclosure.test.ts` registers two `OpenAICompatibleAdapter`s against two
-independent `node:http` servers, each counting what arrives.
+| path | protected request |
+|---|---|
+| Gateway candidate fallback | refused (`request.disclosure` read from the header now) |
+| AgentRuntime format repair | refused; classified error names the refusal |
+| HTTP transport retry in the adapter | none exists |
+| streaming reconnection | none exists |
+| browser auth retry on 401 | before execution, no model call |
+| job recovery / lease resumption | same classification, no new inference without a new request |
+| 409 cancellation | no retry; the interface distinguishes it from a state conflict |
 
-| scenario | provider A | provider B | result |
-|---|---:|---:|---|
-| ordinary request, A fails | 1 | 1 | falls back and succeeds |
-| memory-bearing, A succeeds | 1 | 0 | one attempt |
-| memory-bearing, A fails | 1 | **0** | throws `retry refused` |
-| refusal error | — | — | `retryable: false`, so no outer layer retries |
-| cancelled before dispatch | ≤1 | 0 | stops |
+## Residual limitations, unchanged
 
-No assertion here checks a flag; every one checks a count.
-
-## Remaining retry mechanisms
-
-- **Adapter**: `OpenAICompatibleAdapter` issues exactly one `fetch` per attempt — no internal retry.
-- **Transport**: Node `fetch`/undici does not retry by default in this configuration.
-- **Provider SDK**: none in use; the adapter speaks HTTP directly.
-- **Streaming reconnection**: the gateway client does not reconnect; a broken stream is an error.
-- **Kernel/runtime**: `AgentRuntime` does not retry a failed invoke.
-- **Outer HTTP caller**: the desktop client surfaces the error; it does not resend the command.
-
-So candidate fallback was the only autonomous retransmission path, and it is closed. That is a
-statement about this codebase, not about a provider's own internal retries, which are outside
-Jarvis's control.
-
-## Missing or forged metadata
-
-Absence of `disclosure` is treated as unprotected — that is the production contract, because the
-Kernel always sets it and the header is added by Kernel code from the marker, never from model output.
-A caller that could talk to the gateway directly already holds the shared token, and could also
-simply POST the memory itself; the guard protects against the application's *own* fallback, which is
-the realistic failure. Documented rather than overstated.
-
-## Boundaries
-
-- Revocation before dispatch: honoured by `verifyBeforeDispatch`.
-- Revocation between attempts: protected — there are no further attempts.
-- Revocation concurrent with transmission: not prevented.
-- Already transmitted: cannot be recalled.
+- A caller holding the Gateway token can send `0`. Fail-safe now covers a missing marker, not a lie.
+- Revocation cannot remove personal facts from turns already stored in a conversation.
+- No atomicity across the socket is claimed, and no transaction is held across inference.

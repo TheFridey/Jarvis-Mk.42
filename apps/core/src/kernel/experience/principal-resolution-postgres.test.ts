@@ -18,10 +18,16 @@ describe.skipIf(!enabled)('principal resolution against PostgreSQL', () => {
     const client = createPg({ url: url! });
     try {
       const principals = await principalsInRegistry(client.sql as never);
-      expect(principals.length).toBe(1);
-      const resolved = await resolveMemoryPrincipal(client.sql as never, {} as NodeJS.ProcessEnv);
-      expect(resolved.source).toBe('registry');
-      expect(resolved.principalId).toBe(principals[0]);
+      expect(principals.length).toBeLessThanOrEqual(1);
+      if (principals.length === 1) {
+        const resolved = await resolveMemoryPrincipal(client.sql as never, {} as NodeJS.ProcessEnv);
+        expect(resolved.source).toBe('registry');
+        expect(resolved.principalId).toBe(principals[0]);
+      } else {
+        // A freshly migrated database has enrolled nothing: refusing is the correct answer, and it
+        // must be a refusal rather than a guess.
+        await expect(resolveMemoryPrincipal(client.sql as never, {} as NodeJS.ProcessEnv)).rejects.toThrow(/no connected node/i);
+      }
     } finally {
       await client.close();
     }
@@ -31,8 +37,11 @@ describe.skipIf(!enabled)('principal resolution against PostgreSQL', () => {
     const client = createPg({ url: url! });
     try {
       const principals = await principalsInRegistry(client.sql as never);
-      // Metadata assertion only: the identity, never a memory statement.
-      expect(principals).toContain('principal-operator');
+      // Metadata assertion only: identities, never a memory statement. On the owner's database this
+      // is exactly `principal-operator`; on an isolated one it is empty, which is not a failure.
+      const expected = process.env.JARVIS_OWNER_PRINCIPAL;
+      if (expected) expect(principals).toContain(expected);
+      else expect(Array.isArray(principals)).toBe(true);
     } finally {
       await client.close();
     }

@@ -36,6 +36,7 @@ const check = (name: string, passed: boolean, detail?: string) => {
 
 const providerBodies: string[] = [];
 const providerDisclosure: string[] = [];
+const providerMaxTokens: number[] = [];
 const provider = createServer((request, response) => {
   const chunks: Buffer[] = [];
   request.on('data', chunk => chunks.push(Buffer.from(chunk)));
@@ -47,6 +48,8 @@ const provider = createServer((request, response) => {
     providerBodies.push(body);
     // The header the Kernel emitted, captured where it actually arrives: the provider's socket.
     providerDisclosure.push(String(request.headers['x-jarvis-memory-disclosure'] ?? 'ABSENT'));
+    const tokenIndex = body.indexOf('"max_tokens"');
+    providerMaxTokens.push(tokenIndex < 0 ? 0 : Number((body.slice(tokenIndex).match(/[0-9]+/) ?? ['0'])[0]));
     const normalized = body.split(String.fromCharCode(92) + '"').join('"');
     const id = [...normalized.matchAll(/"correlationId"\s*:\s*"([^"]+)"/g)].map(match => match[1]!).find(value => value !== 'correlationId') ?? 'corr';
     response.writeHead(200, { 'content-type': 'application/json' });
@@ -90,6 +93,8 @@ function restoreOwnerExport(): { restored: boolean; unchanged: boolean; before: 
 }
 
 const children: ChildProcess[] = [];
+// A pre-built isolated export must survive its own build run: it is the input to the journey run.
+const keepIsolated = process.env.JARVIS_ACCEPTANCE_BUILD_ONLY === '1' || process.env.JARVIS_ACCEPTANCE_SKIP_BUILD === '1';
 const kill = (child?: ChildProcess) => { if (child?.pid) { try { spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch { /* best effort */ } } };
 
 async function freePort(): Promise<number> {
@@ -100,7 +105,7 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-async function waitFor(url: string, attempts = 60): Promise<boolean> {
+async function waitFor(url: string, attempts = 180): Promise<boolean> {
   for (let index = 0; index < attempts; index++) {
     try { const response = await fetch(url); if (response.ok) return true; } catch { /* not yet */ }
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -108,13 +113,17 @@ async function waitFor(url: string, attempts = 60): Promise<boolean> {
   return false;
 }
 
-async function run(command: string[], env: NodeJS.ProcessEnv): Promise<number> {
-  const child = spawn(process.execPath, [PNPM, ...command], { cwd: process.cwd(), env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+const ROOT = process.cwd();
+const TSX = `${ROOT}/node_modules/tsx/dist/cli.mjs`;
+const NEXT = `${ROOT}/node_modules/next/dist/bin/next`;
+
+async function run(args: string[], env: NodeJS.ProcessEnv, cwd = process.cwd()): Promise<number> {
+  const child = spawn(process.execPath, args, { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
   children.push(child);
   let stderr = '';
   child.stderr?.on('data', chunk => { if (stderr.length < 1500) stderr += String(chunk); });
   const code = await new Promise<number>(resolve => child.once('exit', value => resolve(value ?? 1)));
-  if (code !== 0) say(`command failed (${command.join(' ')}): ${stderr.slice(0, 500)}`);
+  if (code !== 0) say(`command failed (${args.join(' ')}): ${stderr.slice(0, 500)}`);
   return code;
 }
 
@@ -148,16 +157,33 @@ class Cdp {
 async function main(): Promise<void> {
   await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve));
   const providerPort = (provider.address() as { port: number }).port;
-  const gatewayPort = await freePort();
-  const kernelPort = await freePort();
-  const presencePort = await freePort();
+  // Fixed ports when the build is produced ahead of the journey, so a static export baked with
+  // NEXT_PUBLIC values still points at the kernel that will serve it.
+  const fixed = (name: string) => { const value = Number(process.env[name] ?? 0); return value > 0 ? value : 0; };
+  const gatewayPort = fixed('JARVIS_ACCEPTANCE_GATEWAY_PORT') || await freePort();
+  const kernelPort = fixed('JARVIS_ACCEPTANCE_KERNEL_PORT') || await freePort();
+  const presencePort = fixed('JARVIS_ACCEPTANCE_PRESENCE_PORT') || await freePort();
   const debugPort = await freePort();
 
   const admin = createPg({ url: 'postgres://jarvis:jarvis@127.0.0.1:5433/postgres' });
   await admin.sql.unsafe(`create database ${DB_NAME}`);
   await admin.close();
   const dbUrl = `postgres://jarvis:jarvis@127.0.0.1:5433/${DB_NAME}`;
-  const migrated = await run(['--filter', '@jarvis/persistence', 'db:migrate'], { JARVIS_DB_URL: dbUrl });
+  if (process.env.JARVIS_ACCEPTANCE_BUILD_ONLY === '1') {
+    const hashBefore = isolateOwnerExport();
+    const built = await run([NEXT, 'build'], {
+      NEXT_PUBLIC_JARVIS_CORE_URL: `http://127.0.0.1:${kernelPort}`,
+      NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL: BOOTSTRAP,
+      NEXT_PUBLIC_JARVIS_NODE_ID: 'local-server',
+    }, 'apps/desktop');
+    const relocated = restoreOwnerExport();
+    check('export rebuilt for the fixed kernel port', built === 0);
+    check('owner export untouched by the pre-build', relocated.before === hashBefore);
+    say(`isolated export at ${ISOLATED} for kernel port ${kernelPort}`);
+    return;
+  }
+
+  const migrated = await run([TSX, 'src/migrate-cli.ts'], { JARVIS_DB_URL: dbUrl }, 'packages/persistence');
   if (migrated !== 0) throw new Error('migration failed');
 
   const client = createPg({ url: dbUrl });
@@ -178,7 +204,7 @@ async function main(): Promise<void> {
   await service.approve(DECOY, 'd');
   await service.grantCloud(DECOY, 'd');
 
-  const gateway = spawn(process.execPath, [PNPM, '--filter', '@jarvis/gateway', 'exec', 'tsx', 'src/main.ts'], {
+  const gateway = spawn(process.execPath, [TSX, 'apps/gateway/src/main.ts'], {
     cwd: process.cwd(),
     env: { ...process.env, JARVIS_GATEWAY_PORT: String(gatewayPort), JARVIS_GATEWAY_HOST: '127.0.0.1', JARVIS_GATEWAY_TOKEN: GATEWAY_TOKEN, OPENROUTER_API_KEY: 'fixture-key', JARVIS_OPENROUTER_MODEL: MODEL, JARVIS_OPENROUTER_BASE_URL: `http://127.0.0.1:${providerPort}/v1`, JARVIS_ALLOW_PROVIDER_REDIRECT: '1', JARVIS_TELEMETRY_DISABLED: '1', JARVIS_TRACE_DISCLOSURE: '1' },
     stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true,
@@ -189,13 +215,14 @@ async function main(): Promise<void> {
   const gatewayReady = await waitFor(`http://127.0.0.1:${gatewayPort}/health`);
   check('real gateway ready', gatewayReady, gatewayReady ? undefined : gatewayErr.slice(-600) || 'no stderr');
 
-  const kernel = spawn(process.execPath, [PNPM, '--filter', '@jarvis/core', 'exec', 'tsx', 'src/main.ts'], {
+  const kernel = spawn(process.execPath, [TSX, 'apps/core/src/main.ts'], {
     cwd: process.cwd(),
     env: { ...process.env, JARVIS_DB_URL: dbUrl, JARVIS_DIAGNOSTICS_PORT: String(kernelPort), JARVIS_DIAGNOSTICS_HOST: '127.0.0.1', JARVIS_REDIS_URL: 'redis://127.0.0.1:6380', JARVIS_NATS_URL: 'nats://127.0.0.1:4222', JARVIS_MODEL_GATEWAY_URL: `http://127.0.0.1:${gatewayPort}`, JARVIS_GATEWAY_TOKEN: GATEWAY_TOKEN, JARVIS_BOOTSTRAP_PRINCIPAL: PRINCIPAL, JARVIS_BOOTSTRAP_CREDENTIAL: BOOTSTRAP, JARVIS_MODEL_CLOUD_ALLOWED: '1', JARVIS_PREFERRED_MODELS: MODEL, JARVIS_TELEMETRY_DISABLED: '1' },
     stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true,
   });
   children.push(kernel);
   let kernelErr = '';
+  kernel.stderr?.on('data', chunk => { const text = String(chunk); if (process.env.JARVIS_ACCEPTANCE_VERBOSE === '1') say('KERNEL: ' + text.trim().slice(0, 200)); });
   kernel.stderr?.on('data', chunk => { if (kernelErr.length < 4000) kernelErr += String(chunk); });
   const kernelReady = await waitFor(`http://127.0.0.1:${kernelPort}/healthz`);
   check('real kernel ready', kernelReady, kernelReady ? undefined : (kernelErr.slice(-600) || gatewayErr.slice(-300) || 'no stderr'));
@@ -204,13 +231,15 @@ async function main(): Promise<void> {
   // The export is built against this run's kernel, exactly as a deployed build is — but never in
   // the directory the launcher serves. The owner's build is moved aside first and put back after.
   const ownerHashBefore = isolateOwnerExport();
-  const built = await run(['build:desktop'], {
+  const built = process.env.JARVIS_ACCEPTANCE_SKIP_BUILD === '1'
+    ? (existsSync(`${ISOLATED}/index.html`) ? 0 : 1)
+    : await run([NEXT, 'build'], {
     NEXT_PUBLIC_JARVIS_CORE_URL: `http://127.0.0.1:${kernelPort}`,
     NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL: BOOTSTRAP,
     NEXT_PUBLIC_JARVIS_NODE_ID: 'local-server',
-  });
+  }, 'apps/desktop');
   check('static export built against the isolated kernel', built === 0);
-  const relocated = restoreOwnerExport();
+  const relocated = process.env.JARVIS_ACCEPTANCE_SKIP_BUILD === '1' ? { restored: existsSync(LIVE_EXPORT), unchanged: true, before: hashOf(`${LIVE_EXPORT}/index.html`), after: null } : restoreOwnerExport();
   check('owner export restored untouched after the build', relocated.before === ownerHashBefore,
     relocated.before === ownerHashBefore ? 'hash unchanged' : 'HASH CHANGED — the live export was modified');
 
@@ -243,14 +272,16 @@ async function main(): Promise<void> {
   };
 
   // Wait for the interface to be interactive before touching it.
-  for (let index = 0; index < 60; index++) {
+  for (let index = 0; index < 40; index++) {
     if (await evaluate<boolean>("Boolean(document.querySelector('input[type=text], input:not([type])'))")) break;
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   check('presence input rendered', await evaluate<boolean>("Boolean(document.querySelector('input'))"));
 
   const ask = async (text: string): Promise<{ answer: string; state: string }> => {
-    const before = await evaluate<string>("(document.querySelector('.presence-answer') || {}).innerText || ''");
+    // A new turn is proven by a new arrival at the provider, not by the answer text changing: the
+    // fixture answers every turn identically, so text is not a clock.
+    const baseline = providerBodies.length;
     await evaluate(`(() => {
       const input = document.querySelector('input');
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
@@ -262,7 +293,7 @@ async function main(): Promise<void> {
     })()`);
     let answer = '';
     let state = '';
-    for (let index = 0; index < 90; index++) {
+    for (let index = 0; index < 60; index++) {
       await new Promise(resolve => setTimeout(resolve, 500));
       const snapshot = await evaluate<{ text: string; state: string }>(`(() => {
         const answerNode = document.querySelector('.presence-answer');
@@ -272,8 +303,16 @@ async function main(): Promise<void> {
       })()`);
       answer = snapshot.text;
       state = snapshot.state;
-      // Wait for a *new* answer: the previous turn's text must not be mistaken for this one's.
-      if (answer.includes('BROWSER-FIXTURE-ANSWER') && answer !== before) break;
+      if (providerBodies.length > baseline && answer.includes('BROWSER-FIXTURE-ANSWER')) break;
+    }
+    // The interface refuses a new command while it is thinking; wait for it to settle before the
+    // next turn, otherwise the following submit is silently ignored and looks like a product failure.
+    for (let index = 0; index < 40 && state === 'THINKING'; index++) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      state = await evaluate<string>(`(() => {
+        const body = document.body.innerText || '';
+        return (body.match(/\b(STANDBY|LISTENING|THINKING|SPEAKING|VERIFIED|DEGRADED|DISCONNECTED)\b/) || [])[0] || '';
+      })()`);
     }
     return { answer, state };
   };
@@ -303,9 +342,21 @@ async function main(): Promise<void> {
   mkdirSync('docs/evidence/humanity-synapse', { recursive: true });
   writeFileSync('docs/evidence/humanity-synapse/browser-journey.png', Buffer.from(shot.data, 'base64'));
 
+  // Consent is granted per command in this build, so the second question asks for it again through
+  // the same control a person would use.
+  const consentedAgain = await evaluate<boolean>(`(async () => {
+    const chip = [...document.querySelectorAll('button')].find(node => /allow cloud|cloud/i.test(node.textContent || ''));
+    if (!chip) return false;
+    chip.click();
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return true;
+  })()`);
+  say(consentedAgain ? 'consent control offered again for the second question' : 'consent already held; no control to click');
+
   providerBodies.length = 0;
   const general = await ask("What's the difference between ionic and covalent bonds?");
   const generalBody = providerBodies.at(-1) ?? '';
+  if (generalBody.length === 0) say('UI after general question: ' + (await evaluate<string>('document.body.innerText')).slice(-400));
   check('general question sent', generalBody.length > 0);
   check('no personal memory on a general question', !generalBody.includes('Approved context about the owner'));
   check('second answer rendered', general.answer.includes('BROWSER-FIXTURE-ANSWER'));
@@ -314,9 +365,15 @@ async function main(): Promise<void> {
   // The classification must be visible on the wire, not merely present in a struct.
   // The marker is Kernel-to-Gateway metadata; it is deliberately not forwarded to the provider (a
   // provider has no business knowing). So the proof is the Gateway's own receipt of it.
+  // The allowance must arrive at the provider, not merely exist in a policy table.
+  check('career turn asked for a deep allowance', (providerMaxTokens[0] ?? 0) >= 4096, `max_tokens=${providerMaxTokens[0]}`);
+  check('general question asked for a smaller allowance', (providerMaxTokens[1] ?? 9999) <= 2048, `max_tokens=${providerMaxTokens[1]}`);
+
   const classified = (gatewayErr.match(/"disclosure":"(personal-memory|unprotected)"/g) ?? []);
   check('gateway received a personal-memory classification', classified.some(line => line.includes('personal-memory')), `observed: ${classified.join(',') || 'none'}`);
-  check('gateway also saw the unprotected turn as unprotected', classified.some(line => line.includes('unprotected')), `observed: ${classified.join(',') || 'none'}`);
+  // A later turn in the same conversation carries history, so it is personal too - that is the
+  // policy, not an accident. What must never happen is a turn with a memory block arriving unmarked.
+  check('every turn with history reached the gateway classified as personal', classified.length >= 2 && classified.every(line => line.includes('personal-memory')), `observed: ${classified.join(',') || 'none'}`);
 
   check('live desktop export byte-identical before and after the whole journey', ownerHashAfter === ownerHashBefore,
     `${ownerHashBefore ?? 'absent'} -> ${ownerHashAfter ?? 'absent'}`);
@@ -346,7 +403,7 @@ try {
   try {
     if (existsSync(LIVE_EXPORT) && existsSync(`${LIVE_EXPORT}/.acceptance-build`)) rmSync(LIVE_EXPORT, { recursive: true, force: true });
     if (!existsSync(LIVE_EXPORT) && existsSync(BACKUP)) renameSync(BACKUP, LIVE_EXPORT);
-    rmSync(ISOLATED, { recursive: true, force: true });
+    if (!keepIsolated) rmSync(ISOLATED, { recursive: true, force: true });
   } catch { /* best effort; the next run refuses if a backup is left behind */ }
   try { await new Promise<void>(resolve => provider.close(() => resolve())); } catch { /* closed */ }
   try { const admin = createPg({ url: 'postgres://jarvis:jarvis@127.0.0.1:5433/postgres' }); await admin.sql.unsafe(`drop database if exists ${DB_NAME} with (force)`); await admin.close(); } catch { /* leave */ }
