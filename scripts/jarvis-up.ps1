@@ -248,6 +248,14 @@ for ($i = 0; $i -lt 90; $i++) { if (Test-Kernel) { $up = $true; break }; Start-S
 if (-not $up) { Bad 'kernel did not answer /healthz within 3 minutes - see .logs/kernel.log'; }
 else { Ok 'kernel healthy on http://127.0.0.1:7420' }
 
+# An acceptance run builds with a synthetic credential and an ephemeral kernel port. If such a
+# build is ever found here, refuse to serve it: rebuild rather than run a test configuration.
+$acceptanceMarker = Join-Path $repo 'apps/desktop/out/.acceptance-build'
+if (Test-Path $acceptanceMarker) {
+  Write-Host 'desktop export is an acceptance-test build; rebuilding it' -ForegroundColor Yellow
+  Remove-Item -Recurse -Force (Join-Path $repo 'apps/desktop/out')
+  $Build = $true
+}
 if ($Build -or -not (Test-Path (Join-Path $repo 'apps/desktop/out/index.html'))) { Say '  building the desktop export'; Pnpm --filter '@jarvis/desktop' build; Ok 'desktop export built' }
 
 # A leftover frontend from an earlier run keeps the port and quietly shadows the new one.

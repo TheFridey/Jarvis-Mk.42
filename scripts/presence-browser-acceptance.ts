@@ -11,7 +11,8 @@
  */
 import { createServer } from 'node:http';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { createPg } from '../packages/persistence/src/client.ts';
 import { PersonalMemoryService } from '../apps/core/src/kernel/experience/personal-memory-service.ts';
 import { PersonalMemoryStore } from '../apps/core/src/kernel/experience/personal-memory-store.ts';
@@ -54,6 +55,37 @@ const provider = createServer((request, response) => {
   });
 });
 
+
+// ---- isolation of the owner's export --------------------------------------------------------
+const LIVE_EXPORT = 'apps/desktop/out';
+const BACKUP = 'apps/desktop/out.owner-backup';
+const ISOLATED = '.logs/browser-acceptance/export';
+const hashOf = (path: string): string | null => (existsSync(path) ? createHash('sha256').update(readFileSync(path)).digest('hex') : null);
+
+/** Take the owner's build out of the way, so nothing this run produces can be mistaken for it. */
+function isolateOwnerExport(): string | null {
+  if (existsSync(BACKUP)) throw new Error(`refusing to run: ${BACKUP} exists from an interrupted run; restore it first`);
+  const before = hashOf(`${LIVE_EXPORT}/index.html`);
+  if (existsSync(LIVE_EXPORT)) renameSync(LIVE_EXPORT, BACKUP);
+  return before;
+}
+
+/** Move the test build somewhere the launcher will never look, then put the owner's back. */
+function restoreOwnerExport(): { restored: boolean; unchanged: boolean; before: string | null; after: string | null } {
+  if (existsSync(LIVE_EXPORT)) {
+    mkdirSync('.logs/browser-acceptance', { recursive: true });
+    rmSync(ISOLATED, { recursive: true, force: true });
+    renameSync(LIVE_EXPORT, ISOLATED);
+    writeFileSync(`${ISOLATED}/.acceptance-build`, JSON.stringify({ purpose: 'browser acceptance fixture build; never serve this as the owner build', generatedAt: new Date().toISOString() }));
+  }
+  let before: string | null = null;
+  if (existsSync(BACKUP)) {
+    renameSync(BACKUP, LIVE_EXPORT);
+  }
+  before = hashOf(`${LIVE_EXPORT}/index.html`);
+  return { restored: existsSync(LIVE_EXPORT), unchanged: true, before, after: before };
+}
+
 const children: ChildProcess[] = [];
 const kill = (child?: ChildProcess) => { if (child?.pid) { try { spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch { /* best effort */ } } };
 
@@ -65,7 +97,7 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-async function waitFor(url: string, attempts = 120): Promise<boolean> {
+async function waitFor(url: string, attempts = 60): Promise<boolean> {
   for (let index = 0; index < attempts; index++) {
     try { const response = await fetch(url); if (response.ok) return true; } catch { /* not yet */ }
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -166,15 +198,20 @@ async function main(): Promise<void> {
   check('real kernel ready', kernelReady, kernelReady ? undefined : (kernelErr.slice(-600) || gatewayErr.slice(-300) || 'no stderr'));
   if (!kernelReady) { process.exitCode = 1; return; }
 
-  // The export is built against this run's kernel, exactly as a deployed build is.
+  // The export is built against this run's kernel, exactly as a deployed build is — but never in
+  // the directory the launcher serves. The owner's build is moved aside first and put back after.
+  const ownerHashBefore = isolateOwnerExport();
   const built = await run(['build:desktop'], {
     NEXT_PUBLIC_JARVIS_CORE_URL: `http://127.0.0.1:${kernelPort}`,
     NEXT_PUBLIC_JARVIS_BOOTSTRAP_CREDENTIAL: BOOTSTRAP,
     NEXT_PUBLIC_JARVIS_NODE_ID: 'local-server',
   });
   check('static export built against the isolated kernel', built === 0);
+  const relocated = restoreOwnerExport();
+  check('owner export restored untouched after the build', relocated.restored && relocated.before === ownerHashBefore,
+    relocated.before === ownerHashBefore ? 'hash unchanged' : 'HASH CHANGED — the live export was modified');
 
-  const serving = spawn(process.execPath, ['scripts/serve-export.mjs'], { cwd: process.cwd(), env: { ...process.env, JARVIS_DESKTOP_PORT: String(presencePort) }, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+  const serving = spawn(process.execPath, ['scripts/serve-export.mjs'], { cwd: process.cwd(), env: { ...process.env, JARVIS_DESKTOP_PORT: String(presencePort), JARVIS_EXPORT_DIR: ISOLATED }, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
   children.push(serving);
   check('presence served', await waitFor(`http://127.0.0.1:${presencePort}/?mode=presence`));
 
@@ -270,6 +307,11 @@ async function main(): Promise<void> {
   check('no personal memory on a general question', !generalBody.includes('Approved context about the owner'));
   check('second answer rendered', general.answer.includes('BROWSER-FIXTURE-ANSWER'));
 
+  const ownerHashAfter = hashOf(`${LIVE_EXPORT}/index.html`);
+  check('live desktop export byte-identical before and after the whole journey', ownerHashAfter === ownerHashBefore,
+    `${ownerHashBefore ?? 'absent'} -> ${ownerHashAfter ?? 'absent'}`);
+  check('no acceptance build left where the launcher looks', !existsSync(`${LIVE_EXPORT}/.acceptance-build`));
+
   mkdirSync('docs/evidence/humanity-synapse', { recursive: true });
   writeFileSync(EVIDENCE, JSON.stringify({
     browser: 'Chrome headless via CDP; input typed into the real Presence form and submitted through it',
@@ -290,6 +332,12 @@ try {
   process.exitCode = 1;
 } finally {
   for (const child of children) kill(child);
+  // Cleanup must survive failure: the owner's export is restored even if the run threw.
+  try {
+    if (existsSync(LIVE_EXPORT) && existsSync(`${LIVE_EXPORT}/.acceptance-build`)) rmSync(LIVE_EXPORT, { recursive: true, force: true });
+    if (!existsSync(LIVE_EXPORT) && existsSync(BACKUP)) renameSync(BACKUP, LIVE_EXPORT);
+    rmSync(ISOLATED, { recursive: true, force: true });
+  } catch { /* best effort; the next run refuses if a backup is left behind */ }
   try { await new Promise<void>(resolve => provider.close(() => resolve())); } catch { /* closed */ }
   try { const admin = createPg({ url: 'postgres://jarvis:jarvis@127.0.0.1:5433/postgres' }); await admin.sql.unsafe(`drop database if exists ${DB_NAME} with (force)`); await admin.close(); } catch { /* leave */ }
 }

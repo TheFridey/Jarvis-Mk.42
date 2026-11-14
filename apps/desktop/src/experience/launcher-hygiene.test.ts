@@ -46,6 +46,28 @@ describe('launcher', () => {
     expect(/GATEWAY_PORT\s*=\s*\d{2,5}/.test(script)).toBe(false);
   });
 
+
+  it('keeps the browser acceptance build out of the owner export', () => {
+    const harness = readFileSync(fileURLToPath(new URL('../../../../scripts/presence-browser-acceptance.ts', import.meta.url)), 'utf8');
+    // The defect: an acceptance run built into apps/desktop/out with a synthetic credential and an
+    // ephemeral kernel port, and the launcher served it. Each of these must stay true.
+    expect(harness).toContain('apps/desktop/out.owner-backup');
+    expect(harness).toContain('JARVIS_EXPORT_DIR');
+    expect(harness).toContain('.acceptance-build');
+    expect(harness).toContain('byte-identical before and after');
+  });
+
+  it('serves an isolated export directory when asked to', () => {
+    const server = readFileSync(fileURLToPath(new URL('../../../../scripts/serve-export.mjs', import.meta.url)), 'utf8');
+    expect(server).toContain('JARVIS_EXPORT_DIR');
+    expect(server).toContain("apps/desktop/out'");
+  });
+
+  it('refuses to serve a build that carries the acceptance marker', () => {
+    const launcher = readFileSync(fileURLToPath(new URL('../../../../scripts/jarvis-up.ps1', import.meta.url)), 'utf8');
+    expect(launcher).toContain('.acceptance-build');
+  });
+
   it('still knows how to stop everything it started', () => {
     expect(source).toContain('Stop-Tree');
     expect(source).toContain('-Down');

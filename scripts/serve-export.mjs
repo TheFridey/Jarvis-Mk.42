@@ -13,7 +13,11 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('../apps/desktop/out', import.meta.url)));
+// An acceptance run must never serve the owner's live export: JARVIS_EXPORT_DIR points at the
+// isolated build, and the default stays exactly where the launcher expects it.
+const root = process.env.JARVIS_EXPORT_DIR
+  ? resolve(process.env.JARVIS_EXPORT_DIR)
+  : resolve(fileURLToPath(new URL('../apps/desktop/out', import.meta.url)));
 const port = Number(process.env.JARVIS_DESKTOP_PORT ?? 4300);
 const host = '127.0.0.1';
 
