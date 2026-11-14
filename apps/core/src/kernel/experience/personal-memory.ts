@@ -22,6 +22,18 @@ export const MEMORY_POLICY_VERSION = 1;
 export const MEMORY_CLOUD_CEILING: PrivacyClass = 'INTERNAL';
 
 export const MEMORY_CONTEXT_LIMIT = 24;
+/**
+ * Memory-specific ceiling, in estimated tokens (4 bytes per token — an approximation, labelled as
+ * such wherever reported). Record ceilings cannot bound this: one long statement can carry as much
+ * as twenty short ones.
+ */
+export const MEMORY_TOKEN_CEILING: Record<string, number> = {
+  SOCIAL: 200, BANTER: 120, TARGETED_FACT: 800, ENTITY_DETAIL: 1200, CAREER_HISTORY: 2000,
+  PROJECT_INVENTORY: 2000, RECENT_PROGRESS: 1500, PROFILE_OVERVIEW: 2000, REFLECTIVE: 2000,
+  ENCOURAGEMENT: 2500, COMPREHENSIVE_RECALL: 4000, FOLLOW_UP: 4000, TECHNICAL_OPERATION: 600,
+  GENERAL_KNOWLEDGE: 0,
+};
+export const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
 /** Below this lexical score a memory is noise, not context. */
 export const MEMORY_MIN_SCORE = 0.4;
 
@@ -299,13 +311,21 @@ export function composeMemoryContext(records: MemoryRecord[], input: { query: st
   });
   if (!selected.length) return '';
 
+  // Enforce the ceiling on what is actually sent, not on how many records were chosen: drop the
+  // lowest-scoring entries until the block fits, always keeping at least one. Trimming happens by
+  // whole record — a statement is never cut mid-sentence, because a truncated fact can read as a
+  // different fact.
+  const ceiling = MEMORY_TOKEN_CEILING[plan.intent] ?? 2000;
+  const kept = [...selected];
+  while (kept.length > 1 && estimateTokens(memoryContextLines(kept).join(String.fromCharCode(10))) > ceiling) kept.pop();
+
   // Honesty about scope. The model repeatedly said "that is everything on record" when it had been
   // handed a handful of records out of dozens; these two lines make the difference sayable without
   // revealing protected counts (only the eligible pool for this locality is named).
   const header = plan.completeness === 'none'
     ? 'Approved context about the owner (only where relevant; never recite it):'
-    : `Approved context about the owner — ${selected.length} of ${eligible} eligible records, a ${plan.completeness === 'broad' ? 'wide but still partial' : 'partial'} view. Use it naturally, and if the answer needs more than this, say what you would look for rather than presenting this as a complete account:`;
-  return ['', '', header, ...memoryContextLines(selected)].join(String.fromCharCode(10));
+    : `Approved context about the owner — ${kept.length} of ${eligible} eligible records, a ${plan.completeness === 'broad' ? 'wide but still partial' : 'partial'} view. Use it naturally, and if the answer needs more than this, say what you would look for rather than presenting this as a complete account:`;
+  return ['', '', header, ...memoryContextLines(kept)].join(String.fromCharCode(10));
 }
 
 export function memoryContextLines(selected: SelectedMemory[]): string[] {

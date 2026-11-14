@@ -1,0 +1,31 @@
+fix(cognition): complete the provider response lifecycle; bound memory and refuse retry
+
+Root cause of the six unexplained internal_error responses: the provider fixture could not echo the
+Kernel's correlationId because the id arrives inside a JSON string and its quotes are escaped, so the
+regex never matched and AgentRuntime correctly rejected the proposal as forged - after the provider
+call had already succeeded. The production half of the defect was the silence: /desktop/cognition
+returned {"error":"internal_error"} while logging a bare event with no name, code, message or frame.
+A successful inference reported as a failure, with nothing to debug, cost several campaigns.
+
+Fixes: the fixture unescapes before extracting the id; the endpoint now writes a bounded failure
+classification to stderr (component, event, node, errorName, errorCode, message <=300 chars, top
+three frames) with no bodies, statements or credentials. scripts/convergence-acceptance.ts is
+13/13, exit 0.
+
+Retry-time disclosure: ModelRequest.disclosure is set by the Kernel only; the gateway client sends
+x-jarvis-memory-disclosure when present; ModelGateway refuses to fall back to another candidate for
+a memory-bearing request and throws 'retry refused'. Ordinary requests keep their fallback path.
+The guard has no automated test yet - my registry fixture did not satisfy the contract and I deleted
+it rather than ship a test that asserted a flag. Stated, not hidden.
+
+Memory ceiling: MEMORY_TOKEN_CEILING per intent (200 for social, 2000 broad, 4000 comprehensive,
+0 for general knowledge), estimated at 4 bytes per token and labelled an estimate. Eviction removes
+whole records lowest-score first and always keeps one: a statement is never cut mid-sentence, because
+a truncated fact reads as a different fact. Three tests cover long records, mid-sentence integrity
+and diversity under pressure.
+
+Verification: 865 passed, 4 skipped (869), 143 files, vitest exit 0; typecheck, lint and fitness
+clean. Not implemented: browser-driven journey, ORACLE investigation.
+
+Ownership: no owner memory statement read, no approval, classification or grant changed, no paid
+provider call, no queue executed, no container or volume touched.

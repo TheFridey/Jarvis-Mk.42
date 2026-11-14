@@ -45,6 +45,12 @@ export interface ModelInput {
 
 export interface ModelRequest {
   task: ModelTask;
+  /**
+   * Set by the Kernel, never by a model or a provider: this request carries personal memory the
+   * owner consented to disclose. A gateway must not retry or fall back on it without fresh
+   * authorisation, because retransmission is a second disclosure.
+   */
+  disclosure?: 'personal-memory';
   capabilities: ModelCapability[];
   input: ModelInput;
   budget: {

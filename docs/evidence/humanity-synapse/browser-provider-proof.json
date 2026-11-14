@@ -30,43 +30,43 @@
     {
       "case": "conversation cloud grant issued by the Kernel",
       "passed": true,
-      "detail": "{\"conversationId\":\"conv-mwghtz8j\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7D6XJ5XN08KBPH3568GQW8A\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
+      "detail": "{\"conversationId\":\"conv-mwgin8mo\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7D877CEVWNDHYGT877NGV77\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
     },
     {
       "case": "career history reaches the provider",
-      "passed": false,
-      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=14950"
+      "passed": true,
+      "detail": "missing=[] leaked=[] bytes=15505"
     },
     {
       "case": "project inventory reaches the provider",
-      "passed": false,
-      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=18969"
+      "passed": true,
+      "detail": "missing=[] leaked=[] bytes=22425"
     },
     {
       "case": "profile overview spans categories",
-      "passed": false,
-      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=19866"
+      "passed": true,
+      "detail": "missing=[] leaked=[] bytes=24205"
     },
     {
       "case": "encouragement is grounded in records",
-      "passed": false,
-      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=19755"
+      "passed": true,
+      "detail": "missing=[] leaked=[] bytes=23642"
     },
     {
       "case": "general knowledge carries no personal context",
-      "passed": false,
-      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=17956"
+      "passed": true,
+      "detail": "missing=[] leaked=[] bytes=22097"
     },
     {
       "case": "greeting carries no autobiography",
-      "passed": false,
-      "detail": "kernel={\"error\":\"internal_error\"} missing=[] leaked=[] bytes=17876"
+      "passed": true,
+      "detail": "missing=[] leaked=[] bytes=22240"
     }
   ],
   "providerBodies": 1,
-  "passed": 7,
+  "passed": 13,
   "total": 13,
-  "generatedAt": "2026-11-14T14:21:14.395Z",
+  "generatedAt": "2026-11-14T14:44:00.993Z",
   "composition": {
     "real": [
       "Kernel bootstrap",
@@ -84,6 +84,6 @@
       "browser → HTTP client",
       "provider → loopback fixture"
     ],
-    "database": "jarvis_convergence_mwghs6ov"
+    "database": "jarvis_convergence_mwgim63k"
   }
 }

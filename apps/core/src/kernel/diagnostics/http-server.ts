@@ -245,8 +245,18 @@ export class DiagnosticsHttp {
           error:unavailable?'Model inference is unavailable; no permitted provider completed this request. Kernel state and permission checks remain available while storage is healthy.':`Model request could not complete (${err.code}).`,
         });
       }
+      // A silent 500 is undebuggable: log a bounded classification of the failure (never a body,
+      // never a statement) so the failing stage can be identified from the operator's own logs.
+      const failure = err as Error & { code?: string };
+      process.stderr.write(JSON.stringify({
+        component: 'diagnostics', event: 'request.failed', severity: 'ERROR', node: this.deps.nodeId,
+        errorName: failure?.name ?? 'Error',
+        errorCode: failure?.code ?? null,
+        errorMessage: String(failure?.message ?? err).slice(0, 300),
+        stack: String(failure?.stack ?? '').split(String.fromCharCode(10)).slice(1, 4).join(' | ').slice(0, 500),
+      }) + String.fromCharCode(10));
       void structuredLog({component:'diagnostics',node:this.deps.nodeId,event:'request.failed',severity:'ERROR'});
-      return send(500, { error: 'internal_error' });
+      return send(500, { error: 'internal_error', ...(failure?.code ? { code: failure.code } : {}) });
     }
   }
 

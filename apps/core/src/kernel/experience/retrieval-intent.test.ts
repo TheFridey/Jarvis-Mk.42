@@ -120,3 +120,29 @@ describe('honesty of scope', () => {
     expect(block).not.toContain('restaurant kitchen');
   });
 });
+
+describe('memory context ceiling', () => {
+  const long = (id: string, subject: string, size: number) => memory(id, 'milestone', subject, 'SENTINEL ' + 'detail '.repeat(Math.ceil(size / 7)));
+
+  it('keeps a broad answer inside its token ceiling even with long records', () => {
+    const records = Array.from({ length: 12 }, (_, index) => long(`L${index}`, `entity-${index}`, 4000));
+    const block = composeMemoryContext(records, { query: 'What do you actually know about me?', principalId: 'owner', locality: 'local' });
+    // PROFILE_OVERVIEW ceiling is 2000 tokens; the header adds a little.
+    expect(Math.ceil(block.length / 4)).toBeLessThan(2600);
+    expect(block.split(String.fromCharCode(10)).filter(line => line.startsWith('- ')).length).toBeGreaterThan(0);
+  });
+
+  it('never truncates a statement mid-sentence', () => {
+    const records = [long('one', 'single', 9000)];
+    const block = composeMemoryContext(records, { query: 'What do you actually know about me?', principalId: 'owner', locality: 'local' });
+    for (const line of block.split(String.fromCharCode(10)).filter(entry => entry.startsWith('- '))) {
+      expect(line.trimEnd().endsWith('detail')).toBe(true);
+    }
+  });
+
+  it('keeps diversity under budget pressure rather than one long record', () => {
+    const records = [long('big', 'one-entity', 6000), memory('b', 'milestone', 'second-entity', 'Short fact.'), memory('c', 'milestone', 'third-entity', 'Another fact.')];
+    const block = composeMemoryContext(records, { query: 'What do you actually know about me?', principalId: 'owner', locality: 'local' });
+    expect(block).toContain('second-entity');
+  });
+});

@@ -59,11 +59,21 @@ const provider = createServer((request, response) => {
     }
     const body = Buffer.concat(chunks).toString('utf8');
     providerCalls.push(body);
+    const firstCid = /"correlationId":"([^"]+)"/.exec(body)?.[1];
+    if (!globalThis.__cidSeen) { globalThis.__cidSeen = true; say(`prompt correlationId: ${firstCid}`); }
     // The runtime rejects a proposal whose correlationId differs from the request's. The Kernel's
     // id is the command id, so prefer that shape over whatever trace id appears first.
-    const correlationId = /"correlationId":"(ask-[^"]+)"/.exec(body)?.[1]
-      ?? /"correlationId":"([^"]+)"/.exec(body)?.[1]
-      ?? 'corr';
+    if (!globalThis.__cidPrinted) { globalThis.__cidPrinted = true; }
+    if (!globalThis.__cidDumped) {
+      globalThis.__cidDumped = true;
+      const at = body.indexOf('correlationId');
+      say(`cid context: ${body.slice(Math.max(0, at - 120), at + 240)}`);
+    }
+    // The prompt embeds the correlation id inside a JSON string, so the quotes arrive escaped.
+    // Unescape first, then take the first real value (never the placeholder example name).
+    const normalized = body.split(String.fromCharCode(92) + '"').join('"');
+    const matches = [...normalized.matchAll(/"correlationId"\s*:\s*"([^"]+)"/g)].map(match => match[1]!);
+    const correlationId = matches.find(value => value && value !== 'correlationId') ?? 'corr';
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({
       id: 'fixture', object: 'chat.completion', model: MODEL,
@@ -254,7 +264,10 @@ async function main(): Promise<void> {
     composition: { real: ['Kernel bootstrap', 'HTTP auth', 'desktop cognition route', 'memory repository (isolated PostgreSQL)', 'retrieval intent', 'ContextCompiler', 'AgentRuntime', 'gateway client', 'Gateway process', 'OpenAICompatibleAdapter'], substituted: ['browser → HTTP client', 'provider → loopback fixture'], database: DB_NAME } };
   mkdirSync(dirname(EVIDENCE), { recursive: true });
   writeFileSync(EVIDENCE, JSON.stringify(summary, null, 2));
-  if (results.some(entry => !entry.passed)) say(`kernel stderr tail: ${kernelStderr.slice(-1200)}`);
+  if (results.some(entry => !entry.passed)) {
+    const failures = kernelStderr.split(String.fromCharCode(10)).filter(line => line.includes('request.failed'));
+    say(`kernel failures: ${failures.slice(0, 3).join(String.fromCharCode(10))}`);
+  }
   say(`evidence: ${EVIDENCE} (${summary.passed}/${summary.total})`);
   if (summary.passed < summary.total) process.exitCode = 1;
 }
