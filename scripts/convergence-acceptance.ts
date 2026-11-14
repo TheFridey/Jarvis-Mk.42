@@ -197,7 +197,8 @@ async function main(): Promise<void> {
   kernel.stderr?.on('data', chunk => { if (kernelStderr.length < 60000) kernelStderr += String(chunk); });
   const kernelReady = await waitFor(`http://127.0.0.1:${kernelPort}/healthz`);
   check('real kernel started from production bootstrap', kernelReady, kernelReady ? undefined : kernelStderr.slice(0, 300));
-  if (!kernelReady) return;
+  // A startup timing failure must fail the run, not exit 0 before the summary is written.
+  if (!kernelReady) { process.exitCode = 1; return; }
 
   const registry = await client.sql<{ principal_id: string }[]>`select principal_id from nodes.registry`;
   check('kernel registered under the synthetic principal', registry.some(row => row.principal_id === PRINCIPAL), registry.map(row => row.principal_id).join(','));

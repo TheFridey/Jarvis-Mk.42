@@ -2,46 +2,57 @@
 
 ## The risk
 
-The gateway's `generate` walks routing candidates: if one provider fails, it tries the next with the
-same request. For ordinary traffic that is resilience. For a request carrying consented personal
-memory it is a **second disclosure**, made after the Kernel's authorisation check, by a component
-that cannot see consent.
+`ModelGateway.generate` walks routing candidates: a failed provider is followed by the next with the
+same request. For ordinary traffic that is resilience; for a request carrying consented personal
+memory it is a second disclosure, made by a component that cannot see consent.
 
-## What was built (narrow, fail-closed)
+## Implementation (unchanged from the previous pass, now tested)
 
-1. `ModelRequest.disclosure?: 'personal-memory'` — set by the Kernel only. Companion sets
-   `memoryBearing` whenever the memory block is non-empty; the orchestrator forwards it into the
-   runtime request.
-2. `HttpModelGatewayClient` sends the trusted header `x-jarvis-memory-disclosure: 1` when the marker
-   is present. Headers are not model-influenced.
-3. `ModelGateway.generate` refuses to continue to another candidate when
-   `request.disclosure === 'personal-memory'`: it marks the attempt failed, emits routing
-   observability, and throws *retry refused for a personal-memory request*.
+1. `ModelRequest.disclosure?: 'personal-memory'` — written by the Kernel only. Companion sets
+   `memoryBearing` whenever the memory block is non-empty; the orchestrator forwards it.
+2. `HttpModelGatewayClient` sends the trusted header `x-jarvis-memory-disclosure`.
+3. `ModelGateway.generate` refuses to continue to another candidate and throws
+   `retry refused for a personal-memory request`, marked `retryable: false`.
 
-Ordinary requests keep their fallback behaviour — that path is untouched.
+## Behavioural evidence — two loopback providers, real request counts
 
-## Guarantees, ordered
+`apps/gateway/src/retry-disclosure.test.ts` registers two `OpenAICompatibleAdapter`s against two
+independent `node:http` servers, each counting what arrives.
 
-| moment | guarantee |
-|---|---|
-| Before first dispatch | Kernel evaluates grant, consent, classification, provider binding |
-| Between attempts | **Protected**: a memory-bearing request cannot fall back to a second provider |
-| Concurrent with transmission | Not prevented; nothing atomic is claimed |
-| After transmission | Nothing can be recalled |
-| Non-memory requests | Fallback permitted, unchanged |
+| scenario | provider A | provider B | result |
+|---|---:|---:|---|
+| ordinary request, A fails | 1 | 1 | falls back and succeeds |
+| memory-bearing, A succeeds | 1 | 0 | one attempt |
+| memory-bearing, A fails | 1 | **0** | throws `retry refused` |
+| refusal error | — | — | `retryable: false`, so no outer layer retries |
+| cancelled before dispatch | ≤1 | 0 | stops |
 
-Model *retries inside a single adapter* are also single-attempt: the adapter issues one fetch.
+No assertion here checks a flag; every one checks a count.
 
-## What is not proven
+## Remaining retry mechanisms
 
-I could not get a faithful unit harness for the gateway guard — my fixture registration did not
-satisfy the registry contract, and rather than ship a test that asserted a flag, I removed it. The
-guard is small, reviewable and type-checked; it is **not** covered by an automated test yet, and that
-is stated rather than hidden. The next step is a two-candidate fixture driven through
-`ModelGateway.generate` with a synthetic principal.
+- **Adapter**: `OpenAICompatibleAdapter` issues exactly one `fetch` per attempt — no internal retry.
+- **Transport**: Node `fetch`/undici does not retry by default in this configuration.
+- **Provider SDK**: none in use; the adapter speaks HTTP directly.
+- **Streaming reconnection**: the gateway client does not reconnect; a broken stream is an error.
+- **Kernel/runtime**: `AgentRuntime` does not retry a failed invoke.
+- **Outer HTTP caller**: the desktop client surfaces the error; it does not resend the command.
 
-## Limits
+So candidate fallback was the only autonomous retransmission path, and it is closed. That is a
+statement about this codebase, not about a provider's own internal retries, which are outside
+Jarvis's control.
 
-- The gateway trusts the header from its own Kernel on loopback with a shared token; it is not a
-  cryptographic attestation.
-- A provider that retries internally on its own side is outside Jarvis's control.
+## Missing or forged metadata
+
+Absence of `disclosure` is treated as unprotected — that is the production contract, because the
+Kernel always sets it and the header is added by Kernel code from the marker, never from model output.
+A caller that could talk to the gateway directly already holds the shared token, and could also
+simply POST the memory itself; the guard protects against the application's *own* fallback, which is
+the realistic failure. Documented rather than overstated.
+
+## Boundaries
+
+- Revocation before dispatch: honoured by `verifyBeforeDispatch`.
+- Revocation between attempts: protected — there are no further attempts.
+- Revocation concurrent with transmission: not prevented.
+- Already transmitted: cannot be recalled.

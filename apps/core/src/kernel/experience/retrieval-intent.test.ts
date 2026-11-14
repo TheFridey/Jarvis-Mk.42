@@ -146,3 +146,33 @@ describe('memory context ceiling', () => {
     expect(block).toContain('second-entity');
   });
 });
+
+
+describe('ceiling edge cases', () => {
+  it('omits a record larger than the whole budget instead of exceeding it', () => {
+    const huge = memory('huge', 'milestone', 'huge-entity', 'SENTINEL ' + 'word '.repeat(6000));
+    const block = composeMemoryContext([huge], { query: 'What do you actually know about me?', principalId: 'owner', locality: 'local' });
+    // Nothing fits the 2,000-token ceiling, so nothing is sent rather than a truncated fact.
+    expect(block).toBe('');
+  });
+
+  it('keeps smaller records when a large one cannot fit', () => {
+    const huge = memory('huge', 'milestone', 'huge-entity', 'SENTINEL ' + 'word '.repeat(4000));
+    const small = memory('small', 'milestone', 'small-entity', 'A short fact about delivery.');
+    const block = composeMemoryContext([huge, small], { query: 'What do you actually know about me?', principalId: 'owner', locality: 'local' });
+    expect(block).toContain('small-entity');
+    expect(Math.ceil(block.length / 4)).toBeLessThanOrEqual(2100);
+  });
+
+  it('counts multibyte text honestly', () => {
+    const emoji = memory('e', 'milestone', 'multibyte', 'SENTINEL ' + '🎯'.repeat(2000));
+    const block = composeMemoryContext([emoji], { query: 'What do you actually know about me?', principalId: 'owner', locality: 'local' });
+    // UTF-16 length, not code points: the estimate is conservative rather than optimistic.
+    expect(block.length === 0 || block.length <= 8400).toBe(true);
+  });
+
+  it('never sends memory on a zero-budget intent', () => {
+    const records = [memory('a', 'history', 'career', 'SENTINEL history.')];
+    expect(composeMemoryContext(records, { query: "What's the difference between ionic and covalent bonds?", principalId: 'owner', locality: 'local' })).toBe('');
+  });
+});

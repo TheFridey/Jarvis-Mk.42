@@ -33,6 +33,16 @@ import type { DomainService } from '../domains/domain-service.ts';
 import type { ObjectiveEngine } from '../objective/objective-engine.ts';
 import { DomainAccessError, DomainKinds } from '@jarvis/contracts';
 
+/** Strip credential-shaped fragments from a failure message. Length alone is not redaction. */
+export function redactFailure(message: string): string {
+  return message
+    .replace(/(sk-[A-Za-z0-9_-]{8,})/g, '[redacted-key]')
+    .replace(/(Bearer\s+)[^\s,;"]+/gi, '$1[redacted]')
+    .replace(/((?:api[_-]?key|password|token|secret)\s*[=:]\s*)[^\s,;"]+/gi, '$1[redacted]')
+    .slice(0, 300);
+}
+
+
 export interface DiagnosticsHttpDeps {
   domains?:DomainService;
   objectives?:ObjectiveEngine;
@@ -252,7 +262,7 @@ export class DiagnosticsHttp {
         component: 'diagnostics', event: 'request.failed', severity: 'ERROR', node: this.deps.nodeId,
         errorName: failure?.name ?? 'Error',
         errorCode: failure?.code ?? null,
-        errorMessage: String(failure?.message ?? err).slice(0, 300),
+        errorMessage: redactFailure(String(failure?.message ?? err)),
         stack: String(failure?.stack ?? '').split(String.fromCharCode(10)).slice(1, 4).join(' | ').slice(0, 500),
       }) + String.fromCharCode(10));
       void structuredLog({component:'diagnostics',node:this.deps.nodeId,event:'request.failed',severity:'ERROR'});

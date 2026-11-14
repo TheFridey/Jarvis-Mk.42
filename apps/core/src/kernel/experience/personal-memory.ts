@@ -34,6 +34,24 @@ export const MEMORY_TOKEN_CEILING: Record<string, number> = {
   GENERAL_KNOWLEDGE: 0,
 };
 export const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+
+/**
+ * Fit selected records into a token ceiling without ever exceeding it.
+ *
+ * A record that does not fit on its own is omitted, not truncated and not forced in: keeping "at
+ * least one" would let a single oversized statement blow the documented limit, and cutting it
+ * mid-sentence would turn one fact into a different one.
+ */
+export function fitMemoryToCeiling(selected: SelectedMemory[], ceilingTokens: number): { kept: SelectedMemory[]; omitted: number } {
+  const kept: SelectedMemory[] = [];
+  let omitted = 0;
+  for (const entry of selected) {
+    const candidate = [...kept, entry];
+    if (estimateTokens(memoryContextLines(candidate).join(String.fromCharCode(10))) <= ceilingTokens) kept.push(entry);
+    else omitted += 1;
+  }
+  return { kept, omitted };
+}
 /** Below this lexical score a memory is noise, not context. */
 export const MEMORY_MIN_SCORE = 0.4;
 
@@ -316,8 +334,8 @@ export function composeMemoryContext(records: MemoryRecord[], input: { query: st
   // whole record — a statement is never cut mid-sentence, because a truncated fact can read as a
   // different fact.
   const ceiling = MEMORY_TOKEN_CEILING[plan.intent] ?? 2000;
-  const kept = [...selected];
-  while (kept.length > 1 && estimateTokens(memoryContextLines(kept).join(String.fromCharCode(10))) > ceiling) kept.pop();
+  const { kept } = fitMemoryToCeiling(selected, ceiling);
+  if (!kept.length) return '';
 
   // Honesty about scope. The model repeatedly said "that is everything on record" when it had been
   // handed a handful of records out of dozens; these two lines make the difference sayable without
