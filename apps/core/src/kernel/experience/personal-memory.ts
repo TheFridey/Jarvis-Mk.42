@@ -1,3 +1,4 @@
+import { retrievalIntentFor, entityKey } from './retrieval-intent.ts';
 /**
  * Durable personal memory — selection policy.
  *
@@ -20,7 +21,7 @@ export const MEMORY_POLICY_VERSION = 1;
 /** Same ceiling as conversations: INTERNAL is the most that may leave this machine. */
 export const MEMORY_CLOUD_CEILING: PrivacyClass = 'INTERNAL';
 
-export const MEMORY_CONTEXT_LIMIT = 6;
+export const MEMORY_CONTEXT_LIMIT = 24;
 /** Below this lexical score a memory is noise, not context. */
 export const MEMORY_MIN_SCORE = 0.4;
 
@@ -105,7 +106,7 @@ export function rememberRequest(input: string): string | undefined {
  */
 export type RetrievalMode = 'CASUAL' | 'ADVISOR' | 'REFLECTIVE' | 'HYPE' | 'OPERATOR';
 
-export interface RetrievalBudget { mode: RetrievalMode; limit: number; minScore: number }
+export interface RetrievalBudget { mode: RetrievalMode; intent: string; limit: number; minScore: number; diversify: boolean; completeness: 'none' | 'partial' | 'broad'; categories?: MemoryCategory[] }
 
 export function retrievalModeFor(input: string): RetrievalMode {
   const text = input.toLowerCase();
@@ -116,20 +117,19 @@ export function retrievalModeFor(input: string): RetrievalMode {
   return 'CASUAL';
 }
 
-const BUDGETS: Record<RetrievalMode, { limit: number; minScore: number }> = {
-  // A greeting should carry at most a communication preference, and only if it is plainly relevant.
-  // The budget, not the threshold, is what keeps chat light — raising the bar here would drop a
-  // plainly relevant preference because the phrasing did not match its subject words.
-  CASUAL: { limit: 2, minScore: 0.4 },
-  OPERATOR: { limit: 3, minScore: 0.5 },
-  ADVISOR: { limit: 5, minScore: 0.4 },
-  REFLECTIVE: { limit: 7, minScore: 0.35 },
-  HYPE: { limit: 8, minScore: 0.35 },
-};
-
 export function retrievalBudgetFor(input: string): RetrievalBudget {
-  const mode = retrievalModeFor(input);
-  return { mode, ...BUDGETS[mode] };
+  // Register still names the tone; the plan decides how much evidence the answer needs. They are
+  // deliberately different questions, and only the plan may change the ceiling.
+  const plan = retrievalIntentFor(input);
+  return {
+    mode: retrievalModeFor(input),
+    intent: plan.intent,
+    limit: plan.limit,
+    minScore: plan.minScore,
+    diversify: plan.diversify,
+    completeness: plan.completeness,
+    ...(plan.categories ? { categories: plan.categories } : {}),
+  };
 }
 
 export interface SelectionInput {
@@ -141,6 +141,8 @@ export interface SelectionInput {
   minScore?: number;
   /** Categories that count as relevant for a broad request, before lexical scoring. */
   categories?: MemoryCategory[];
+  /** Prefer one fact per subject before a second. Defaults to on. */
+  diversify?: boolean;
 }
 
 export interface SelectedMemory { record: MemoryRecord; score: number }
@@ -206,8 +208,24 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
   }
 
   selected.sort((left, right) => right.score - left.score || right.record.confidence - left.record.confidence);
-  for (const overflow of selected.splice(limit)) excluded.push({ id: overflow.record.id, reason: 'budget' });
-  return { selected, excluded };
+
+  // Diversity before depth: for a broad question, four facts about one subject is worse than one
+  // fact about four. A second pass fills leftover capacity only if nothing diverse remains.
+  const cap = input.diversify === false ? Number.POSITIVE_INFINITY : 2;
+  const picked: SelectedMemory[] = [];
+  const deferred: SelectedMemory[] = [];
+  const perEntity = new Map<string, number>();
+  for (const entry of selected) {
+    if (picked.length >= limit) break;
+    const key = entityKey(entry.record.subject);
+    const used = perEntity.get(key) ?? 0;
+    if (used >= cap) { deferred.push(entry); continue; }
+    perEntity.set(key, used + 1);
+    picked.push(entry);
+  }
+  for (const entry of deferred) { if (picked.length >= limit) break; picked.push(entry); }
+  for (const entry of selected) if (!picked.includes(entry)) excluded.push({ id: entry.record.id, reason: 'budget' });
+  return { selected: picked, excluded };
 }
 
 /**
@@ -223,6 +241,11 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
  */
 export interface RecallDiagnostics {
   mode: RetrievalMode;
+  intent: string;
+  limit: number;
+  distinctEntities: number;
+  categoriesCovered: number;
+  estimatedTokens: number;
   candidates: number;
   approved: number;
   wrongPrincipal: number;
@@ -236,11 +259,19 @@ export interface RecallDiagnostics {
 
 export function recallDiagnostics(input: SelectionInput & { records: MemoryRecord[] }): RecallDiagnostics {
   const budget = retrievalBudgetFor(input.query);
-  // Same hinting the production selector uses; a trace that omits it would under-report selection.
-  const { selected, excluded } = selectMemories({ ...input, categories: input.categories ?? categoryHintFor(input.query), limit: budget.limit, minScore: budget.minScore });
+  const plan = retrievalIntentFor(input.query);
+  // Same hinting and diversity the production selector uses; a trace that omits them would
+  // under-report selection and hide exactly the defect it exists to expose.
+  const { selected, excluded } = selectMemories({ ...input, categories: input.categories ?? plan.categories ?? categoryHintFor(input.query), limit: budget.limit, minScore: budget.minScore, diversify: plan.diversify });
   const count = (reason: ExclusionReason) => excluded.filter(entry => entry.reason === reason).length;
   return {
     mode: budget.mode,
+    intent: plan.intent,
+    limit: budget.limit,
+    distinctEntities: new Set(selected.map(entry => entityKey(entry.record.subject))).size,
+    categoriesCovered: new Set(selected.map(entry => entry.record.category)).size,
+    // ~4 bytes per token: a documented approximation, never reported as measured tokens.
+    estimatedTokens: Math.ceil(memoryContextLines(selected).join(String.fromCharCode(10)).length / 4),
     candidates: input.records.length,
     approved: input.records.filter(record => record.reviewStatus === 'approved' && !record.revokedAt).length,
     wrongPrincipal: count('wrong_principal'),
@@ -256,10 +287,25 @@ export function recallDiagnostics(input: SelectionInput & { records: MemoryRecor
 /** The exact text block that may accompany a turn. One place, so both call sites agree. */
 export function composeMemoryContext(records: MemoryRecord[], input: { query: string; principalId: string; locality: 'local' | 'cloud' }): string {
   if (!records.length) return '';
-  const budget = retrievalBudgetFor(input.query);
-  const { selected } = selectMemories({ records, query: input.query, principalId: input.principalId, locality: input.locality, categories: categoryHintFor(input.query), limit: budget.limit, minScore: budget.minScore });
+  const plan = retrievalIntentFor(input.query);
+  // GENERAL_KNOWLEDGE must not drag personal context into an unrelated question.
+  if (plan.limit === 0) return '';
+  const eligible = records.filter(record => record.principalId === input.principalId && record.reviewStatus === 'approved' && !record.revokedAt && !record.supersededBy
+    && (input.locality === 'local' || classPermitsCloud(record))).length;
+  const { selected } = selectMemories({
+    records, query: input.query, principalId: input.principalId, locality: input.locality,
+    categories: plan.categories ?? categoryHintFor(input.query),
+    limit: plan.limit, minScore: plan.minScore, diversify: plan.diversify,
+  });
   if (!selected.length) return '';
-  return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
+
+  // Honesty about scope. The model repeatedly said "that is everything on record" when it had been
+  // handed a handful of records out of dozens; these two lines make the difference sayable without
+  // revealing protected counts (only the eligible pool for this locality is named).
+  const header = plan.completeness === 'none'
+    ? 'Approved context about the owner (only where relevant; never recite it):'
+    : `Approved context about the owner — ${selected.length} of ${eligible} eligible records, a ${plan.completeness === 'broad' ? 'wide but still partial' : 'partial'} view. Use it naturally, and if the answer needs more than this, say what you would look for rather than presenting this as a complete account:`;
+  return ['', '', header, ...memoryContextLines(selected)].join(String.fromCharCode(10));
 }
 
 export function memoryContextLines(selected: SelectedMemory[]): string[] {

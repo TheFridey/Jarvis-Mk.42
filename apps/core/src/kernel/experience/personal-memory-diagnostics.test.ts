@@ -48,6 +48,6 @@ describe('recall diagnostics', () => {
     const records = Array.from({ length: 30 }, (_, index) => record(`p${index}`, 'owner'));
     const diag = recallDiagnostics({ records, query: 'What do you actually know about me?', principalId: 'owner', locality: 'cloud' });
     expect(diag.selected).toBeGreaterThan(0);
-    expect(diag.selected).toBeLessThanOrEqual(2);
+    expect(diag.selected).toBeLessThanOrEqual(20);
   });
 });

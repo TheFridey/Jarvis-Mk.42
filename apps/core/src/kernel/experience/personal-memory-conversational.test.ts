@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  categoryHintFor, rememberRequest, selectMemories, type MemoryRecord,
+  categoryHintFor, rememberRequest, retrievalBudgetFor, selectMemories, type MemoryRecord,
 } from './personal-memory.ts';
 
 /**
@@ -55,12 +55,19 @@ describe('category-aware retrieval', () => {
     expect(cloud.excluded[0]!.reason).toBe('cloud_ineligible');
   });
 
-  it('still bounds the count for a broad request', () => {
-    const many = Array.from({ length: 12 }, (_, index) => milestone(`x${index}`, 'milestone', 'Progress on the build.'));
-    const { selected, excluded } = selectMemories({ records: many, query: 'Time for a hype session.', principalId: 'principal-a', locality: 'local', categories: categoryHintFor('Time for a hype session.') });
-    expect(selected.length).toBeLessThanOrEqual(6);
-    expect(excluded.some(entry => entry.reason === 'budget')).toBe(true);
+  it('bounds a broad request at its ceiling rather than dumping the archive', () => {
+    // Distinct subjects, so diversity does not collapse them into one entity.
+    const many = Array.from({ length: 40 }, (_, index) => ({
+      ...milestone(`x${index}`, 'milestone', `Progress note ${index} on delivery.`),
+      subject: `delivery-${index}`,
+    }));
+    const plan = retrievalBudgetFor('Time for a hype session.');
+    const { selected } = selectMemories({ records: many, query: 'Time for a hype session.', principalId: 'principal-a', locality: 'local', categories: plan.categories ?? categoryHintFor('Time for a hype session.'), limit: plan.limit, minScore: plan.minScore });
+    expect(selected.length).toBeGreaterThan(6);
+    expect(selected.length).toBeLessThanOrEqual(16);
   });
+
+
 });
 
 describe('explicit memory requests', () => {

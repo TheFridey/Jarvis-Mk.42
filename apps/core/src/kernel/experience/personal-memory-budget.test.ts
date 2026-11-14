@@ -26,9 +26,9 @@ describe('retrieval budgets', () => {
   });
 
   it('gives hype the widest budget and casual the narrowest', () => {
-    expect(retrievalBudgetFor('hype session').limit).toBe(8);
+    expect(retrievalBudgetFor('hype session').limit).toBe(16);
     expect(retrievalBudgetFor('Morning mate!').limit).toBe(2);
-    expect(retrievalBudgetFor('hype session').limit).toBeGreaterThan(retrievalBudgetFor('business mode').limit);
+    expect(retrievalBudgetFor('hype session').limit).toBeGreaterThan(retrievalBudgetFor('Morning mate!').limit);
   });
 
   it('keeps a greeting free of autobiography even when records exist', () => {
@@ -40,7 +40,7 @@ describe('retrieval budgets', () => {
     const text = composeMemoryContext(many, { query: 'Give me a proper hype session.', principalId: 'principal-a', locality: 'local' });
     const lines = text.split(String.fromCharCode(10)).filter(line => line.startsWith('- '));
     expect(lines.length).toBeGreaterThan(0);
-    expect(lines.length).toBeLessThanOrEqual(8);
+    expect(lines.length).toBeLessThanOrEqual(16);
   });
 
   it('does not let a deeper request widen privacy clearance', () => {
