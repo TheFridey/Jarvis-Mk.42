@@ -24,6 +24,8 @@ import { readFileSync } from 'node:fs';
 import { createPg } from '../../../../../packages/persistence/src/client.ts';
 import { PersonalMemoryStore } from '../../kernel/experience/personal-memory-store.ts';
 import { PersonalMemoryService } from '../../kernel/experience/personal-memory-service.ts';
+import { ReviewSession } from '../../kernel/experience/memory-review.ts';
+import { createInterface } from 'node:readline/promises';
 import type { MemoryRecord } from '../../kernel/experience/personal-memory.ts';
 
 const principalId = process.env.JARVIS_PRINCIPAL_ID?.trim() || 'local-owner';
@@ -82,6 +84,32 @@ async function main(): Promise<void> {
       }
       case 'revoke': await service.revokeUse(principalId, args[0]!); console.log(`revoked ${args[0]} (statement retained); cloud disclosure off`); break;
       case 'delete': await service.deleteContent(principalId, args[0]!); console.log(`deleted the content of ${args[0]}; an audit row remains`); break;
+      case 'review': {
+        // An interactive review must be interactive: a pipe or redirected stdin can never approve.
+        if (!process.stdin.isTTY) {
+          throw new Error('memory review needs an interactive terminal; use list/approve for scripted use');
+        }
+        const terminal = createInterface({ input: process.stdin, output: process.stdout });
+        let interrupted = false;
+        terminal.on('SIGINT', () => { interrupted = true; });
+        const session = new ReviewSession(service, principalId, {
+          write: line => console.log(line),
+          ask: async prompt => {
+            if (interrupted) return '__eof__';
+            try {
+              const answer = await terminal.question(prompt);
+              return answer;
+            } catch {
+              return '__eof__';
+            }
+          },
+        });
+        const outcome = await session.run();
+        terminal.close();
+        // Quitting mid-session is a normal exit, not a failure.
+        if (outcome.errors.length) process.exitCode = 1;
+        break;
+      }
       case 'export': {
         const records = await service.exportApproved(principalId);
         writeFileSync(args[0] ?? 'memory-export.json', JSON.stringify({ schemaVersion: 1, records }, null, 2));

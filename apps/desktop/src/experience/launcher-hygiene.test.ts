@@ -37,6 +37,15 @@ describe('launcher', () => {
     expect(firstUse).toBeGreaterThan(preflight);
   });
 
+  it('never pins the wire-proof gateway to a fixed port', () => {
+    const script = readFileSync(fileURLToPath(new URL('../../../../scripts/provider-wire-proof.ts', import.meta.url)), 'utf8');
+    // A fixed port let an orphaned gateway from an interrupted run serve stale configuration to
+    // the next test. The port is reserved per run and the child tree is killed explicitly.
+    expect(script).toContain('freePort(');
+    expect(script).toContain('taskkill');
+    expect(/GATEWAY_PORT\s*=\s*\d{2,5}/.test(script)).toBe(false);
+  });
+
   it('still knows how to stop everything it started', () => {
     expect(source).toContain('Stop-Tree');
     expect(source).toContain('-Down');
