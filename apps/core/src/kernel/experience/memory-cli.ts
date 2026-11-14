@@ -25,6 +25,7 @@ import { createPg } from '../../../../../packages/persistence/src/client.ts';
 import { PersonalMemoryStore } from '../../kernel/experience/personal-memory-store.ts';
 import { PersonalMemoryService } from '../../kernel/experience/personal-memory-service.ts';
 import { ReviewSession } from '../../kernel/experience/memory-review.ts';
+import { PrincipalResolutionError, resolveMemoryPrincipal } from '../../kernel/experience/principal-resolution.ts';
 import { createInterface } from 'node:readline/promises';
 import type { MemoryRecord } from '../../kernel/experience/personal-memory.ts';
 
@@ -51,12 +52,9 @@ async function main(): Promise<void> {
   const sql = client.sql as never;
   const service = new PersonalMemoryService(new PersonalMemoryStore(sql));
   if (!principalId) {
-    // The Kernel registers the owner's node under its own principal id. Importing memories under a
-    // different id is what made 123 approved records invisible to a live conversation, so the CLI
-    // now adopts the principal the application actually uses instead of inventing one.
-    const rows = await client.sql<{ principal_id: string }[]>`select principal_id from nodes.registry where node_type = 'display' order by created_at limit 1`;
-    principalId = rows[0]?.principal_id ?? 'principal-operator';
-    console.log(`principal: ${principalId} (from the node registry)`);
+    const resolved = await resolveMemoryPrincipal(sql);
+    principalId = resolved.principalId;
+    console.log(`principal: ${principalId} (${resolved.source})`);
   }
   try {
     switch (command) {
@@ -148,4 +146,25 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+try {
+  await main();
+} catch (error) {
+  // A stack trace tells the owner nothing. Name the failure and the next action instead.
+  if (error instanceof PrincipalResolutionError) {
+    console.error(`memory: ${error.message}`);
+  } else {
+    const code = (error as { code?: string }).code;
+    const message = (error as Error).message ?? String(error);
+    if (code === '42703' || code === '42P01') {
+      console.error(`memory: the database schema does not match this build (${message}).`);
+      console.error('memory: run the migrations for this repository before using the CLI.');
+    } else if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || /connect/i.test(message)) {
+      console.error('memory: cannot reach PostgreSQL. Start the local stack, then set JARVIS_DB_URL if it is not on the default port.');
+    } else if (code === '28P01' || code === '3D000') {
+      console.error('memory: PostgreSQL rejected the connection (credentials or database name). Check JARVIS_DB_URL.');
+    } else {
+      console.error(`memory: ${message}`);
+    }
+  }
+  process.exitCode = 1;
+}
