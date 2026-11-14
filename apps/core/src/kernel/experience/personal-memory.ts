@@ -61,18 +61,22 @@ export type ExclusionReason =
  */
 export function categoryHintFor(input: string): MemoryCategory[] | undefined {
   const text = input.toLowerCase();
-  if (/\b(hype|big me up|pump me up)\b/.test(text)) {
-    return ['milestone', 'business', 'project', 'ambition', 'history', 'decision'];
+  if (/\b(hype|big me up|pump me up|go deeper|more personal)\b/.test(text)) {
+    return ['milestone', 'business', 'project', 'ambition', 'history', 'decision', 'skill', 'communication'];
   }
-  if (/\bhow far (have|has) (we|it) come\b|\bwhat have we (built|done)\b|\bprogress so far\b/.test(text)) {
-    return ['milestone', 'decision', 'project', 'business', 'history'];
+  if (/\b(how far (have|has) (we|it) come|what have we (built|done)|progress so far|looking back|over the (years|months)|journey)\b/.test(text)) {
+    return ['milestone', 'decision', 'project', 'business', 'history', 'ambition', 'skill', 'constraint'];
   }
-  if (/\bwhat should we (work|do|focus)\b|\bwhat'?s next\b|\bplan for (tonight|today|tomorrow)\b/.test(text)) {
-    return ['project', 'decision', 'constraint', 'ambition'];
+  if (/\b(what are we (currently )?working on|what'?s in flight|current projects?|what projects?|what'?s next)\b/.test(text)) {
+    return ['project', 'decision', 'milestone', 'business', 'constraint'];
   }
-  if (/\bwhat do you know about me\b|\bwhat have you (got|remember) on me\b/.test(text)) {
-    return ['preference', 'communication', 'ambition', 'business', 'project', 'skill'];
+  if (/\b(before (scale ?smiths|this company|that company)|used to do|previous (job|work|role)|career|my history)\b/.test(text)) {
+    return ['history', 'skill', 'milestone', 'decision'];
   }
+  if (/\b(what do you (actually |really )?know about me|what have you (got|remember) on me|my profile)\b/.test(text)) {
+    return ['preference', 'communication', 'interest', 'skill', 'learning', 'ambition', 'business', 'project', 'milestone', 'history', 'decision', 'constraint'];
+  }
+  if (text.includes('what should we')) return ['project', 'decision', 'constraint', 'ambition'];
   return undefined;
 }
 
@@ -210,6 +214,45 @@ export function selectMemories(input: SelectionInput): { selected: SelectedMemor
  * The text a model may see. Subject then statement, no ids, no provenance paths, no
  * classification labels — those are for the operator, not the conversation.
  */
+/**
+ * Counts for one retrieval, never content.
+ *
+ * Exists because the live failure this diagnoses was silent: the repository answered, selection
+ * returned nothing, and the model correctly said it had nothing. A principal mismatch and an empty
+ * table look identical from the outside unless something counts the stages.
+ */
+export interface RecallDiagnostics {
+  mode: RetrievalMode;
+  candidates: number;
+  approved: number;
+  wrongPrincipal: number;
+  classEligible: number;
+  cloudEligible: number;
+  irrelevant: number;
+  budgetDropped: number;
+  selected: number;
+  blockBytes: number;
+}
+
+export function recallDiagnostics(input: SelectionInput & { records: MemoryRecord[] }): RecallDiagnostics {
+  const budget = retrievalBudgetFor(input.query);
+  // Same hinting the production selector uses; a trace that omits it would under-report selection.
+  const { selected, excluded } = selectMemories({ ...input, categories: input.categories ?? categoryHintFor(input.query), limit: budget.limit, minScore: budget.minScore });
+  const count = (reason: ExclusionReason) => excluded.filter(entry => entry.reason === reason).length;
+  return {
+    mode: budget.mode,
+    candidates: input.records.length,
+    approved: input.records.filter(record => record.reviewStatus === 'approved' && !record.revokedAt).length,
+    wrongPrincipal: count('wrong_principal'),
+    classEligible: input.records.filter(record => record.reviewStatus === 'approved' && !record.revokedAt && (!input.locality || input.locality === 'local' || classPermitsCloud(record))).length,
+    cloudEligible: input.records.filter(record => classPermitsCloud(record)).length,
+    irrelevant: count('irrelevant'),
+    budgetDropped: count('budget'),
+    selected: selected.length,
+    blockBytes: memoryContextLines(selected).join(String.fromCharCode(10)).length,
+  };
+}
+
 /** The exact text block that may accompany a turn. One place, so both call sites agree. */
 export function composeMemoryContext(records: MemoryRecord[], input: { query: string; principalId: string; locality: 'local' | 'cloud' }): string {
   if (!records.length) return '';

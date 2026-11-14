@@ -28,7 +28,8 @@ import { ReviewSession } from '../../kernel/experience/memory-review.ts';
 import { createInterface } from 'node:readline/promises';
 import type { MemoryRecord } from '../../kernel/experience/personal-memory.ts';
 
-const principalId = process.env.JARVIS_PRINCIPAL_ID?.trim() || 'local-owner';
+/** Resolved after connecting: the Kernel's own principal is the only correct default. */
+let principalId = process.env.JARVIS_PRINCIPAL_ID?.trim() || '';
 const [command, ...args] = process.argv.slice(2);
 
 const shape = (record: MemoryRecord) => ({
@@ -49,6 +50,14 @@ async function main(): Promise<void> {
   const client = createPg({ url: process.env.JARVIS_DB_URL ?? 'postgres://jarvis:jarvis@127.0.0.1:5433/jarvis' });
   const sql = client.sql as never;
   const service = new PersonalMemoryService(new PersonalMemoryStore(sql));
+  if (!principalId) {
+    // The Kernel registers the owner's node under its own principal id. Importing memories under a
+    // different id is what made 123 approved records invisible to a live conversation, so the CLI
+    // now adopts the principal the application actually uses instead of inventing one.
+    const rows = await client.sql<{ principal_id: string }[]>`select principal_id from nodes.registry where node_type = 'display' order by created_at limit 1`;
+    principalId = rows[0]?.principal_id ?? 'principal-operator';
+    console.log(`principal: ${principalId} (from the node registry)`);
+  }
   try {
     switch (command) {
       case 'list': {
@@ -84,6 +93,20 @@ async function main(): Promise<void> {
       }
       case 'revoke': await service.revokeUse(principalId, args[0]!); console.log(`revoked ${args[0]} (statement retained); cloud disclosure off`); break;
       case 'delete': await service.deleteContent(principalId, args[0]!); console.log(`deleted the content of ${args[0]}; an audit row remains`); break;
+      case 'adopt': {
+        // Metadata-only repair: move this owner's memories to the principal the Kernel uses.
+        // Content, classifications and consents are untouched.
+        const from = args[0];
+        const to = args[1] ?? principalId;
+        const confirmed = args.includes('--confirm');
+        if (!from) throw new Error('usage: memory adopt <from-principal> [to-principal] --confirm');
+        const counts = await client.sql<{ n: string }[]>`select count(*)::text as n from experience.personal_memories where principal_id = ${from}`;
+        console.log(`${counts[0]?.n ?? '0'} records belong to ${from}; target principal is ${to}`);
+        if (!confirmed) { console.log('Nothing changed. Re-run with --confirm to move them.'); break; }
+        await client.sql`update experience.personal_memories set principal_id = ${to} where principal_id = ${from}`;
+        console.log(`moved to ${to}`);
+        break;
+      }
       case 'review': {
         // An interactive review must be interactive: a pipe or redirected stdin can never approve.
         if (!process.stdin.isTTY) {

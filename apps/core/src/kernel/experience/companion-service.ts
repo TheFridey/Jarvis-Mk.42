@@ -1,4 +1,4 @@
-import { categoryHintFor, memoryContextLines, rememberRequest, selectMemories } from './personal-memory.ts';
+import { categoryHintFor, memoryContextLines, recallDiagnostics, rememberRequest, selectMemories } from './personal-memory.ts';
 import type { PersonalMemoryStore } from './personal-memory-store.ts';
 import type { DomainService } from '../domains/domain-service.ts';
 import { currentDomainScope, domainFor, domainReadSql } from '../domains/scope.ts';
@@ -118,6 +118,12 @@ export class CompanionService {
         if (!this.d.memory) return decision?.allow ? memoryCloud : memoryLocal;
         const fresh = await this.d.memory.loadForSelection(node.principalId);
         const { selected } = selectMemories({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', categories: categoryHintFor(command.input) });
+        if (process.env.JARVIS_MEMORY_TRACE === '1') {
+          // Counts only — never a statement. Enough to tell a principal mismatch from an empty
+          // table from an irrelevance decision, which is the difference this defect hid behind.
+          const diag = recallDiagnostics({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local' });
+          process.stderr.write(JSON.stringify({ component: 'memory_recall', correlationId: turnId, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', ...diag }) + String.fromCharCode(10));
+        }
         if (!selected.length) return '';
         return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
       })();
