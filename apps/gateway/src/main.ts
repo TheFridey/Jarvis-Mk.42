@@ -7,7 +7,7 @@ import { OpenAIAdapter } from './adapters/openai.ts';
 import { OpenAICompatibleAdapter } from './adapters/openai-compatible.ts';
 import { ModelGateway } from './gateway.ts'; import { ModelRegistry } from './registry.ts';
 import { extractTraceContext, startTelemetry, withSpan, withTraceContext } from '@jarvis/telemetry';
-import { assertGatewayIngressIsSecure, DEVELOPMENT_GATEWAY_TOKEN } from './runtime-config.ts';
+import { assertGatewayIngressIsSecure, assertProviderBaseUrl, providerVerificationEnabled, DEVELOPMENT_GATEWAY_TOKEN } from './runtime-config.ts';
 import { speechHttp } from './speech-http.ts';
 const registry=new ModelRegistry(),now=new Date().toISOString();
 function register(id:string,provider:string,adapter:Parameters<ModelRegistry['register']>[1],locality:ModelRegistration['locality'],cost=0){registry.register({id,provider,displayName:id,tasks:['reason','plan','summarize','extract','classify','code'],capabilities:['json','streaming','long_context'],contextLimitUnits:128_000,costPerContextUnit:cost,costPerOutputUnit:cost*3,locality,enabled:true,registeredAt:now},adapter)}
@@ -18,11 +18,16 @@ if(process.env.OPENROUTER_API_KEY){
  if(!model)throw new Error('JARVIS_OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured');
  // Isolated-configuration seam: the default is unchanged, and only an explicit override can
   // point provider traffic elsewhere. Used by the offline wire-proof, never by production runs.
+  const verification = providerVerificationEnabled();
   const openrouterBase = process.env.JARVIS_OPENROUTER_BASE_URL?.trim() || 'https://openrouter.ai/api/v1';
-  if (openrouterBase !== 'https://openrouter.ai/api/v1' && process.env.JARVIS_ALLOW_PROVIDER_REDIRECT !== '1') {
+  if (openrouterBase !== 'https://openrouter.ai/api/v1' && !verification) {
     throw new Error('JARVIS_OPENROUTER_BASE_URL requires JARVIS_ALLOW_PROVIDER_REDIRECT=1');
   }
-  register(model,'openrouter',new OpenAICompatibleAdapter('openrouter',openrouterBase,process.env.OPENROUTER_API_KEY),'cloud-ok');
+  // Fail closed: in verification mode the endpoint must be numeric loopback with no proxy in the
+  // environment, and redirects are errors rather than hops to somewhere less approved.
+  assertProviderBaseUrl(openrouterBase, { verification });
+  const providerFetch: typeof fetch = verification ? (input, init) => fetch(input, { ...init, redirect: 'error' }) : fetch;
+  register(model,'openrouter',new OpenAICompatibleAdapter('openrouter',openrouterBase,process.env.OPENROUTER_API_KEY,providerFetch),'cloud-ok');
 }
 if(process.env.JARVIS_LOCAL_MODEL_URL)register(process.env.JARVIS_LOCAL_MODEL??'local-model','local-openai-compatible',new OpenAICompatibleAdapter('local-openai-compatible',process.env.JARVIS_LOCAL_MODEL_URL,process.env.JARVIS_LOCAL_MODEL_KEY),'local');
 const gateway=new ModelGateway(registry),token=process.env.JARVIS_GATEWAY_TOKEN??DEVELOPMENT_GATEWAY_TOKEN;

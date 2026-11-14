@@ -1,0 +1,52 @@
+{
+  "boundary": "final provider body + compiler ceiling, PostgreSQL-backed",
+  "principal": "synthetic-sentinel-principal",
+  "cases": [
+    {
+      "case": "repository returns approved records from PostgreSQL",
+      "passed": true,
+      "detail": "3 records"
+    },
+    {
+      "case": "persisted classification survives the round trip",
+      "passed": true
+    },
+    {
+      "case": "compiler derives INTERNAL from the eligible row",
+      "passed": true,
+      "detail": "INTERNAL"
+    },
+    {
+      "case": "compiler refuses RESTRICTED evidence under an INTERNAL ceiling",
+      "passed": true,
+      "detail": "Error: required evidence exceeds privacy ceiling"
+    },
+    {
+      "case": "compiler reports SENSITIVE when the ceiling allows it",
+      "passed": true,
+      "detail": "SENSITIVE"
+    },
+    {
+      "case": "the run port is served by the gateway this script just spawned",
+      "passed": true,
+      "detail": "pid 14344"
+    },
+    {
+      "case": "eligible DB memory reaches the provider body",
+      "passed": true
+    },
+    {
+      "case": "SENSITIVE memory never reaches the wire",
+      "passed": true
+    },
+    {
+      "case": "a malicious instruction cannot raise the ceiling",
+      "passed": true
+    }
+  ],
+  "providerPath": "/v1/chat/completions",
+  "stderr": "",
+  "passed": 9,
+  "total": 9,
+  "generatedAt": "2026-11-14T12:02:51.981Z"
+}
