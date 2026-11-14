@@ -1,0 +1,90 @@
+{
+  "browser": "Chrome headless via CDP; input typed into the real Presence form and submitted through it",
+  "components": {
+    "real": [
+      "Chrome",
+      "Presence static export",
+      "frontend API client",
+      "kernel auth + grant + cognition",
+      "PostgreSQL",
+      "retrieval",
+      "ContextCompiler",
+      "AgentRuntime",
+      "Gateway",
+      "OpenAICompatibleAdapter"
+    ],
+    "substituted": [
+      "provider (loopback fixture)"
+    ]
+  },
+  "careerPayloadBytes": 16128,
+  "generalPayloadBytes": 19811,
+  "checks": [
+    {
+      "name": "real gateway ready",
+      "passed": true
+    },
+    {
+      "name": "real kernel ready",
+      "passed": true
+    },
+    {
+      "name": "static export built against the isolated kernel",
+      "passed": true
+    },
+    {
+      "name": "presence served",
+      "passed": true
+    },
+    {
+      "name": "browser started",
+      "passed": true
+    },
+    {
+      "name": "presence input rendered",
+      "passed": true
+    },
+    {
+      "name": "cloud consent control used",
+      "passed": true
+    },
+    {
+      "name": "browser request reached the provider",
+      "passed": true,
+      "detail": "16128 bytes"
+    },
+    {
+      "name": "multiple career sentinels in the payload",
+      "passed": true
+    },
+    {
+      "name": "protected sentinels absent",
+      "passed": true
+    },
+    {
+      "name": "answer rendered in the browser",
+      "passed": true,
+      "detail": "JARVIS\nEXPAND\n\nBROWSER-FIXTURE-ANSWER"
+    },
+    {
+      "name": "interface left THINKING",
+      "passed": true,
+      "detail": "state=STANDBY"
+    },
+    {
+      "name": "general question sent",
+      "passed": true
+    },
+    {
+      "name": "no personal memory on a general question",
+      "passed": true
+    },
+    {
+      "name": "second answer rendered",
+      "passed": true
+    }
+  ],
+  "passed": 15,
+  "total": 15,
+  "generatedAt": "2026-11-14T15:58:58.707Z"
+}

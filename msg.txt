@@ -1,0 +1,31 @@
+test(presence): drive the real browser through a real conversation; 15/15
+
+scripts/presence-browser-acceptance.ts closes the last substitution. It builds the static export
+against an isolated kernel, serves it, launches Chrome headless and drives the actual Presence
+interface over CDP: typing into the real input, submitting the real form, waiting for a rendered
+answer. Behind the socket is production composition - real kernel bootstrap, real auth and consent,
+real PostgreSQL with migrations, real retrieval intent, ContextCompiler, AgentRuntime, Gateway and
+adapter. The provider is the only fixture.
+
+15/15, exit 0: the career question reaches the provider with 16,128 bytes carrying three distinct
+career sentinels; SENSITIVE, unconsented and cross-principal sentinels are absent; the answer renders;
+the interface returns to STANDBY rather than staying in THINKING; a general-knowledge question sends
+no personal-memory block.
+
+Two harness defects were found and fixed, and both describe real product behaviour: consent clicked
+before the first turn grants nothing because no conversation exists yet, so the first question runs
+local and never reaches a provider; and waiting for text that merely contains the fixture answer
+matches the previous turn's rendered answer.
+
+ORACLE: metadata shows 55 COMPLETE and 22 FAILED jobs - zero waiting. The readout counts history, not
+work. Documented as a presentation defect; not corrected.
+
+Disclosure metadata: Kernel-set and enforced when present; absent means unprotected. That is the
+documented contract and a stated trust boundary, with the migration path recorded rather than taken
+unilaterally.
+
+Verification: 879 passed, 4 skipped (883), 145 files, vitest exit 0; typecheck, lint and fitness
+clean; convergence acceptance 13/13.
+
+Owner records, approvals, classifications and grants untouched; no paid provider call; no queue
+executed; no container, volume or database destroyed.
