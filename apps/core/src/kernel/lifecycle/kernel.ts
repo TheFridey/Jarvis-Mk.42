@@ -40,6 +40,7 @@ import { startTelemetry, stopTelemetry, structuredLog } from '@jarvis/telemetry'
 import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
 import { CompanionService } from '../experience/companion-service.ts';
 import { verifyBeforeDispatch, type ConversationGrant } from '../experience/conversation-privacy.ts';
+import { KokoroSpeechService, SELECTABLE_VOICES } from '../voice/kokoro-speech-service.ts';
 import { UtteranceService } from '../voice/utterance-service.ts';
 import { PersonalMemoryStore } from '../experience/personal-memory-store.ts';
 import { synthesiseToWav } from '../voice/speech-synthesis.ts';
@@ -510,7 +511,17 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const speechConfig = resolveAsrConfig();
   const speechAdapter = speechConfig.engine === 'whisper-cpp' && speechConfig.config && speechConfig.readiness.ready ? new WhisperCppAsrAdapter(speechConfig.config) : undefined;
   const utterance = new UtteranceService({ adapter: () => speechAdapter, timeoutMs: 25_000 });
-  const speech = { utterance, synthesise: (text: string) => synthesiseToWav(text) };
+  // Local neural speech. fp32 on CPU: measured twice as fast as the q8 build on this ARM64 machine.
+  // Warming is deferred to the first request so boot does not block for ~30 s of model loading, and a
+  // machine without the model still starts - it simply reports synthesis unavailable.
+  const kokoro = new KokoroSpeechService({ enabled: process.env.JARVIS_TTS_ENABLED !== '0', ...(process.env.JARVIS_TTS_VOICE ? { voice: process.env.JARVIS_TTS_VOICE } : {}) });
+  const speech = {
+    utterance,
+    synthesise: (text: string) => synthesiseToWav(text),
+    stream: (text: string, options: { voice?: string; signal: AbortSignal }) => kokoro.speak(text, options),
+    cancel: () => kokoro.cancel(),
+    voices: SELECTABLE_VOICES,
+  };
   const diagnosticsHttp = new DiagnosticsHttp({ domains,objectives, rtc,diagnostics, state, health, desktop, voice, speech, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
   notifications.setSurfaceProvider(async()=>[...await diagnosticsHttp.deliverySurfaces(),...await nodeIngress.deliverySurfaces()]);
   notifications.registerSink(record=>diagnosticsHttp.deliverNotification(record));

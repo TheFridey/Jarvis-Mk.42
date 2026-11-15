@@ -1,44 +1,52 @@
-# TTS evaluation
+# TTS evaluation and performance qualification
 
-## Candidates, on this workstation (Windows 11 ARM64, Snapdragon X Plus, 16 GB)
+Owner's decision: **`bm_george`** is Jarvis's provisional voice. `bm_lewis` and `bm_fable` remain
+selectable via `JARVIS_TTS_VOICE`; no further voice-identity work is planned.
 
-| Engine | Availability | British male voice | Licence | Verdict |
-|---|---|---|---|---|
-| Windows SAPI (System.Speech) | installed | **none** — Hazel en-GB female, Zira en-US female | OS component | Fallback only; wrong voice, robotic delivery |
-| Piper | not installed; no arm64 Windows binary or wheel established | n/a | MIT / voice-dependent | BLOCKED on this architecture |
-| Kokoro-82M via `kokoro-js` + `onnxruntime-node` arm64 | **works** | `bm_george`, `bm_lewis`, `bm_fable` | Apache-2.0 model; voices from a permissively licensed dataset | **Provisional engine** |
-| Cloud TTS | n/a | n/a | n/a | Excluded: owner text must not leave the machine |
+## Engine
 
-## Measured (real synthesis, this machine, q8 on CPU)
+Kokoro-82M (`onnx-community/Kokoro-82M-v1.0-ONNX`) through `kokoro-js` 1.2.1 on `onnxruntime-node`
+1.21.0, which ships a `win32/arm64` binary — verified present and loading on this workstation. Apache-2.0
+model; voices from a permissively licensed dataset. Entirely local: no text leaves the machine.
 
-Command: `node node_modules/tsx/dist/cli.mjs scripts/voice-audition.ts`
+## Precision: the counter-intuitive result
 
-```
-15 samples: 198.8 s of synthesis for 92.9 s of speech -> RTF 2.14
-per utterance: 7.4 s - 14.7 s for 3.6 s - 7.9 s of audio
-```
+Same scripts, same voice, warm runs, measured with `scripts/voice-bench.ts`:
 
-Audition WAVs are in `docs/evidence/resonance-iii/audition/`, five scripts × three voices, identical text
-per script so comparison is direct.
+| Precision | Load | Warm RTF | Notes |
+|---|---:|---:|---|
+| `q8` (quantised) | 7.8 s | **2.28** | 41.6 s of synthesis for 18.2 s of speech |
+| `fp32` | 29.7 s | **1.05** | 19.0 s of synthesis for 18.1 s of speech |
 
-## The problem this exposes
+The quantised build is twice as slow on this CPU. The int8 kernels are evidently not optimised for this
+ARM64 core, so the smaller model loses more in throughput than it gains in memory. **fp32 is the
+production choice**; peak RSS 541 MB against 319 MB, which this workstation can afford.
 
-RTF 2.14 means the machine takes more than twice as long to speak as the speech lasts. A seven-second
-answer would take fifteen seconds to produce. The performance target was first audio under one second;
-this engine on this CPU cannot meet that for a whole answer.
+## Chunking
 
-Options, in order of preference:
+A whole-answer synthesis at RTF ~1 means seconds of silence before the first sound. Answers are therefore
+spoken in chunks of at most **90 characters**, split at sentence boundaries and, for long sentences, at
+commas — so a boundary is always a natural pause and no chunk is a slow outlier.
 
-1. **Chunk by sentence and play as you go.** First audio then costs one short sentence (~2–4 s at this
-   rate, measured from the 3.6 s sample at 7.4 s) rather than the whole answer. Still above target, but
-   the gap is "a pause", not "silence".
-2. **A smaller/faster model or int8 with fewer threads** — not measured; q8 is already the small variant.
-3. **Piper with a UK male voice**, if an arm64 Windows build can be established. Earlier campaigns found
-   no arm64 wheel for comparable Python TTS stacks, so this is a research task, not a download.
+Measured through the production service (`scripts/voice-service-proof.ts`, 9.4 s answer):
 
-## Subjective quality
+| Metric | Value |
+|---|---|
+| Model load (cold) | 28.5 s |
+| Time to first chunk | **4.5 s** for 3.8 s of audio |
+| Total | 12.3 s for 9.4 s of speech (RTF 1.31, including post-load cold caches) |
+| Warm steady state (bench) | RTF 0.94–1.05 |
+| Cancellation | abort at chunk 0 → exactly one chunk delivered, none after |
 
-Not claimed. The owner must listen to the samples; that is the only valid test of whether a voice sounds
-like Jarvis rather than like a synthesiser. `bm_george` is the closest to the requested calm British male
-register in casual listening, `bm_lewis` is lighter, `bm_fable` is more neutral — but this is the owner's
-decision, not mine to make.
+## Hardware acceleration
+
+Not used, and not claimed. `onnxruntime-node` exposes only the CPU provider through the Node binding;
+Windows ML and the QNN execution provider are not wired to it, and installing NPU drivers or converting
+Kokoro's graph is explicitly out of scope without owner authorisation. Everything above is CPU.
+
+## Honest limitation
+
+**RTF is at best ~1.0, so synthesis only just keeps up with playback.** A long answer will occasionally
+under-run between chunks. The mitigation is the queue in `SpeechPlayback` (chunk n+1 is synthesised while
+n plays) plus the 90-character cap; it is not a fix for a machine that is synthesising at the speed it
+plays. Targets of "first audio under one second" and "RTF ≤ 0.5" are **not met** on this hardware.

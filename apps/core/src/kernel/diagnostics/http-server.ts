@@ -55,7 +55,14 @@ export interface DiagnosticsHttpDeps {
   health: HealthManager;
   desktop: DesktopGateway;
   voice: VoiceGateway;
-  speech?: { utterance: { transcribe(input: { body: Buffer; contentType: string }): Promise<unknown> }; synthesise(text: string): Promise<Uint8Array> };
+  speech?: {
+    utterance: { transcribe(input: { body: Buffer; contentType: string }): Promise<unknown> };
+    synthesise(text: string): Promise<Uint8Array>;
+    /** Chunked local synthesis: NDJSON of {index,text,seconds,wav:base64} so playback can start early. */
+    stream?: (text: string, options: { voice?: string; signal: AbortSignal }) => AsyncIterable<{ index: number; text: string; seconds: number; wav: Uint8Array }>;
+    cancel?: () => void;
+    voices?: readonly string[];
+  };
   vision: VisionGateway;
   identity:IdentityManager;sessions:SessionManager;credentials:SessionCredentialManager;nodeStore:NodeStore;ids:IdGen;nodeId:string;principalId:string;
   experience:ExperienceProjection;
@@ -225,6 +232,25 @@ export class DiagnosticsHttp {
         const result=await this.deps.speech.utterance.transcribe({body:audio,contentType:String(req.headers['content-type']??'')});
         const shaped=result as {ok:boolean;problem?:string};
         return send(shaped.ok?200:422,{...shaped,principalId:auth.principalId,nodeId:auth.nodeId});
+      }
+      if(path==='/voice/speak/stream'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['desktop.write'],'strong');if(!auth)return send(401,{error:'unauthorised'});
+        if(!this.deps.speech?.stream)return send(503,{code:'TTS_UNAVAILABLE',error:'local speech synthesis is not configured'});
+        const parsed=z.object({text:z.string().min(1).max(4000),voice:z.string().max(40).optional()}).strict().safeParse(await this.body<unknown>(req));
+        if(!parsed.success)return send(400,{code:'INVALID_TEXT',error:'invalid speech request'});
+        const abort=new AbortController();
+        req.once('aborted',()=>{abort.abort();this.deps.speech?.cancel?.();});
+        res.once('close',()=>{if(!res.writableEnded){abort.abort();this.deps.speech?.cancel?.();}});
+        res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-store','x-jarvis-voice':parsed.data.voice??''});
+        try{
+          for await(const chunk of this.deps.speech.stream(parsed.data.text,{...(parsed.data.voice?{voice:parsed.data.voice}:{}),signal:abort.signal})){
+            if(abort.signal.aborted)break;
+            res.write(JSON.stringify({index:chunk.index,text:chunk.text,seconds:chunk.seconds,wav:Buffer.from(chunk.wav).toString('base64')})+String.fromCharCode(10));
+          }
+        }catch{ if(!res.writableEnded)res.write(JSON.stringify({error:'TTS_FAILED'})+String.fromCharCode(10)); }
+        if(!res.writableEnded)res.end();
+        return;
       }
       if(path==='/voice/speak'){
         if(method!=='POST')return send(405,{error:'method not allowed'});

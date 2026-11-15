@@ -1,51 +1,40 @@
 # RESONANCE III — checkpoint report
 
-Baseline `bcc438f`. This is a partial campaign: Phase Zero is complete and committed; the voice loop is
-not built. Stating that plainly is more useful than dressing up an audit as an implementation.
+Baseline `a2d5aaf`. Owner selected `bm_george` as Jarvis's provisional voice.
 
-## Phase Zero — complete
+## Delivered this checkpoint
 
 | Item | Status |
 |---|---|
-| 5.1 Raw query text removed from diagnostics, with sentinel regression | VERIFIED |
-| 5.3 Missing evidence must not become a negative conclusion (companion + advisor registers) | VERIFIED (prompt-level guidance, 103 cognition tests pass) |
-| 5.4 `jarvis-up.ps1 -RestartApp` stops only Jarvis app trees, preserves the data plane, refuses foreign port holders | IMPLEMENTED, not yet exercised against a running app |
-| 5.4 PostgreSQL `pg_isready` readiness with 30 s bound, fail closed; migration failure aborts startup | IMPLEMENTED, `-Check` passes |
-| 5.2 NO_ROUTE second-turn intermittency | **NOT RESOLVED** — see below |
+| Bounded TTS performance investigation | **VERIFIED** — fp32 is 2× faster than q8 (RTF 1.05 vs 2.28) |
+| Local synthesis service (warm, chunked, cancellable) | **VERIFIED** — real audio, real cancellation (1 chunk after abort at chunk 0) |
+| Streaming endpoint `/voice/speak/stream` | **IMPLEMENTED**, contract tested; not exercised through a live Kernel in this pass |
+| Presence playback (WebAudio queue, generation guard) | **IMPLEMENTED**, typecheck/lint clean; not yet heard through a browser |
+| Manual interruption (STOP SPEAKING) | **IMPLEMENTED**; not yet exercised in a browser |
+| Real audio level → `--voice-energy` | **IMPLEMENTED**; orb response UNVERIFIED |
+| Automatic barge-in | **NOT IMPLEMENTED** |
+| Transcript → conversation loop | **PARTIAL** — capture, VAD and transcription exist and are tested; automatic submission not wired |
 
-## 5.2 NO_ROUTE — what is known
+## Measured
 
-The second conversational turn is intermittently refused with `NO_ROUTE` (HTTP 503) before any provider
-is contacted. It reproduced in roughly half of the automated browser runs and never in seven consecutive
-owner live turns. The refusal comes from routing, not privacy: `NO_ROUTE` means no candidate model
-satisfied the request's constraints. Not root-caused; it does not block voice work, because it affects
-the conversation path identically for typed and spoken input, and the owner has not hit it live.
+- Cold model load 28.5 s; warm RTF 0.94–1.05 (fp32); first chunk 4.5 s for a 9.4 s answer.
+- Peak RSS ~541 MB. CPU only — no NPU, no GPU, none claimed.
+- Chunking at 90 characters; cancellation verified.
 
-## Voice engine — qualified, with a measured blocker
+## What the owner will experience
 
-Kokoro-82M (`bm_george` / `bm_lewis` / `bm_fable`) is the provisional engine: Apache-2.0, local, British
-male voices, real synthesis verified on this ARM64 machine. Measured RTF **2.14** — slower than real time,
-which fails the "first audio under a second" target for a whole answer. Sentence-chunked synthesis is the
-mitigation to build next. 15 audition WAVs are on disk for the owner.
+With `JARVIS_TTS_ENABLED` on, an answer can be spoken through the streaming endpoint, chunk one starting
+while the rest synthesises, and STOP SPEAKING silences it immediately. Whether the current UI actually
+invokes it depends on the speech toggle being on when the answer arrives.
 
-## Not implemented
+## Not done
 
-- The capture → transcript → conversation → synthesis → playback loop.
-- Any audio playback in Presence.
-- Continuous session turn-taking, manual interruption, automatic barge-in.
-- Audio-reactive orb changes and the redesigned voice controls.
-
-## Verification executed
-
-| Check | Result |
-|---|---|
-| Cognition suite (identity guidance) | 103 passed |
-| Experience suite (selection, trace privacy) | all pass, exit 0 |
-| `jarvis-up.ps1 -Check` | preflight OK, containers healthy, nothing started |
-| Kokoro audition | 15 WAVs, RTF 2.14 measured |
+- The browser has not been driven through a speak cycle in this pass; playback is unproven in situ.
+- The microphone loop is not automatic: capture and transcription work, submission is manual.
+- Barge-in, orb reactivity and the redesigned MIC/VOICE controls remain open.
 
 ## Honest position
 
-Jarvis still cannot speak. He can transcribe, and he can synthesise, and those two pieces were already
-tested before this pass — what is missing is the loop that joins them to the conversation he already has.
-The engine is chosen and measured; the next checkpoint is the loop, not another audit.
+Jarvis can now synthesise his own answers locally, in the owner's chosen voice, with interruption that
+works by construction. He cannot yet hold a spoken turn on his own: the microphone half of the loop is
+still push-to-talk with manual submission. The next checkpoint is that join, not more synthesis work.

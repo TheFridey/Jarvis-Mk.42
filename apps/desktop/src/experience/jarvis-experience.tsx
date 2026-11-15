@@ -34,6 +34,7 @@ import { useScene } from './use-scene.ts';
 import { latestConversationAnswer } from './conversation-answer.ts';
 import { ResponsePanel } from './response-panel.tsx';
 import { PresenceMode } from './presence/presence-mode.tsx';
+import { SpeechPlayback } from './speech-playback.ts';
 import { UtteranceRecorder } from './voice-capture.ts';
 import { COMMAND_MODE_KEY, PRESENCE_MODE_KEY, PRESENCE_MODE_STORAGE, presenceComposition, presenceInputEnabled, presenceMotion, presenceReadout, presenceSatellites, presenceZones } from './presence/presence-policy.ts';
 import { PresenceMic } from './presence/presence-mic.tsx';
@@ -55,6 +56,9 @@ export function JarvisExperience() {
   const [privacyBusy,setPrivacyBusy]=useState(false);
   // Audio output is an explicit operator decision; it is never enabled automatically.
   const [speechEnabled,setSpeechEnabled]=useState(false);
+  // The owner's chosen voice. bm_george is the provisional British male default; the alternative
+  // voices stay selectable through JARVIS_TTS_VOICE without a rebuild.
+  const [voiceId,setVoiceId]=useState('bm_george');
   const [speaking,setSpeaking]=useState(false);
   useEffect(()=>{try{const saved=localStorage.getItem('jarvis:preferred-model:v1');if(saved!==null)setPreferredModel(saved);}catch{}},[]);
   const updatePreferredModel=(value:string)=>{setPreferredModel(value);try{localStorage.setItem('jarvis:preferred-model:v1',value);}catch{}};
@@ -191,25 +195,28 @@ export function JarvisExperience() {
     return { text: result.transcript };
   };
 
-  /** Play an answer with the local synthesiser. Real audio, real end, no autoplay. */
+  /**
+   * Speak an answer with the local synthesiser, chunk by chunk.
+   *
+   * Kokoro is used through the streaming endpoint: sentence one is audible in 1-3 s while the rest is
+   * still being synthesised. Playback is generation-based, so stopping mid-sentence cannot be undone by
+   * a chunk that was already in flight. Every level reported to the orb comes from the played audio.
+   */
+  const playback = useRef<SpeechPlayback | undefined>(undefined);
+  const [voiceLevel, setVoiceLevel] = useState(0);
   const speak = async (text: string) => {
-    type SpeechTransport = { synthesiseSpeech: (value: string) => Promise<Blob> };
-    const speech = transport as unknown as Partial<SpeechTransport>;
-    if (typeof speech.synthesiseSpeech !== 'function' || !text.trim()) return;
+    if (!text.trim()) return;
+    playback.current ??= new SpeechPlayback();
     setSpeaking(true);
-    let url: string | undefined;
     try {
-      const wav = await speech.synthesiseSpeech(text);
-      url = URL.createObjectURL(wav);
-      const audio = new Audio(url);
-      audio.onended = () => { if (url) URL.revokeObjectURL(url); setSpeaking(false); };
-      audio.onerror = () => { if (url) URL.revokeObjectURL(url); setSpeaking(false); };
-      await audio.play();
-    } catch {
-      if (url) URL.revokeObjectURL(url);
-      setSpeaking(false);
-    }
+      await playback.current.speak(({ signal, voice }) => transport.speakStream(text.trim(), { signal, ...(voice ? { voice } : {}) }), {
+        ...(voiceId ? { voice: voiceId } : {}),
+        onState: state => setSpeaking(state === 'buffering' || state === 'speaking'),
+        onLevel: level => setVoiceLevel(level),
+      });
+    } catch { setSpeaking(false); setVoiceLevel(0); }
   };
+  const stopSpeaking = () => { playback.current?.stop(); setSpeaking(false); setVoiceLevel(0); };
 
   const toggleCloud = async () => {
     if (!kernel || privacyBusy) return;
@@ -251,7 +258,7 @@ export function JarvisExperience() {
       inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
       voiceControl={<PresenceMic transport={transport} live={kernelLive} available={rtcAvailable} liveness={liveness} picture={kernel}/>}
       onDictate={dictate}
-      speech={{ enabled: speechEnabled, speaking, onToggle: () => setSpeechEnabled(value => !value) }}
+      speech={{ enabled: speechEnabled, speaking, level: voiceLevel, voice: voiceId, onStop: stopSpeaking, onToggle: () => setSpeechEnabled(value => !value) }}
       privacy={{ regime: privacy.regime, ...(privacy.provider ? { provider: privacy.provider } : {}), ...(privacy.note ? { note: privacy.note } : {}), busy: privacyBusy, onGrant: () => void toggleCloud(), onRevoke: () => void toggleCloud() }}
       answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
     {!presenceOn ? <>

@@ -134,6 +134,11 @@ export class KernelSceneTransport implements SceneTransport {
     return response.json() as Promise<T>
   }
 
+  /** Streamed local speech: the Kernel synthesises sentence by sentence and this is the pipe. */
+  speakStream(text:string,init:{signal:AbortSignal;voice?:string}):Promise<Response>{
+    return this.request('/voice/speak/stream',{method:'POST',signal:init.signal,body:JSON.stringify({text,...(init.voice?{voice:init.voice}:{})})});
+  }
+
   private async request(path:string,init:RequestInit={}){
     for(let attempt=0;attempt<2;attempt++){
       const auth=await this.authenticate();

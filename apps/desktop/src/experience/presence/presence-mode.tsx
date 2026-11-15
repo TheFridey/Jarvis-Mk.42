@@ -33,7 +33,7 @@ export interface PresenceModeProps {
   voiceControl?: ReactNode;
   /** Conversation privacy: what the Kernel has authorised, and the two operator actions. */
   /** Local speech output: explicit toggle, real playing state. */
-  speech?: { enabled: boolean; speaking: boolean; onToggle: () => void };
+  speech?: { enabled: boolean; speaking: boolean; level?: number; voice?: string; onStop?: () => void; onToggle: () => void };
   /** Local dictation: start capture, return the recognised text (empty when nothing heard). */
   onDictate?: () => Promise<{ text: string; problem?: string }>;
   privacy?: { regime: 'PRIVATE' | 'CLOUD_PERMITTED'; provider?: string; busy: boolean; note?: string; onGrant: () => void; onRevoke: () => void };
@@ -108,7 +108,7 @@ export function PresenceMode(props: PresenceModeProps) {
   };
 
   return <div ref={layer} className={`presence-layer presence-${readout.state.toLowerCase()}${reducedMotion ? ' reduced' : ''}${answer ? ' has-answer' : ''}${expanded ? ' answer-expanded' : ''}`}
-    data-presence-state={readout.state} style={{ ['--presence-horizon' as string]: `${zones.horizon}px`, ['--presence-answer-max' as string]: `${zones.answerMaxHeight}px`, ['--presence-stack-max' as string]: `${zones.stackMax}px` }}>
+    data-presence-state={readout.state} data-voice-level={props.speech?.level ? props.speech.level.toFixed(2) : '0'} style={{ ['--voice-energy' as string]: String(props.speech?.level ?? 0), ['--presence-horizon' as string]: `${zones.horizon}px`, ['--presence-answer-max' as string]: `${zones.answerMaxHeight}px`, ['--presence-stack-max' as string]: `${zones.stackMax}px` }}>
 
     <div className="presence-word-block" style={{ left: core.x, top: zones.horizon }}>
       <div className="presence-word" role="status" aria-live="polite" aria-label={`JARVIS ${readout.word}. ${readout.detail}`}>
@@ -116,6 +116,9 @@ export function PresenceMode(props: PresenceModeProps) {
       </div>
       <p className="presence-detail">{readout.detail}</p>
       {held ? <p className="presence-held" role="status">{held}</p> : null}
+      {props.speech?.speaking && props.speech.onStop
+        ? <button className="presence-stop" type="button" onClick={props.speech.onStop} aria-label="Stop Jarvis speaking">STOP SPEAKING</button>
+        : null}
       {!liveness.current ? <button className="presence-reconnect" type="button" onClick={props.onCommandCentre}>OPEN COMMAND CENTRE · RECONNECT</button> : null}
       {rendererFallback ? <p className="presence-fallback" role="note">GPU environment unavailable · static rendering · state text is authoritative</p> : null}
     </div>
