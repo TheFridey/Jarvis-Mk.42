@@ -1,5 +1,5 @@
 import { retrievalIntentFor, outputAllowanceFor } from './retrieval-intent.ts';
-import { adaptiveMemorySelection } from './memory-selection.ts';
+import { adaptiveMemorySelection, memoryTrace } from './memory-selection.ts';
 import { rememberRequest } from './personal-memory.ts';
 import type { PersonalMemoryStore } from './personal-memory-store.ts';
 import type { DomainService } from '../domains/domain-service.ts';
@@ -152,15 +152,13 @@ export class CompanionService {
       });
       const memoryVerified = { text: selection.text, ids: selection.ids };
       if (process.env.JARVIS_MEMORY_TRACE === '1') {
-        // Counts only, derived from the selection that was actually used - never recomputed, never a
-        // statement, never a record id.
-        const count = (reason: string) => selection.excluded.filter(entry => entry.reason === reason).length;
-        process.stderr.write(JSON.stringify({ component: 'memory_recall', correlationId: turnId, principalId: node.principalId,
-          locality, intent: selection.plan.intent, query: selection.query, candidates: fresh.length,
-          approved: fresh.filter(r => r.reviewStatus === 'approved').length,
-          irrelevant: count('irrelevant'), cloudIneligible: count('cloud_ineligible'),
-          ceilingExceeded: count('ceiling_exceeded'), alreadyProvided: count('already_provided'),
-          budget: count('budget'), selected: selection.selected.length, blockBytes: selection.bytes }) + String.fromCharCode(10));
+        // Counts only. The trace used to carry the sentence the owner typed and the reconstructed
+        // follow-up query, which is a private conversation written into a log file.
+        process.stderr.write(JSON.stringify(memoryTrace({
+          correlationId: turnId, principalId: node.principalId, locality, selection,
+          candidates: fresh.length, approved: fresh.filter(r => r.reviewStatus === 'approved').length,
+          queryChars: command.input.length, ...(previousQuery ? { topicChars: previousQuery.length } : {}),
+        })) + String.fromCharCode(10));
       }
       // An explicit "remember this" creates a pending candidate — never an approval, and never a
       // claim of storage the Kernel did not make.

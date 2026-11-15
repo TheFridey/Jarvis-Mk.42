@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adaptiveMemorySelection } from './memory-selection.ts';
+import { adaptiveMemorySelection, memoryTrace } from './memory-selection.ts';
 import type { MemoryRecord } from './personal-memory.ts';
 
 /**
@@ -134,5 +134,35 @@ describe('broad self-profile', () => {
   it('still excludes what the owner has not authorised for cloud', () => {
     const result = select(prompt);
     expect(result.ids).not.toContain('sensitive-1');
+  });
+});
+
+describe('recall trace privacy', () => {
+  const SENTINEL_QUERY = 'ZEBRA-SENTINEL-QUERY my private career story';
+  const SENTINEL_STATEMENT = 'SENTINEL-STATEMENT-7731 a private fact';
+
+  it('never carries the question, the topic or a memory statement', () => {
+    const records = [record({ id: 'secret-1', category: 'history', subject: 'private subject', statement: SENTINEL_STATEMENT })];
+    const selection = adaptiveMemorySelection({ records, query: SENTINEL_QUERY, principalId: 'owner', locality: 'cloud' });
+    const line = JSON.stringify(memoryTrace({
+      correlationId: 'corr', principalId: 'owner', locality: 'cloud', selection,
+      candidates: records.length, approved: 1, queryChars: SENTINEL_QUERY.length, topicChars: 41,
+    }));
+    expect(line).not.toContain('ZEBRA-SENTINEL');
+    expect(line).not.toContain('SENTINEL-STATEMENT');
+    expect(line).not.toContain('private career story');
+    expect(line).toContain('"queryChars"');
+    expect(line).toContain('"selected"');
+  });
+
+  it('reports counts that match the selection that was actually used', () => {
+    const selection = adaptiveMemorySelection({
+      records: profile, query: 'Mate, tell me everything you know about my previous career.',
+      principalId: 'owner', locality: 'cloud',
+    });
+    const trace = memoryTrace({ correlationId: 'c', principalId: 'owner', locality: 'cloud', selection, candidates: profile.length, approved: profile.length, queryChars: 60 });
+    expect(trace.selected).toBe(selection.selected.length);
+    expect(trace.blockBytes).toBe(selection.bytes);
+    expect(trace.cloudIneligible).toBe(1); // the SENSITIVE record
   });
 });

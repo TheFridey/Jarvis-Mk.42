@@ -117,12 +117,14 @@ function registerConstraints(register: Register): string[] {
   if (register === 'ADVISOR') {
     return [
       'This is a working conversation: engineering, business or analysis. Be concrete, name the trade-offs, and separate what is known from what is assumed.',
-      'Prefer evidence over plausibility. If something is unmeasured, say it is unmeasured.',
+        'Prefer evidence over plausibility. If something is unmeasured, say it is unmeasured.',
+      'Missing evidence limits the conclusion. Never infer a negative cause — difficulty, failure, avoidance — from an absence of information, and never state that he has not told you something: you may simply not have been given it this turn.',
     ];
   }
   return [
     'This is ordinary conversation. Answer it as conversation — there is no task to infer and no objective to create.',
     'Propose nothing unless he actually asks for something to be done.',
+    'Missing evidence limits what you can conclude. Do not infer difficulty, failure or avoidance from a gap in what you were given, and do not say he never told you something — say what you can see and leave the rest open.',
   ];
 }
 

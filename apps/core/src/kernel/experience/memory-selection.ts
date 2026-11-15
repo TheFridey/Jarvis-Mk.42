@@ -65,3 +65,33 @@ export function adaptiveMemorySelection(input: {
   const text = memoryBlock(selected);
   return { plan, query, selected, excluded, text, ids: selected.map(entry => entry.record.id), bytes: new TextEncoder().encode(text).length };
 }
+
+/**
+ * The only shape a recall trace may take: counts, an intent name and a length.
+ *
+ * The live traces contained the owner's actual sentence ("Mate, tell me everything you know about my
+ * previous career") and, worse, the combined previous-and-current query used for a follow-up. That is a
+ * copy of a private conversation in a log file. Nothing here can be reconstructed into words: the
+ * query contributes its character count, and nothing contributes its text.
+ */
+export function memoryTrace(input: {
+  correlationId: string;
+  principalId: string;
+  locality: 'local' | 'cloud';
+  selection: AdaptiveSelection;
+  candidates: number;
+  approved: number;
+  topicChars?: number;
+  queryChars: number;
+}): Record<string, unknown> {
+  const count = (reason: string) => input.selection.excluded.filter(entry => entry.reason === reason).length;
+  return {
+    component: 'memory_recall', correlationId: input.correlationId, principalId: input.principalId,
+    locality: input.locality, intent: input.selection.plan.intent,
+    queryChars: input.queryChars, ...(input.topicChars ? { topicChars: input.topicChars } : {}),
+    candidates: input.candidates, approved: input.approved,
+    irrelevant: count('irrelevant'), cloudIneligible: count('cloud_ineligible'),
+    ceilingExceeded: count('ceiling_exceeded'), alreadyProvided: count('already_provided'),
+    budget: count('budget'), selected: input.selection.selected.length, blockBytes: input.selection.bytes,
+  };
+}

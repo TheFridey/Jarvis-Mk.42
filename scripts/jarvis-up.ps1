@@ -23,6 +23,7 @@ param(
   [switch]$Check,
   [switch]$Build,
   [switch]$NoOpen,
+  [switch]$RestartApp,
   [int]$DesktopPort = 4300
 )
 
@@ -148,6 +149,31 @@ if ($Check) {
 # ---------------------------------------------------------------- start
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 Stop-Tracked
+
+# -RestartApp stops only Jarvis's own application processes and starts them again, leaving PostgreSQL,
+# Redis, NATS and LiveKit untouched. Without it the owner had to hand-kill process trees and risked
+# stopping the data plane with them.
+if ($RestartApp) {
+  Say ''
+  Say 'Application restart'
+  foreach ($port in @(7420, 7430, $DesktopPort)) {
+    for ($attempt = 0; $attempt -lt 20 -and (Test-PortOpen $port); $attempt++) { Start-Sleep -Milliseconds 250 }
+    if (-not (Test-PortOpen $port)) { continue }
+    $owner = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
+    $command = if ($owner) { (Get-CimInstance Win32_Process -Filter "ProcessId = $owner" -ErrorAction SilentlyContinue).CommandLine } else { '' }
+    # Only something demonstrably running this repository's application is stopped.
+    if ($owner -and $command -and ($command -match 'Jarvis-Sentience' -or $command -match 'apps[\/](core|gateway)' -or $command -match 'serve-export')) {
+      Stop-Tree -RootId ([int]$owner) -Name "app on port $port"
+      for ($attempt = 0; $attempt -lt 20 -and (Test-PortOpen $port); $attempt++) { Start-Sleep -Milliseconds 250 }
+    }
+    if (Test-PortOpen $port) {
+      Bad "port $port is still held by pid $owner, which is not this project's application - leaving it alone"
+      return
+    }
+  }
+  Ok 'application ports released; data plane preserved'
+}
+
 $tracked = @()
 
 # An env change only reaches a process that starts after it. If a Kernel or Gateway is
@@ -186,6 +212,19 @@ $env:JARVIS_REDIS_URL = 'redis://127.0.0.1:6380'
 $env:JARVIS_NATS_URL = 'nats://127.0.0.1:4222'
 
 Say ''
+# A listening port is not a database that can answer a query. Migrations run only once PostgreSQL
+# actually responds: bounded retries for transient startup errors, fail closed on timeout.
+$pgReady = $false
+for ($attempt = 0; $attempt -lt 30; $attempt++) {
+  & docker exec jarvis-mk43-postgres-1 pg_isready -U jarvis -d jarvis *> $null
+  if ($LASTEXITCODE -eq 0) { $pgReady = $true; break }
+  Start-Sleep -Seconds 1
+}
+if (-not $pgReady) {
+  Bad 'PostgreSQL did not answer a readiness probe within 30s; not migrating against an unready database'
+  return
+}
+Ok 'PostgreSQL answering queries'
 Say 'Migrations'
 Pnpm --filter '@jarvis/persistence' db:migrate
 Ok 'database schema current'
