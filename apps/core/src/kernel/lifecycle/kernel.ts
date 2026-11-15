@@ -515,6 +515,9 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   // Warming is deferred to the first request so boot does not block for ~30 s of model loading, and a
   // machine without the model still starts - it simply reports synthesis unavailable.
   const kokoro = new KokoroSpeechService({ enabled: process.env.JARVIS_TTS_ENABLED !== '0', ...(process.env.JARVIS_TTS_VOICE ? { voice: process.env.JARVIS_TTS_VOICE } : {}) });
+  // Warm the voice in the background so the first spoken answer is not the one that pays 28 s of model
+  // loading. Deliberately not awaited: Kernel health and startup must not wait on speech.
+  void kokoro.warm();
   const speech = {
     utterance,
     synthesise: (text: string) => synthesiseToWav(text),

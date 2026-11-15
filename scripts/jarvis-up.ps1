@@ -73,6 +73,15 @@ function Test-PortOpen([int]$Port) {
   try { $client = New-Object System.Net.Sockets.TcpClient; $client.Connect('127.0.0.1', $Port); $client.Close(); return $true } catch { return $false }
 }
 
+# Written atomically and after every launch, so a failure half-way through leaves a recoverable record
+# instead of untracked processes the owner has to hunt down by hand.
+function Save-Tracked {
+  if ($tracked.Count -eq 0) { return }
+  $temp = "$pidFile.tmp"
+  $tracked | ConvertTo-Json | Set-Content -Path $temp -Encoding UTF8
+  Move-Item -Path $temp -Destination $pidFile -Force
+}
+
 function Stop-Tracked {
   if (-not (Test-Path $pidFile)) { return }
   $tracked = Get-Content $pidFile -Raw | ConvertFrom-Json
@@ -241,6 +250,7 @@ Say 'Services'
 if ($gatewayConfigured) {
   $env:JARVIS_GATEWAY_TOKEN = if ($env:JARVIS_GATEWAY_TOKEN) { $env:JARVIS_GATEWAY_TOKEN } else { 'dev-gateway-token' }
   $tracked += Start-Tracked 'gateway' 'node' @($pnpmPath, '--filter', '@jarvis/gateway', 'dev')
+  Save-Tracked
   Ok "gateway starting (log: .logs/gateway.log)"
 } else { Warn 'gateway not started - no provider key' }
 
@@ -280,6 +290,7 @@ if (Test-Path $asrExe) {
   } else { Write-Host 'speech: model missing, dictation unavailable' }
 } else { Write-Host 'speech: engine missing, dictation unavailable' }
 $tracked += Start-Tracked 'kernel' 'node' @($pnpmPath, '--filter', '@jarvis/core', 'start')
+Save-Tracked
 Ok 'kernel starting (log: .logs/kernel.log)'
 
 $up = $false
@@ -312,9 +323,10 @@ if ($stale) {
 # The production export is served, not `next dev`: it is what ships, and the dev server
 # currently fails the page with a Client Manifest error that the built output does not have.
 $tracked += Start-Tracked 'desktop' 'node' @((Join-Path $repo 'scripts/serve-export.mjs'))
+Save-Tracked
 Ok "presence starting on $presenceUrl"
 
-$tracked | ConvertTo-Json | Set-Content -Path $pidFile -Encoding UTF8
+Save-Tracked
 
 Say ''
 Say 'JARVIS is up'

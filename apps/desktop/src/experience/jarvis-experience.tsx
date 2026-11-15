@@ -55,10 +55,12 @@ export function JarvisExperience() {
   const [privacy,setPrivacy]=useState<{regime:'PRIVATE'|'CLOUD_PERMITTED';provider?:string;note?:string}>({regime:'PRIVATE'});
   const [privacyBusy,setPrivacyBusy]=useState(false);
   // Audio output is an explicit operator decision; it is never enabled automatically.
-  const [speechEnabled,setSpeechEnabled]=useState(false);
+  // Voice output defaults on: Jarvis has a local voice, and the toggle is how the owner silences it.
+  // JARVIS_TTS_ENABLED=0 on the Kernel still wins, because the stream endpoint then refuses.
+  const [speechEnabled,setSpeechEnabled]=useState(true);
   // The owner's chosen voice. bm_george is the provisional British male default; the alternative
   // voices stay selectable through JARVIS_TTS_VOICE without a rebuild.
-  const [voiceId,setVoiceId]=useState('bm_george');
+  const [voiceId, setVoiceId] = useState('bm_george');
   const [speaking,setSpeaking]=useState(false);
   useEffect(()=>{try{const saved=localStorage.getItem('jarvis:preferred-model:v1');if(saved!==null)setPreferredModel(saved);}catch{}},[]);
   const updatePreferredModel=(value:string)=>{setPreferredModel(value);try{localStorage.setItem('jarvis:preferred-model:v1',value);}catch{}};
@@ -204,17 +206,27 @@ export function JarvisExperience() {
    */
   const playback = useRef<SpeechPlayback | undefined>(undefined);
   const [voiceLevel, setVoiceLevel] = useState(0);
+  const [speechStatus, setSpeechStatus] = useState<'ready' | 'speaking' | 'unavailable'>('ready');
+  const VOICES = ['bm_george', 'bm_lewis', 'bm_fable'] as const;
+  const cycleVoice = () => setVoiceId(current => VOICES[(VOICES.indexOf(current as typeof VOICES[number]) + 1) % VOICES.length]!);
   const speak = async (text: string) => {
     if (!text.trim()) return;
+    // The transport contract decides whether this deployment can speak at all: a synthetic or demo
+    // transport has no synthesis endpoint, and the interface must say so rather than throw.
+    const stream = transport.speakStream?.bind(transport);
+    if (!stream) { setSpeechStatus('unavailable'); return; }
     playback.current ??= new SpeechPlayback();
     setSpeaking(true);
     try {
-      await playback.current.speak(({ signal, voice }) => transport.speakStream(text.trim(), { signal, ...(voice ? { voice } : {}) }), {
+      await playback.current.speak(({ signal, voice }) => stream(text.trim(), { signal, ...(voice ? { voice } : {}) }), {
         ...(voiceId ? { voice: voiceId } : {}),
-        onState: state => setSpeaking(state === 'buffering' || state === 'speaking'),
+        onState: state => {
+          setSpeaking(state === 'buffering' || state === 'speaking');
+          setSpeechStatus(state === 'error' ? 'unavailable' : state === 'idle' ? 'ready' : 'speaking');
+        },
         onLevel: level => setVoiceLevel(level),
       });
-    } catch { setSpeaking(false); setVoiceLevel(0); }
+    } catch { setSpeaking(false); setVoiceLevel(0); setSpeechStatus('unavailable'); }
   };
   const stopSpeaking = () => { playback.current?.stop(); setSpeaking(false); setVoiceLevel(0); };
 
@@ -258,7 +270,7 @@ export function JarvisExperience() {
       inputEnabled={presenceInputEnabled({ liveness })} reducedMotion={reducedSensory} rendererFallback={forceFallback}
       voiceControl={<PresenceMic transport={transport} live={kernelLive} available={rtcAvailable} liveness={liveness} picture={kernel}/>}
       onDictate={dictate}
-      speech={{ enabled: speechEnabled, speaking, level: voiceLevel, voice: voiceId, onStop: stopSpeaking, onToggle: () => setSpeechEnabled(value => !value) }}
+      speech={{ enabled: speechEnabled, speaking, level: voiceLevel, voice: voiceId, status: speechStatus, onCycleVoice: cycleVoice, onStop: stopSpeaking, onToggle: () => setSpeechEnabled(value => !value) }}
       privacy={{ regime: privacy.regime, ...(privacy.provider ? { provider: privacy.provider } : {}), ...(privacy.note ? { note: privacy.note } : {}), busy: privacyBusy, onGrant: () => void toggleCloud(), onRevoke: () => void toggleCloud() }}
       answer={commandResult || undefined} onAsk={ask} onDismissAnswer={() => setCommandResult('')} onCommandCentre={() => switchMode('command')}/> : null}
     {!presenceOn ? <>

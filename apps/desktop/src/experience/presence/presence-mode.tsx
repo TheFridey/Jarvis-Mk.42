@@ -33,7 +33,7 @@ export interface PresenceModeProps {
   voiceControl?: ReactNode;
   /** Conversation privacy: what the Kernel has authorised, and the two operator actions. */
   /** Local speech output: explicit toggle, real playing state. */
-  speech?: { enabled: boolean; speaking: boolean; level?: number; voice?: string; onStop?: () => void; onToggle: () => void };
+  speech?: { enabled: boolean; speaking: boolean; level?: number; voice?: string; status?: 'ready' | 'speaking' | 'unavailable'; onCycleVoice?: () => void; onStop?: () => void; onToggle: () => void };
   /** Local dictation: start capture, return the recognised text (empty when nothing heard). */
   onDictate?: () => Promise<{ text: string; problem?: string }>;
   privacy?: { regime: 'PRIVATE' | 'CLOUD_PERMITTED'; provider?: string; busy: boolean; note?: string; onGrant: () => void; onRevoke: () => void };

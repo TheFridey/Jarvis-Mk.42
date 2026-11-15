@@ -8,7 +8,9 @@ describe('readable response presentation',()=>{
   it('renders report headings, emphasis, lists and usable citations',()=>{
     const html=renderToStaticMarkup(createElement(ResponsePanel,{text:'## Audit\n\n**Finding**\n\n- One\n- Two\n\n[Source](https://example.com)',answerId:'answer',live:true}));
     expect(html).toContain('<h2>Audit</h2>');expect(html).toContain('<strong>Finding</strong>');expect(html).toContain('<li>One</li>');expect(html).toContain('rel="noopener noreferrer"');expect(html).not.toContain('## Audit');
-    expect(html.match(/value="kokoro:/g)).toHaveLength(13);expect(html).toContain('>Preview</button>');expect(html).toContain('Free male voices · British English');
+    // The browser-side neural engine was removed: speech is synthesised by the Kernel, so the panel
+    // must offer only installed local voices and must not advertise a second model in the page.
+    expect(html).not.toContain("value=\"kokoro:");expect(html).not.toContain('Free male voices');expect(html).toContain('>Preview</button>');
   });
   it('does not execute embedded HTML, unsafe links or remote images',()=>{
     const html=renderToStaticMarkup(createElement(ResponsePanel,{text:'<script>alert(1)</script>\n\n[Bad](javascript:alert)\n\n![Image](https://example.com/tracker.png)',live:true}));
