@@ -17,8 +17,8 @@
       "provider (loopback fixture)"
     ]
   },
-  "careerPayloadBytes": 16129,
-  "generalPayloadBytes": 20459,
+  "careerPayloadBytes": 16125,
+  "generalPayloadBytes": 0,
   "checks": [
     {
       "name": "real gateway ready",
@@ -56,7 +56,7 @@
     {
       "name": "browser request reached the provider",
       "passed": true,
-      "detail": "16129 bytes"
+      "detail": "16125 bytes"
     },
     {
       "name": "multiple career sentinels in the payload",
@@ -78,7 +78,7 @@
     },
     {
       "name": "general question sent",
-      "passed": true
+      "passed": false
     },
     {
       "name": "no personal memory on a general question",
@@ -95,30 +95,30 @@
     },
     {
       "name": "general question asked for a smaller allowance",
-      "passed": true,
-      "detail": "max_tokens=1536"
+      "passed": false,
+      "detail": "max_tokens=undefined"
     },
     {
       "name": "gateway received a personal-memory classification",
       "passed": true,
-      "detail": "observed: \"disclosure\":\"personal-memory\",\"disclosure\":\"personal-memory\""
+      "detail": "observed: \"disclosure\":\"personal-memory\""
     },
     {
       "name": "every turn with history reached the gateway classified as personal",
-      "passed": true,
-      "detail": "observed: \"disclosure\":\"personal-memory\",\"disclosure\":\"personal-memory\""
+      "passed": false,
+      "detail": "observed: \"disclosure\":\"personal-memory\""
     },
     {
       "name": "live desktop export byte-identical before and after the whole journey",
       "passed": true,
-      "detail": "absent -> absent"
+      "detail": "b3b0ec74256fda8dee588e9a087ebcb2d95a9af3e1466d0cff4669003df5e772 -> b3b0ec74256fda8dee588e9a087ebcb2d95a9af3e1466d0cff4669003df5e772"
     },
     {
       "name": "no acceptance build left where the launcher looks",
       "passed": true
     }
   ],
-  "passed": 22,
+  "passed": 19,
   "total": 22,
-  "generatedAt": "2026-11-14T21:28:42.606Z"
+  "generatedAt": "2026-11-15T13:04:30.835Z"
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { submitIntent } from './presence-mode.tsx';
 import type { OperatingAgentJob } from '@jarvis/scene';
 import type { DataLiveness, ExperiencePhase } from '../experience-phase-policy.ts';
 import {
@@ -388,5 +389,18 @@ describe('voice availability', () => {
   it('never describes capture as active before it is started', () => {
     const status = presenceVoiceStatus({ liveness: live(), micActive: false, available: true });
     expect(status.detail).toContain('not captured until you press it');
+  });
+});
+
+describe('busy submission', () => {
+  it('keeps the draft instead of silently dropping it while thinking', () => {
+    expect(submitIntent({ text: 'what else', busy: true, inputEnabled: true })).toBe('held');
+  });
+  it('sends when the interface is free', () => {
+    expect(submitIntent({ text: 'what else', busy: false, inputEnabled: true })).toBe('ask');
+  });
+  it('ignores empty and disabled input', () => {
+    expect(submitIntent({ text: '   ', busy: false, inputEnabled: true })).toBe('ignore');
+    expect(submitIntent({ text: 'hello', busy: false, inputEnabled: false })).toBe('ignore');
   });
 });

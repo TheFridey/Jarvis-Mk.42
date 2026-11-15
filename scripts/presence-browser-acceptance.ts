@@ -230,8 +230,11 @@ async function main(): Promise<void> {
 
   // The export is built against this run's kernel, exactly as a deployed build is — but never in
   // the directory the launcher serves. The owner's build is moved aside first and put back after.
-  const ownerHashBefore = isolateOwnerExport();
-  const built = process.env.JARVIS_ACCEPTANCE_SKIP_BUILD === '1'
+  // With a pre-built export there is nothing to build, so the owner's directory is not touched at
+  // all: no backup, no restore, no window in which it could be observed as missing.
+  const skippingBuild = process.env.JARVIS_ACCEPTANCE_SKIP_BUILD === '1';
+  const ownerHashBefore = skippingBuild ? hashOf(`${LIVE_EXPORT}/index.html`) : isolateOwnerExport();
+  const built = skippingBuild
     ? (existsSync(`${ISOLATED}/index.html`) ? 0 : 1)
     : await run([NEXT, 'build'], {
     NEXT_PUBLIC_JARVIS_CORE_URL: `http://127.0.0.1:${kernelPort}`,
@@ -239,7 +242,7 @@ async function main(): Promise<void> {
     NEXT_PUBLIC_JARVIS_NODE_ID: 'local-server',
   }, 'apps/desktop');
   check('static export built against the isolated kernel', built === 0);
-  const relocated = process.env.JARVIS_ACCEPTANCE_SKIP_BUILD === '1' ? { restored: existsSync(LIVE_EXPORT), unchanged: true, before: hashOf(`${LIVE_EXPORT}/index.html`), after: null } : restoreOwnerExport();
+  const relocated = skippingBuild ? { restored: existsSync(LIVE_EXPORT), unchanged: true, before: hashOf(`${LIVE_EXPORT}/index.html`), after: null } : restoreOwnerExport();
   check('owner export restored untouched after the build', relocated.before === ownerHashBefore,
     relocated.before === ownerHashBefore ? 'hash unchanged' : 'HASH CHANGED — the live export was modified');
 

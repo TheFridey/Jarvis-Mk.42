@@ -42,12 +42,23 @@ export interface PresenceModeProps {
   onCommandCentre: () => void;
 }
 
+/**
+ * What a submitted draft should do. Extracted because the live behaviour - a message vanishing when
+ * sent while the interface was still thinking - was invisible to every test that rendered markup.
+ */
+export function submitIntent(input: { text: string; busy: boolean; inputEnabled: boolean }): 'ask' | 'held' | 'ignore' {
+  if (!input.text.trim()) return 'ignore';
+  if (!input.inputEnabled) return 'ignore';
+  return input.busy ? 'held' : 'ask';
+}
+
 export function PresenceMode(props: PresenceModeProps) {
   const { readout, liveness, composition, zones, satellites, inputEnabled, reducedMotion, rendererFallback, answer } = props;
   // Parsing is deterministic but not free; answers change rarely, readouts often.
   const formatted = useMemo(() => formatAnswer(answer), [answer]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [held, setHeld] = useState<string | undefined>(undefined);
   const [expanded, setExpanded] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [dictateProblem, setDictateProblem] = useState('');
@@ -83,7 +94,15 @@ export function PresenceMode(props: PresenceModeProps) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const value = text.trim();
-    if (!value || busy || !inputEnabled) return;
+    if (submitIntent({ text: value, busy, inputEnabled }) === 'ignore') return;
+    if (submitIntent({ text: value, busy, inputEnabled }) === 'held') {
+      // Dropping this silently looked like the application had lost the message. The draft is kept
+      // and the reason is shown; nothing is queued, so no second protected request is transmitted
+      // behind the owner's back.
+      setHeld('Still finishing the last answer — your words are kept. Press Enter once more when it settles.');
+      return;
+    }
+    setHeld(undefined);
     setBusy(true);
     try { await props.onAsk(value); setText(''); } finally { setBusy(false); }
   };
@@ -96,6 +115,7 @@ export function PresenceMode(props: PresenceModeProps) {
         <strong key={readout.word}>{readout.word}</strong>
       </div>
       <p className="presence-detail">{readout.detail}</p>
+      {held ? <p className="presence-held" role="status">{held}</p> : null}
       {!liveness.current ? <button className="presence-reconnect" type="button" onClick={props.onCommandCentre}>OPEN COMMAND CENTRE · RECONNECT</button> : null}
       {rendererFallback ? <p className="presence-fallback" role="note">GPU environment unavailable · static rendering · state text is authoritative</p> : null}
     </div>

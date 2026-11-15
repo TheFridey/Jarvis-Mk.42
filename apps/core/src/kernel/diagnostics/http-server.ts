@@ -256,7 +256,7 @@ export class DiagnosticsHttp {
         // arbitrary exception message, because those can carry personal content.
         process.stderr.write(JSON.stringify({
           component: 'diagnostics', event: 'inference.failed', severity: 'ERROR', node: this.deps.nodeId,
-          status, code: err.code, provider: (err as { provider?: string }).provider ?? null,
+          status, code: err.code, subtype: inferenceFailureSubtype(err), provider: (err as { provider?: string }).provider ?? null,
           retryable: (err as { retryable?: boolean }).retryable ?? null,
           stage: 'model-inference',
         }) + String.fromCharCode(10));
@@ -294,4 +294,21 @@ export class DiagnosticsHttp {
     await new Promise<void>((resolve) => this.server!.close(() => resolve()));
     this.server = undefined;
   }
+}
+
+/**
+ * Which failure this actually was, by allowlisted pattern rather than by echoing the message.
+ *
+ * `INVALID_RESPONSE` alone could not distinguish a truncated answer from a malformed one from a
+ * refusal to retransmit, so a live 422 was diagnosable but not explainable. The patterns are evaluated
+ * against the message and only the label is emitted: no provider text, no prompt, no statement.
+ */
+function inferenceFailureSubtype(error: unknown): string {
+  const message = String((error as { message?: unknown })?.message ?? '');
+  if (/truncat/i.test(message)) return 'output_truncated';
+  if (/repair retransmission was refused/i.test(message)) return 'repair_refused_protected';
+  if (/structured model output/i.test(message)) return 'proposal_schema';
+  if (/disconnected without result|stream/i.test(message)) return 'stream_incomplete';
+  if (/budget/i.test(message)) return 'budget_exceeded';
+  return 'unclassified';
 }

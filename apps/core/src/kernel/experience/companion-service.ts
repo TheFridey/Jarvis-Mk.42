@@ -1,5 +1,6 @@
 import { retrievalIntentFor, outputAllowanceFor } from './retrieval-intent.ts';
-import { categoryHintFor, memoryContextLines, recallDiagnostics, rememberRequest, selectMemories } from './personal-memory.ts';
+import { adaptiveMemorySelection } from './memory-selection.ts';
+import { rememberRequest } from './personal-memory.ts';
 import type { PersonalMemoryStore } from './personal-memory-store.ts';
 import type { DomainService } from '../domains/domain-service.ts';
 import { currentDomainScope, domainFor, domainReadSql } from '../domains/scope.ts';
@@ -131,36 +132,36 @@ export class CompanionService {
       const alreadyGiven=((priorTurns.at(-1) as {memory_record_ids?:string[]}|undefined)?.memory_record_ids)??[];
       // Approved memory, filtered for where this turn will actually run. Relevance decides:
       // a greeting retrieves nothing, and a private record never reaches a cloud turn.
-      const memoryRecords = this.d.memory ? await this.d.memory.loadForSelection(node.principalId) : [];
-      const memoryFor = (locality: 'local' | 'cloud'): string => {
-        if (!memoryRecords.length) return '';
-        const { selected } = selectMemories({ records: memoryRecords, query: command.input, principalId: node.principalId, locality, categories: categoryHintFor(command.input) });
-        if (!selected.length) return '';
-        return ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10));
-      };
-      const memoryLocal = memoryFor('local');
-      const memoryCloud = memoryFor('cloud');
+      const locality: 'local' | 'cloud' = decision?.allow ? 'cloud' : 'local';
       const input=turn!.cognition_input??(history.length&&!publicWeb?JSON.stringify({conversation:history.map(r=>({user:r.input,assistant:r.answer})),user:command.input}):command.input);
       if(!turn!.cognition_input)await this.d.sql`update experience.conversation_turns set cognition_input=${input} where turn_id=${turnId}`;
       this.d.invalidate();
       try{
-        // Remote text is analysis-only: it cannot inherit a local agent's execution authority.
-        // Revalidate at the dispatch boundary: a grant that is still valid does not mean a
-      // particular memory is still eligible. Re-select from fresh rows so a revocation, deletion
-      // or supersession that landed during compilation cannot be transmitted.
-      const memoryVerified = await (async (): Promise<{ text: string; ids: string[] }> => {
-        if (!this.d.memory) return { text: decision?.allow ? memoryCloud : memoryLocal, ids: [] };
-        const fresh = await this.d.memory.loadForSelection(node.principalId);
-        const { selected } = selectMemories({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', categories: categoryHintFor(command.input), ...(retrievalIntentFor(command.input).intent === 'FOLLOW_UP' && alreadyGiven.length ? { exclude: alreadyGiven } : {}) });
-        if (process.env.JARVIS_MEMORY_TRACE === '1') {
-          // Counts only — never a statement. Enough to tell a principal mismatch from an empty
-          // table from an irrelevance decision, which is the difference this defect hid behind.
-          const diag = recallDiagnostics({ records: fresh, query: command.input, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local' });
-          process.stderr.write(JSON.stringify({ component: 'memory_recall', correlationId: turnId, principalId: node.principalId, locality: decision?.allow ? 'cloud' : 'local', ...diag }) + String.fromCharCode(10));
-        }
-        if (!selected.length) return { text: '', ids: [] };
-        return { text: ['', '', 'Approved context about the owner (use only where relevant; never recite it):', ...memoryContextLines(selected)].join(String.fromCharCode(10)), ids: selected.map(entry => entry.record.id) };
-      })();
+      // Revalidate at the dispatch boundary: a valid grant does not make a particular memory still
+      // eligible, so the selection is made from freshly loaded rows, once, and used for the context,
+      // the persisted ids and the diagnostic alike.
+      const fresh = this.d.memory ? await this.d.memory.loadForSelection(node.principalId) : [];
+      const previousQuery = (priorTurns.at(-1) as {input?: string}|undefined)?.input;
+      const selection = adaptiveMemorySelection({
+        records: fresh,
+        query: command.input,
+        principalId: node.principalId,
+        locality,
+        ...(previousQuery ? { previousQuery } : {}),
+        ...(alreadyGiven.length ? { alreadyGiven } : {}),
+      });
+      const memoryVerified = { text: selection.text, ids: selection.ids };
+      if (process.env.JARVIS_MEMORY_TRACE === '1') {
+        // Counts only, derived from the selection that was actually used - never recomputed, never a
+        // statement, never a record id.
+        const count = (reason: string) => selection.excluded.filter(entry => entry.reason === reason).length;
+        process.stderr.write(JSON.stringify({ component: 'memory_recall', correlationId: turnId, principalId: node.principalId,
+          locality, intent: selection.plan.intent, query: selection.query, candidates: fresh.length,
+          approved: fresh.filter(r => r.reviewStatus === 'approved').length,
+          irrelevant: count('irrelevant'), cloudIneligible: count('cloud_ineligible'),
+          ceilingExceeded: count('ceiling_exceeded'), alreadyProvided: count('already_provided'),
+          budget: count('budget'), selected: selection.selected.length, blockBytes: selection.bytes }) + String.fromCharCode(10));
+      }
       // An explicit "remember this" creates a pending candidate — never an approval, and never a
       // claim of storage the Kernel did not make.
       const recall = rememberRequest(command.input);

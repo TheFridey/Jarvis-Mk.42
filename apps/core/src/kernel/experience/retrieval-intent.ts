@@ -60,6 +60,17 @@ export function retrievalIntentFor(raw: string): IntentPlan {
     return { intent: 'ENCOURAGEMENT', limit: 16, minScore: 0.3, categories: ENCOURAGE, diversify: true, completeness: 'broad' };
   }
 
+  // A question about the owner's whole self, phrased in their own words rather than in a phrase the
+  // classifier happened to list. The live failure: "tell me who I am, what I've accomplished and what
+  // I'm working towards" scored as a targeted fact with a limit of four, marked 92 eligible records
+  // irrelevant, and produced two truncated answers.
+  if (at(text, 'who i am', 'who i am and', "what i've accomplished", 'what i have accomplished',
+    'what i am working towards', "what i'm working towards", 'what i am working toward',
+    'my background', 'my accomplishments', 'what have i achieved', 'about myself', 'describing me',
+    'tell me about me', 'sum me up', 'who am i')) {
+    return { intent: 'PROFILE_OVERVIEW', limit: 20, minScore: 0.25, categories: PROFILE, diversify: true, completeness: 'broad' };
+  }
+
   if (at(text, 'know about me', 'my profile', 'about me as a person', 'describe me', 'sum up what you know', 'what have you got on me')) {
     return { intent: 'PROFILE_OVERVIEW', limit: 20, minScore: 0.3, categories: PROFILE, diversify: true, completeness: 'broad' };
   }

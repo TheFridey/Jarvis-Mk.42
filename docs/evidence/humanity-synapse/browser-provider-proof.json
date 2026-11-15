@@ -30,43 +30,43 @@
     {
       "case": "conversation cloud grant issued by the Kernel",
       "passed": true,
-      "detail": "{\"conversationId\":\"conv-mwgws0a4\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7DYVM4WA80TTN7WK839AW2G\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
+      "detail": "{\"conversationId\":\"conv-mwhu1bz0\",\"regime\":\"CLOUD_PERMITTED\",\"decision\":{\"allow\":true,\"grantId\":\"01M7FM4D7ZXR3GXVB3FEQ0YKEN\",\"provider\":\"openrouter\",\"model\":\"fixture-model\",\"ceiling\":\"INTERNAL\",\"contextTurns\":[]},\"grant\""
     },
     {
       "case": "career history reaches the provider",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=15504"
+      "detail": "missing=[] leaked=[] bytes=15506"
     },
     {
       "case": "project inventory reaches the provider",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=22424"
+      "detail": "missing=[] leaked=[] bytes=22429"
     },
     {
       "case": "profile overview spans categories",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=23563"
+      "detail": "missing=[] leaked=[] bytes=24211"
     },
     {
       "case": "encouragement is grounded in records",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=23637"
+      "detail": "missing=[] leaked=[] bytes=23633"
     },
     {
       "case": "general knowledge carries no personal context",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=22748"
+      "detail": "missing=[] leaked=[] bytes=22095"
     },
     {
       "case": "greeting carries no autobiography",
       "passed": true,
-      "detail": "missing=[] leaked=[] bytes=22241"
+      "detail": "missing=[] leaked=[] bytes=23217"
     }
   ],
   "providerBodies": 1,
   "passed": 13,
   "total": 13,
-  "generatedAt": "2026-11-14T21:19:42.222Z",
+  "generatedAt": "2026-11-15T12:50:42.545Z",
   "composition": {
     "real": [
       "Kernel bootstrap",
@@ -84,6 +84,6 @@
       "browser → HTTP client",
       "provider → loopback fixture"
     ],
-    "database": "jarvis_convergence_mwgwp5ml"
+    "database": "jarvis_convergence_mwhtz1s1"
   }
 }
