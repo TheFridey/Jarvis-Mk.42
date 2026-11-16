@@ -24,7 +24,9 @@
     "nats": "^2.28.2",
     "ulid": "^2.3.0",
     "ws": "^8.18.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@jarvis/speech": "workspace:*",
+    "kokoro-js": "^1.2.1"
   },
   "devDependencies": {
     "@types/ws": "^8.18.0"

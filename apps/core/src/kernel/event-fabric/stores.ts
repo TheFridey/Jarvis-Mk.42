@@ -43,15 +43,31 @@ export class PgDeadLetterSink implements DeadLetterSink {
     const [r] = await this.sql<{ c: string }[]>`select count(*)::text as c from events.dead_letter`;
     return Number(r?.c ?? '0');
   }
+  /**
+   * Dead letters recorded since a given instant. The lifetime total is history:
+   * one event dead-lettered last week must not report the node as unhealthy
+   * forever, which is what a cumulative count in a health predicate does.
+   */
+  async countSince(iso: string): Promise<number> {
+    const [r] = await this.sql<{ c: string }[]>`select count(*)::text as c from events.dead_letter where created_at >= ${iso}`;
+    return Number(r?.c ?? '0');
+  }
 }
 
 export class MemoryDeadLetterSink implements DeadLetterSink {
   readonly entries: Array<{ consumer: string; event: Event; attempts: number; lastError: string }> = [];
+  private readonly recordedAt: string[] = [];
   async record(entry: { consumer: string; event: Event; attempts: number; lastError: string }): Promise<void> {
     this.entries.push(entry);
+    this.recordedAt.push(new Date().toISOString());
   }
   async count(): Promise<number> {
     return this.entries.length;
+  }
+  async countSince(iso: string): Promise<number> {
+    const since = Date.parse(iso);
+    if (!Number.isFinite(since)) return this.entries.length;
+    return this.recordedAt.filter(at => Date.parse(at) >= since).length;
   }
 }
 

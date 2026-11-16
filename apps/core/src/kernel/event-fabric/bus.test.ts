@@ -102,3 +102,15 @@ describe('InProcessEventBus', () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('dead-letter accounting', () => {
+  it('separates lifetime history from what this process observed', async () => {
+    const dl = new MemoryDeadLetterSink();
+    const before = new Date(Date.now() - 60_000).toISOString();
+    await dl.record({ consumer: 'c', event: { id: 'e1' } as never, attempts: 3, lastError: 'x' });
+    expect(await dl.count()).toBe(1);
+    expect(await dl.countSince(before)).toBe(1);
+    // A window that starts in the future saw nothing: history is not health.
+    expect(await dl.countSince(new Date(Date.now() + 60_000).toISOString())).toBe(0);
+  });
+});

@@ -12,6 +12,7 @@ const alias = {
   '@jarvis/permissions': r('./packages/permissions/src/index.ts'),
   '@jarvis/capability-sdk': r('./packages/capability-sdk/src/index.ts'),
   '@jarvis/scene': r('./packages/scene/src/index.ts'),
+  '@jarvis/speech': r('./packages/speech/src/index.ts'),
   '@jarvis/spatial': r('./packages/spatial/src/index.ts'),
   '@jarvis/adapter-host': r('./apps/adapter-host/src/index.ts'),
 };
@@ -28,6 +29,9 @@ const includes: Record<string, string[]> = {
 
 export default defineConfig({
   resolve: { alias },
+  // Tests may render shipped React components; the app compiles JSX with the
+  // automatic runtime, so the test transform must agree with it.
+  esbuild: { jsx: 'automatic', jsxImportSource: 'react' },
   test: {
     globals: false,
     environment: 'node',

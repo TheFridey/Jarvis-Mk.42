@@ -45,3 +45,7 @@ __pycache__/
 /test-results/
 /playwright-report/
 /blob-report/
+
+# Local operator runtime state
+.logs/
+scripts/*.bak

@@ -1,0 +1,71 @@
+{
+  "round": 1,
+  "date": "2026-11-13",
+  "identityVersion": 2,
+  "model": "deepseek/deepseek-v4.1-flash-1017",
+  "note": "Operator-observed qualitative outcomes. These are the owner's judgements from live conversation, recorded verbatim in effect and not converted into invented numeric scores. The dataset in conversation-cases.json remains unscored.",
+  "results": [
+    {
+      "id": "greet-01",
+      "prompt": "Evening Jarvis.",
+      "verdict": "NATURAL",
+      "observed": "Understood as conversational, replied naturally."
+    },
+    {
+      "id": "music-01",
+      "prompt": "Girls on Film!",
+      "verdict": "NEEDS WORK",
+      "observed": "Recognised the reference but over-explained it. Understanding was delivered as a lecture rather than a reaction."
+    },
+    {
+      "id": "casual-01",
+      "prompt": "Just having a laugh.",
+      "verdict": "NEEDS WORK",
+      "observed": "Did not match the energy; replied with more seriousness than the moment carried."
+    },
+    {
+      "id": "science-01",
+      "prompt": "Chemistry question about rubber gloves and grape smell.",
+      "verdict": "NATURAL",
+      "observed": "Engaged well with the subject; maintained immediate context."
+    },
+    {
+      "id": "biz-02",
+      "prompt": "Ten apps a month and millions.",
+      "verdict": "NEEDS WORK",
+      "observed": "Correctly separated shipping from revenue — the analytical strength — but advice stayed generic and did not use approved personal context."
+    },
+    {
+      "id": "hype-01",
+      "prompt": "Hype session.",
+      "verdict": "NEEDS WORK",
+      "observed": "Lacked personal depth: reflected the last message rather than the wider journey, with no approved long-term context to draw on."
+    },
+    {
+      "id": "biz-01",
+      "prompt": "Business mode.",
+      "verdict": "NATURAL",
+      "observed": "Transition recognised — but re-issued the previous recommendation instead of opening a new work session."
+    }
+  ],
+  "themes": [
+    "Excessively deliberate British sophistication.",
+    "Over-explaining casual cultural references.",
+    "Insufficient emotional register variation.",
+    "Weak matching of the owner's conversational energy.",
+    "Missing long-term personal context.",
+    "Hype sessions lacking personal depth.",
+    "Repetition of previous advice.",
+    "Insufficient distinction between banter and analysis."
+  ],
+  "dimensionsSeparated": {
+    "intentRecognition": "strong — every subject understood",
+    "factualKnowledge": "strong — reference correctly identified",
+    "conversationalNaturalness": "weak in 4 of 7",
+    "tone": "over-formal",
+    "emotionalRegister": "flat across registers",
+    "personalFamiliarity": "absent, because no approved memory existed",
+    "contextualContinuity": "strong within a session",
+    "constructiveChallenge": "present and correct on the business question"
+  }
+}

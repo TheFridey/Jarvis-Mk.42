@@ -1,17 +1,35 @@
 'use client';
 import type { CognitionResponse } from '@jarvis/contracts';
-import type { AirTouchFrame, DesktopAgentCancelCommand, DesktopAgentCancelResponse, DesktopApprovalCommand, DesktopCognitionCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, ExperienceClientMessage, ExperienceServerMessage, ExperienceStreamUpdate, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
+import type { AirTouchFrame, DesktopAgentCancelCommand, DesktopAgentCancelResponse, DesktopApprovalCommand, DesktopCognitionCommand, DesktopConversationGrantCommand, DesktopConversationPrivacy, DesktopConversationRevokeCommand, DesktopKernelSnapshot, DesktopProposalCommand, DesktopProposalResponse, ExperienceClientMessage, ExperienceServerMessage, ExperienceStreamUpdate, SceneIntent, SceneSnapshot, SemanticScene } from '@jarvis/scene';
 import { applySceneIntent, createSnapshot, ExperienceReducer } from '@jarvis/scene';
 
 export type KernelConnection = { status: 'connecting' | 'live' | 'reconnecting' | 'stale' | 'offline' | 'demo'; lastConnectedAt?: string; staleSince?: string; error?: string };
-export interface SceneTransport { joinRtc?(speechMode:'local'|'cloud'):Promise<{url:string;token:string;room:string;sessionId:string}>; leaveRtc?():Promise<unknown>; subscribeNotifications?(listener:(record:{title:string;body:string})=>void):()=>void; readonly kind:'live'|'demo'; subscribe(listener:(scene:SemanticScene)=>void):()=>void; subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void):()=>void; subscribeConnection(listener:(state:KernelConnection)=>void):()=>void; subscribeAirTouch(listener:(frame:AirTouchFrame)=>void):()=>void; submit(intent:SceneIntent,expectedVersion:number):Promise<void>; submitProposal(command:DesktopProposalCommand):Promise<DesktopProposalResponse>; submitCognition(command:DesktopCognitionCommand):Promise<CognitionResponse>; cancelAgentJob(command:DesktopAgentCancelCommand):Promise<DesktopAgentCancelResponse>; decideApproval(command:DesktopApprovalCommand):Promise<void>; reconnect():Promise<void>; close():void; }
+export interface SceneTransport { /** Streamed local synthesis; absent transports cannot speak. */ speakStream?(text:string,init:{signal:AbortSignal;voice?:string}):Promise<Response>; joinRtc?(speechMode:'local'|'cloud'):Promise<{url:string;token:string;room:string;sessionId:string}>; leaveRtc?():Promise<unknown>; subscribeNotifications?(listener:(record:{title:string;body:string})=>void):()=>void; readonly kind:'live'|'demo'; subscribe(listener:(scene:SemanticScene)=>void):()=>void; subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void):()=>void; subscribeConnection(listener:(state:KernelConnection)=>void):()=>void; subscribeAirTouch(listener:(frame:AirTouchFrame)=>void):()=>void; submit(intent:SceneIntent,expectedVersion:number):Promise<void>; submitProposal(command:DesktopProposalCommand):Promise<DesktopProposalResponse>; submitCognition(command:DesktopCognitionCommand):Promise<CognitionResponse>; cancelAgentJob(command:DesktopAgentCancelCommand):Promise<DesktopAgentCancelResponse>; decideApproval(command:DesktopApprovalCommand):Promise<void>; reconnect():Promise<void>; close():void; }
 export interface LayoutCache { read(sceneId:string):SceneSnapshot|undefined; write(sceneId:string,snapshot:SceneSnapshot):void; }
 export class BrowserLayoutCache implements LayoutCache { read(sceneId:string){try{const raw=localStorage.getItem(`jarvis:scene:${sceneId}`);return raw?JSON.parse(raw) as SceneSnapshot:undefined}catch{return undefined}} write(sceneId:string,snapshot:SceneSnapshot){localStorage.setItem(`jarvis:scene:${sceneId}`,JSON.stringify(snapshot))} }
 
-export class LocalSceneTransport implements SceneTransport { readonly kind='demo' as const;private scene:SemanticScene;private restored=false;private readonly listeners=new Set<(scene:SemanticScene)=>void>();constructor(initial:SemanticScene,private readonly cache?:LayoutCache){this.scene=initial}subscribe(listener:(scene:SemanticScene)=>void){if(!this.restored){this.restored=true;this.restoreCached()}this.listeners.add(listener);listener(this.scene);return()=>this.listeners.delete(listener)}subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void){listener(undefined);return()=>undefined}subscribeConnection(listener:(state:KernelConnection)=>void){listener({status:'demo'});return()=>undefined}subscribeAirTouch(){return()=>undefined}restoreCached(){const saved=this.cache?.read(this.scene.id);if(!saved)return;this.scene=applySceneIntent(this.scene,{type:'restore',snapshot:saved,availableResourceRefs:this.scene.objects.flatMap((object)=>object.resourceRefs),monitors:this.scene.monitors,input:'keyboard'});this.emit()}async submit(intent:SceneIntent,expectedVersion:number){if(expectedVersion!==this.scene.version)throw new Error('SCENE_VERSION_CONFLICT');this.scene=applySceneIntent(this.scene,intent);this.cache?.write(this.scene.id,createSnapshot(this.scene,'latest'));this.emit()}async submitProposal():Promise<DesktopProposalResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async submitCognition():Promise<CognitionResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async cancelAgentJob():Promise<DesktopAgentCancelResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async decideApproval():Promise<void>{throw new Error('DEMO_MODE_NO_KERNEL')}async reconnect(){this.emit()}close(){this.listeners.clear()}private emit(){this.listeners.forEach((listener)=>listener(this.scene))}}
+export class LocalSceneTransport implements SceneTransport { readonly kind='demo' as const;private scene:SemanticScene;private restored=false;private readonly listeners=new Set<(scene:SemanticScene)=>void>();constructor(initial:SemanticScene,private readonly cache?:LayoutCache){this.scene=initial}subscribe(listener:(scene:SemanticScene)=>void){if(!this.restored){this.restored=true;this.restoreCached()}this.listeners.add(listener);listener(this.scene);return()=>this.listeners.delete(listener)}subscribeKernel(listener:(snapshot:DesktopKernelSnapshot|undefined)=>void){listener(undefined);return()=>undefined}subscribeConnection(listener:(state:KernelConnection)=>void){listener({status:'demo'});return()=>undefined}subscribeAirTouch(){return()=>undefined}restoreCached(){const saved=this.cache?.read(this.scene.id);if(!saved)return;this.scene=applySceneIntent(this.scene,{type:'restore',snapshot:saved,availableResourceRefs:this.scene.objects.flatMap((object)=>object.resourceRefs),monitors:this.scene.monitors,input:'keyboard'});this.emit()}async submit(intent:SceneIntent,expectedVersion:number){if(expectedVersion!==this.scene.version)throw new Error('SCENE_VERSION_CONFLICT');this.scene=applySceneIntent(this.scene,intent);this.cache?.write(this.scene.id,createSnapshot(this.scene,'latest'));this.emit()}async submitProposal():Promise<DesktopProposalResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async submitCognition():Promise<CognitionResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async grantConversation():Promise<never>{throw new Error('DEMO_MODE_NO_KERNEL')}async revokeConversation():Promise<never>{throw new Error('DEMO_MODE_NO_KERNEL')}async conversationPrivacy():Promise<never>{throw new Error('DEMO_MODE_NO_KERNEL')}async cancelAgentJob():Promise<DesktopAgentCancelResponse>{throw new Error('DEMO_MODE_NO_KERNEL')}async decideApproval():Promise<void>{throw new Error('DEMO_MODE_NO_KERNEL')}async reconnect(){this.emit()}close(){this.listeners.clear()}private emit(){this.listeners.forEach((listener)=>listener(this.scene))}}
 
 interface SocketLike { readonly readyState:number; onopen:null|(()=>void); onmessage:null|((event:{data:string})=>void); onclose:null|((event:{code:number;reason:string})=>void); onerror:null|(()=>void); send(data:string):void; close(code?:number,reason?:string):void; }
 type SocketFactory=(url:string)=>SocketLike;
+/** Actionable wording per authoritative gateway error code. No keys, no payloads. */
+export function inferenceFailureMessage(code:string|undefined):string{
+  switch(code){
+    case 'NO_ROUTE':return 'No model can serve this request: a private conversation needs a local model, and none is registered. Press ALLOW CLOUD to permit the configured provider, or configure a local model.';
+    case 'AUTHENTICATION':return 'The configured provider rejected the credentials. Check the runtime key on the gateway.';
+    case 'RATE_LIMITED':return 'The configured provider is rate limiting requests. Try again shortly.';
+    case 'TIMEOUT':return 'The configured provider did not answer in time. Try again.';
+    case 'UNAVAILABLE':return 'The configured provider is not answering. Kernel state and permission checks remain available.';
+    case 'BUDGET_EXCEEDED':return 'This request would exceed the configured spending limit.';
+    case 'CANCELLED':return 'The request was cancelled before it finished. Nothing was retried.';
+    case 'INVALID_RESPONSE':return 'The response reached its generation limit or arrived malformed before it could finish. I have not automatically sent your information again.';
+    case 'PROVIDER_ERROR':return 'The configured provider returned an error for this request.';
+    case 'INVALID_RESPONSE':return 'The configured provider returned something unusable for this request.';
+    case 'CANCELLED':return 'The request was cancelled.';
+    default:return 'Model inference did not complete. Kernel state and permission checks remain available.';
+  }
+}
+
 export class KernelSceneTransport implements SceneTransport {
   readonly kind='live' as const;private scene?:SemanticScene;private snapshot?:DesktopKernelSnapshot;private status:KernelConnection={status:'connecting'};private stopped=false;private started=false;private failures=0;private reconnectTimer?:ReturnType<typeof setTimeout>;private heartbeatTimer?:ReturnType<typeof setTimeout>;private socket?:SocketLike;private auth?:{accessToken:string;sessionId:string};private readonly reducer=new ExperienceReducer();
   private readonly sceneListeners=new Set<(scene:SemanticScene)=>void>();private readonly kernelListeners=new Set<(snapshot:DesktopKernelSnapshot|undefined)=>void>();private readonly connectionListeners=new Set<(state:KernelConnection)=>void>();
@@ -26,6 +44,31 @@ export class KernelSceneTransport implements SceneTransport {
   async leaveRtc(){return this.command('/rtc/leave',{})}
   async submitProposal(command:DesktopProposalCommand){return this.command<DesktopProposalResponse>('/desktop/proposals',command)}
   async submitCognition(command:DesktopCognitionCommand){return this.command<CognitionResponse>('/desktop/cognition',command)}
+  async grantConversation(command:DesktopConversationGrantCommand){return this.command<DesktopConversationPrivacy>('/desktop/conversations/grant',command)}
+  async revokeConversation(command:DesktopConversationRevokeCommand){return this.command<DesktopConversationPrivacy>('/desktop/conversations/revoke',command)}
+  /** Local speech: the browser posts captured audio, the Kernel transcribes it. */
+  async transcribeUtterance(wav: Blob): Promise<{ok:boolean;transcript?:string;problem?:string;detail?:string}>{
+    if(this.status.status!=='live')throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
+    const response=await this.request('/voice/utterance',{method:'POST',body:wav,headers:{'content-type':'audio/wav'}});
+    const body=await response.json().catch(()=>({ok:false,problem:'engine_unavailable'})) as {ok:boolean;transcript?:string;problem?:string;detail?:string};
+    if(response.status===401)throw new Error('Voice admission was refused. Sign in again.');
+    return body;
+  }
+  /** Local synthesis: text in, WAV out, produced on this machine. */
+  async synthesiseSpeech(text:string):Promise<Blob>{
+    if(this.status.status!=='live')throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
+    const response=await this.request('/voice/speak',{method:'POST',body:JSON.stringify({text}),headers:{'content-type':'application/json'}});
+    if(!response.ok)throw new Error('Local speech synthesis is unavailable.');
+    return await response.blob();
+  }
+
+  /** Best-effort: publish real playback amplitude so the orb reacts to actual audio. */
+  async reportPlayback(amplitude:number,tts:'idle'|'synthesizing'|'playing'|'cancelled',nodeId:string,principalId:string):Promise<void>{
+    try{
+      await this.request('/voice/events',{method:'POST',body:JSON.stringify({type:'audio.state',principalId,nodeId,state:{observedAt:new Date().toISOString(),wakeConfidence:null,vad:'silence',amplitude:0,tts,playbackAmplitude:Math.max(0,Math.min(1,amplitude)),deviceState:'ready'}}),headers:{'content-type':'application/json'}});
+    }catch{/* the orb is a nicety; playback must not depend on it */}
+  }
+  async conversationPrivacy(conversationId:string){return this.command<DesktopConversationPrivacy>('/desktop/conversations/privacy',{conversationId})}
   private readonly notificationListeners=new Set<(record:{title:string;body:string})=>void>();
   subscribeNotifications(listener:(record:{title:string;body:string})=>void){this.notificationListeners.add(listener);return()=>{this.notificationListeners.delete(listener);};}
   async presentOnWall(objectId:string,expectedSceneVersion:number){const response=await this.request('/desktop/displays');if(!response.ok)throw new Error('Display lookup rejected');const displays=await response.json() as Array<{id:string}>;if(displays.length!==1)throw new Error(displays.length?'Choose a display from mobile':'No connected wall display');return this.command('/desktop/wall',{objectId,expectedSceneVersion,displayNodeId:displays[0]!.id})}
@@ -72,7 +115,30 @@ export class KernelSceneTransport implements SceneTransport {
   private armHeartbeat(){if(this.heartbeatTimer)clearTimeout(this.heartbeatTimer);this.heartbeatTimer=setTimeout(()=>{this.markStale('experience heartbeat timeout');this.socket?.close(4000,'heartbeat timeout')},30_000)}
   private resync(){this.replaceSocket('snapshot resync');void this.bootstrapAndConnect(true)}
   private replaceSocket(reason:string){const socket=this.socket;this.socket=undefined;socket?.close(1000,reason)}
-  private async command<T=unknown>(path:string,body:unknown):Promise<T>{if(this.status.status!=='live'||!this.snapshot)throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');const response=await this.request(path,{method:'POST',body:JSON.stringify(body)});if(response.status===409){await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')}if(path==='/desktop/cognition'&&response.status===503)throw new Error('Model inference unavailable. Local state, permission checks and configured direct reads remain available while storage is healthy.');if(!response.ok)throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);return response.json() as Promise<T>}
+  private async command<T=unknown>(path:string,body:unknown):Promise<T>{
+    if(this.status.status!=='live'||!this.snapshot)throw new Error('KERNEL_OFFLINE_COMMAND_REJECTED');
+    const response=await this.request(path,{method:'POST',body:JSON.stringify(body)});
+    if(response.status===409){
+      // CANCELLED is the Kernel's model cancellation, not a stale state version: refreshing the
+      // snapshot and resubmitting would transmit a protected request a second time.
+      const cancelled=await response.clone().json().catch(()=>undefined) as {code?:string}|undefined;
+      if(cancelled?.code==='CANCELLED')throw new Error(inferenceFailureMessage('CANCELLED'));
+      await this.bootstrap();throw new Error('STATE_VERSION_CONFLICT')
+    }
+    if(path==='/desktop/cognition'&&(response.status===503||response.status===422)){
+      // The Kernel already classified the failure; one generic sentence discarded that.
+      const detail=await response.clone().json().catch(()=>undefined) as {code?:string}|undefined;
+      throw new Error(inferenceFailureMessage(detail?.code));
+    }
+    if(!response.ok)throw new Error(`KERNEL_COMMAND_REJECTED_${response.status}`);
+    return response.json() as Promise<T>
+  }
+
+  /** Streamed local speech: the Kernel synthesises sentence by sentence and this is the pipe. */
+  speakStream(text:string,init:{signal:AbortSignal;voice?:string}):Promise<Response>{
+    return this.request('/voice/speak/stream',{method:'POST',signal:init.signal,body:JSON.stringify({text,...(init.voice?{voice:init.voice}:{})})});
+  }
+
   private async request(path:string,init:RequestInit={}){
     for(let attempt=0;attempt<2;attempt++){
       const auth=await this.authenticate();

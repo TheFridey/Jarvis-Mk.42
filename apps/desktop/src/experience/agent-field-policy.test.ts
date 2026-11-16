@@ -24,3 +24,19 @@ describe('agent field policy', () => {
     expect(forge.groups).toContain('ENGINEERING');
   });
 });
+
+it('counts outstanding work separately from history, so a finished job never reads as waiting', () => {
+  const job = (jobId: string, state: string, extra: Record<string, unknown> = {}) => ({
+    jobId, agentId: 'agents.oracle', correlationId: 'c', taskClass: 'reason', state, attempt: 1,
+    activityStage: state, activityConfirmed: state === 'RUNNING', capabilityActivity: [],
+    deadline: new Date().toISOString(), budget: { wallMs: 1000, contextUnits: 10, costLimit: 1 }, ...extra,
+  });
+  const { nodes, activeCount } = agentField([
+    job('old-1', 'COMPLETE'), job('old-2', 'FAILED'), job('now', 'RUNNING'),
+  ] as never, true);
+  const oracle = nodes.find(node => node.agentId === 'agents.oracle')!;
+  expect(oracle.jobCount).toBe(3);        // history is still visible
+  expect(oracle.activeJobCount).toBe(1);  // the readout counts work, not archaeology
+  expect(activeCount).toBe(1);
+  expect(oracle.state).toBe('WORKING');
+});

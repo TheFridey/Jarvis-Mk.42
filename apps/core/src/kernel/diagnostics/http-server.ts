@@ -15,7 +15,7 @@ import { createServer, type Server } from 'node:http';
 import type { DiagnosticsService } from './diagnostics-service.ts';
 import type { StateManager } from '../state/state-manager.ts';
 import type { HealthManager } from '../health/health-manager.ts';
-import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand } from '@jarvis/scene';
+import type { DesktopApprovalCommand, DesktopProposalCommand, DesktopCognitionCommand, DesktopConversationGrantCommand, DesktopConversationRevokeCommand } from '@jarvis/scene';
 import type { DesktopGateway } from '../desktop/desktop-gateway.ts';
 import type { VoiceGateway } from '../voice/voice-gateway.ts';
 import { AgentJobAccessError, ModelGatewayError, type VisionEventCommand, type VoiceEventCommand } from '@jarvis/contracts';
@@ -33,6 +33,16 @@ import type { DomainService } from '../domains/domain-service.ts';
 import type { ObjectiveEngine } from '../objective/objective-engine.ts';
 import { DomainAccessError, DomainKinds } from '@jarvis/contracts';
 
+/** Strip credential-shaped fragments from a failure message. Length alone is not redaction. */
+export function redactFailure(message: string): string {
+  return message
+    .replace(/(sk-[A-Za-z0-9_-]{8,})/g, '[redacted-key]')
+    .replace(/(Bearer\s+)[^\s,;"]+/gi, '$1[redacted]')
+    .replace(/((?:api[_-]?key|password|token|secret)\s*[=:]\s*)[^\s,;"]+/gi, '$1[redacted]')
+    .slice(0, 300);
+}
+
+
 export interface DiagnosticsHttpDeps {
   domains?:DomainService;
   objectives?:ObjectiveEngine;
@@ -45,6 +55,14 @@ export interface DiagnosticsHttpDeps {
   health: HealthManager;
   desktop: DesktopGateway;
   voice: VoiceGateway;
+  speech?: {
+    utterance: { transcribe(input: { body: Buffer; contentType: string }): Promise<unknown> };
+    synthesise(text: string): Promise<Uint8Array>;
+    /** Chunked local synthesis: NDJSON of {index,text,seconds,wav:base64} so playback can start early. */
+    stream?: (text: string, options: { voice?: string; signal: AbortSignal }) => AsyncIterable<{ index: number; text: string; seconds: number; wav: Uint8Array }>;
+    cancel?: () => void;
+    voices?: readonly string[];
+  };
   vision: VisionGateway;
   identity:IdentityManager;sessions:SessionManager;credentials:SessionCredentialManager;nodeStore:NodeStore;ids:IdGen;nodeId:string;principalId:string;
   experience:ExperienceProjection;
@@ -192,6 +210,9 @@ export class DiagnosticsHttp {
           }
         if (path === '/desktop/proposals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.submit(await this.body<DesktopProposalCommand>(req)));
         if (path === '/desktop/cognition' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.cognize(await this.body<DesktopCognitionCommand>(req),auth.nodeId));
+        if (path === '/desktop/conversations/grant' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.grantConversation(await this.body<DesktopConversationGrantCommand>(req), auth.nodeId));
+        if (path === '/desktop/conversations/revoke' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.revokeConversation(await this.body<DesktopConversationRevokeCommand>(req), auth.nodeId));
+        if (path === '/desktop/conversations/privacy' && method === 'POST') { const parsed = z.object({ conversationId: z.string().min(1).max(200) }).strict().safeParse(await this.body<unknown>(req)); if (!parsed.success) return send(400, { error: 'invalid conversation' }); const privacy = await this.deps.desktop.conversationPrivacy(parsed.data.conversationId); return privacy ? send(200, privacy) : send(403, { error: 'no active principal' }); }
         if (path === '/desktop/agents/cancel' && method === 'POST') {
           const parsed = z.object({ commandId:z.string().min(1).max(200), expectedStateVersion:z.number().int().nonnegative(), jobId:z.string().min(1).max(200) }).strict().safeParse(await this.body<unknown>(req));
           if (!parsed.success) return send(400, { error:'invalid agent cancellation command' });
@@ -199,6 +220,50 @@ export class DiagnosticsHttp {
         }
         if (path === '/desktop/approvals' && method === 'POST') return this.sendCommand(send, await this.deps.desktop.decide(await this.body<DesktopApprovalCommand>(req), { authTrustLevel: auth.trust === 'verified' ? 'verified' : 'trusted' }));
         return send(405, { error: 'method not allowed' });
+      }
+      // Local speech. The browser captures, the Kernel transcribes with the installed engine,
+      // and the transcript returns to the operator's input. Nothing leaves the machine.
+      if(path==='/voice/utterance'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['desktop.write'],'strong');if(!auth)return send(401,{error:'unauthorised'});
+        if(!this.deps.speech)return send(503,{code:'ASR_UNAVAILABLE',error:'local speech recognition is not configured'});
+        let audio:Buffer;
+        try{audio=await this.rawBody(req);}catch{return send(413,{code:'AUDIO_TOO_LARGE',error:'utterance exceeds the maximum size'});}
+        const result=await this.deps.speech.utterance.transcribe({body:audio,contentType:String(req.headers['content-type']??'')});
+        const shaped=result as {ok:boolean;problem?:string};
+        return send(shaped.ok?200:422,{...shaped,principalId:auth.principalId,nodeId:auth.nodeId});
+      }
+      if(path==='/voice/speak/stream'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['desktop.write'],'strong');if(!auth)return send(401,{error:'unauthorised'});
+        if(!this.deps.speech?.stream)return send(503,{code:'TTS_UNAVAILABLE',error:'local speech synthesis is not configured'});
+        const parsed=z.object({text:z.string().min(1).max(4000),voice:z.string().max(40).optional()}).strict().safeParse(await this.body<unknown>(req));
+        if(!parsed.success)return send(400,{code:'INVALID_TEXT',error:'invalid speech request'});
+        const abort=new AbortController();
+        req.once('aborted',()=>{abort.abort();this.deps.speech?.cancel?.();});
+        res.once('close',()=>{if(!res.writableEnded){abort.abort();this.deps.speech?.cancel?.();}});
+        res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-store','x-jarvis-voice':parsed.data.voice??''});
+        try{
+          for await(const chunk of this.deps.speech.stream(parsed.data.text,{...(parsed.data.voice?{voice:parsed.data.voice}:{}),signal:abort.signal})){
+            if(abort.signal.aborted)break;
+            res.write(JSON.stringify({index:chunk.index,text:chunk.text,seconds:chunk.seconds,wav:Buffer.from(chunk.wav).toString('base64')})+String.fromCharCode(10));
+          }
+        }catch{ if(!res.writableEnded)res.write(JSON.stringify({error:'TTS_FAILED'})+String.fromCharCode(10)); }
+        if(!res.writableEnded)res.end();
+        return;
+      }
+      if(path==='/voice/speak'){
+        if(method!=='POST')return send(405,{error:'method not allowed'});
+        const auth=await this.authorise(req,['desktop.write'],'strong');if(!auth)return send(401,{error:'unauthorised'});
+        if(!this.deps.speech)return send(503,{code:'TTS_UNAVAILABLE',error:'local speech synthesis is not configured'});
+        const parsed=z.object({text:z.string().min(1).max(2000)}).strict().safeParse(await this.body<unknown>(req));
+        if(!parsed.success)return send(400,{code:'INVALID_TEXT',error:'invalid speech request'});
+        try{
+          const wav=await this.deps.speech.synthesise(parsed.data.text);
+          res.writeHead(200,{'content-type':'audio/wav','content-length':String(wav.byteLength),'cache-control':'no-store'});
+          res.end(Buffer.from(wav));
+          return;
+        }catch{return send(503,{code:'TTS_FAILED',error:'local speech synthesis failed'});}
       }
       if(path==='/voice/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['voice.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VoiceEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});const result=await this.deps.voice.handle(command);this.deps.experience.invalidate(['telemetry','system','scene']);return send(200,result)}
       if(path==='/vision/events'){if(method!=='POST')return send(405,{error:'method not allowed'});const auth=await this.authorise(req,['vision.write']);if(!auth)return send(401,{error:'unauthorised'});const command=await this.body<VisionEventCommand>(req);if(auth.principalId!==command.principalId||auth.nodeId!==command.nodeId)return send(403,{error:'credential binding mismatch'});return send(200,await this.deps.vision.handle(command))}
@@ -211,13 +276,33 @@ export class DiagnosticsHttp {
       if (err instanceof AgentJobAccessError) return send(403, { error:err.code });
       if (err instanceof ModelGatewayError) {
         const unavailable=['NO_ROUTE','UNAVAILABLE','TIMEOUT','RATE_LIMITED','AUTHENTICATION','PROVIDER_ERROR'].includes(err.code);
-        return send(unavailable?503:err.code==='CANCELLED'?409:422,{
+        const status = unavailable ? 503 : err.code === 'CANCELLED' ? 409 : 422;
+        // A classified inference failure used to leave no trace at all: the branch returned before the
+        // generic logger. Allowlisted fields only - never a provider body, a prompt, a statement or an
+        // arbitrary exception message, because those can carry personal content.
+        process.stderr.write(JSON.stringify({
+          component: 'diagnostics', event: 'inference.failed', severity: 'ERROR', node: this.deps.nodeId,
+          status, code: err.code, subtype: inferenceFailureSubtype(err), provider: (err as { provider?: string }).provider ?? null,
+          retryable: (err as { retryable?: boolean }).retryable ?? null,
+          stage: 'model-inference',
+        }) + String.fromCharCode(10));
+        return send(status,{
           code:err.code,
           error:unavailable?'Model inference is unavailable; no permitted provider completed this request. Kernel state and permission checks remain available while storage is healthy.':`Model request could not complete (${err.code}).`,
         });
       }
+      // A silent 500 is undebuggable: log a bounded classification of the failure (never a body,
+      // never a statement) so the failing stage can be identified from the operator's own logs.
+      const failure = err as Error & { code?: string };
+      process.stderr.write(JSON.stringify({
+        component: 'diagnostics', event: 'request.failed', severity: 'ERROR', node: this.deps.nodeId,
+        errorName: failure?.name ?? 'Error',
+        errorCode: failure?.code ?? null,
+        errorMessage: redactFailure(String(failure?.message ?? err)),
+        stack: String(failure?.stack ?? '').split(String.fromCharCode(10)).slice(1, 4).join(' | ').slice(0, 500),
+      }) + String.fromCharCode(10));
       void structuredLog({component:'diagnostics',node:this.deps.nodeId,event:'request.failed',severity:'ERROR'});
-      return send(500, { error: 'internal_error' });
+      return send(500, { error: 'internal_error', ...(failure?.code ? { code: failure.code } : {}) });
     }
   }
 
@@ -225,6 +310,8 @@ export class DiagnosticsHttp {
   private allowedOrigin(origin: string) { return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === 'tauri://localhost' || origin === 'http://tauri.localhost'; }
   private binding(req:import('node:http').IncomingMessage){return{nodeId:String(req.headers['x-jarvis-node-id']??''),sessionId:String(req.headers['x-jarvis-session-id']??'')||undefined}}
   private authorise(req:import('node:http').IncomingMessage,scopes:string[],minimumStrength?:'strong'){return this.deps.credentials.authenticate(req.headers.authorization,{...this.binding(req),scopes,...(minimumStrength?{minimumStrength,recentWithinMs:5*60_000}:{})})}
+  private async rawBody(req: import('node:http').IncomingMessage, limit = 1_200_000): Promise<Buffer> { const chunks: Buffer[] = []; let size = 0; for await (const chunk of req) { const buffer = Buffer.from(chunk); size += buffer.length; if (size > limit) throw Object.assign(new Error('request body too large'), { code: 'TOO_LARGE' }); chunks.push(buffer); } return Buffer.concat(chunks); }
+
   private async body<T>(req: import('node:http').IncomingMessage): Promise<T> { const chunks: Buffer[] = []; let size = 0; for await (const chunk of req) { const buffer = Buffer.from(chunk); size += buffer.length; if (size > 1_000_000) throw new Error('request body too large'); chunks.push(buffer); } return JSON.parse(Buffer.concat(chunks).toString('utf8')) as T; }
 
   async close(): Promise<void> {
@@ -233,4 +320,21 @@ export class DiagnosticsHttp {
     await new Promise<void>((resolve) => this.server!.close(() => resolve()));
     this.server = undefined;
   }
+}
+
+/**
+ * Which failure this actually was, by allowlisted pattern rather than by echoing the message.
+ *
+ * `INVALID_RESPONSE` alone could not distinguish a truncated answer from a malformed one from a
+ * refusal to retransmit, so a live 422 was diagnosable but not explainable. The patterns are evaluated
+ * against the message and only the label is emitted: no provider text, no prompt, no statement.
+ */
+function inferenceFailureSubtype(error: unknown): string {
+  const message = String((error as { message?: unknown })?.message ?? '');
+  if (/truncat/i.test(message)) return 'output_truncated';
+  if (/repair retransmission was refused/i.test(message)) return 'repair_refused_protected';
+  if (/structured model output/i.test(message)) return 'proposal_schema';
+  if (/disconnected without result|stream/i.test(message)) return 'stream_incomplete';
+  if (/budget/i.test(message)) return 'budget_exceeded';
+  return 'unclassified';
 }

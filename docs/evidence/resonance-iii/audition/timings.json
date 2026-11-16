@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-11-15T13:41:43.825Z",
+  "model": "onnx-community/Kokoro-82M-v1.0-ONNX",
+  "dtype": "q8",
+  "device": "cpu",
+  "rows": [
+    {
+      "voice": "bm_george",
+      "script": "greeting",
+      "ms": 11809,
+      "seconds": 3.8,
+      "bytes": 364844
+    },
+    {
+      "voice": "bm_george",
+      "script": "summary",
+      "ms": 14541,
+      "seconds": 5.38,
+      "bytes": 516044
+    },
+    {
+      "voice": "bm_george",
+      "script": "milestone",
+      "ms": 18456,
+      "seconds": 7.8,
+      "bytes": 748844
+    },
+    {
+      "voice": "bm_george",
+      "script": "advice",
+      "ms": 18119,
+      "seconds": 7.95,
+      "bytes": 763244
+    },
+    {
+      "voice": "bm_george",
+      "script": "technical",
+      "ms": 13140,
+      "seconds": 6.83,
+      "bytes": 655244
+    },
+    {
+      "voice": "bm_lewis",
+      "script": "greeting",
+      "ms": 8825,
+      "seconds": 3.9,
+      "bytes": 374444
+    },
+    {
+      "voice": "bm_lewis",
+      "script": "summary",
+      "ms": 10521,
+      "seconds": 5.55,
+      "bytes": 532844
+    },
+    {
+      "voice": "bm_lewis",
+      "script": "milestone",
+      "ms": 16221,
+      "seconds": 7.8,
+      "bytes": 748844
+    },
+    {
+      "voice": "bm_lewis",
+      "script": "advice",
+      "ms": 14671,
+      "seconds": 7.9,
+      "bytes": 758444
+    },
+    {
+      "voice": "bm_lewis",
+      "script": "technical",
+      "ms": 14057,
+      "seconds": 6.78,
+      "bytes": 650444
+    },
+    {
+      "voice": "bm_fable",
+      "script": "greeting",
+      "ms": 7446,
+      "seconds": 3.63,
+      "bytes": 348044
+    },
+    {
+      "voice": "bm_fable",
+      "script": "summary",
+      "ms": 12283,
+      "seconds": 5.1,
+      "bytes": 489644
+    },
+    {
+      "voice": "bm_fable",
+      "script": "milestone",
+      "ms": 14060,
+      "seconds": 7.05,
+      "bytes": 676844
+    },
+    {
+      "voice": "bm_fable",
+      "script": "advice",
+      "ms": 13164,
+      "seconds": 7.2,
+      "bytes": 691244
+    },
+    {
+      "voice": "bm_fable",
+      "script": "technical",
+      "ms": 11440,
+      "seconds": 6.28,
+      "bytes": 602444
+    }
+  ]
+}

@@ -30,6 +30,15 @@ export class ModelGateway {
       } catch (error) {
         selected.breaker.failure(); failed.push(selected.model.id);
         const last = combined.aborted ? new ModelGatewayError(signal?.aborted ? 'CANCELLED' : 'TIMEOUT', 'model request cancelled or timed out', true, selected.adapter.provider) : error;
+        // A memory-bearing request must not be retransmitted. Falling back to another model or
+        // provider would disclose the same personal context a second time without fresh consent
+        // from the Kernel, which is the only authority for that decision.
+        if (request.disclosure === 'personal-memory') {
+          routing.phase = 'FAILED'; routing.errorClass = last instanceof ModelGatewayError ? last.code : 'PROVIDER_ERROR'; routing.completedAt = new Date().toISOString();
+          routing.candidates = routing.candidates.map(item => item.modelId === selected.model.id ? { ...item, state: 'FAILED', reason: 'provider attempt failed; retry refused (personal memory)' } : item);
+          await onRouting?.({ ...routing });
+          throw new ModelGatewayError(routing.errorClass, 'model provider request failed; retry refused for a personal-memory request', false);
+        }
         if (combined.aborted || (last instanceof ModelGatewayError && !last.retryable) || failed.length === candidates.length) {
           routing.phase = 'FAILED'; routing.errorClass = last instanceof ModelGatewayError ? last.code : 'PROVIDER_ERROR'; routing.completedAt = new Date().toISOString();
           routing.candidates = routing.candidates.map(item => failed.includes(item.modelId) ? { ...item, state: 'FAILED', reason: 'provider attempt failed' } : item);

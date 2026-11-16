@@ -1,0 +1,52 @@
+{
+  "tool": "qualify-presence.mjs",
+  "measuredAt": "2026-11-13T09:28:30.839Z",
+  "target": "http://127.0.0.1:4390/index.html?scenario=executing",
+  "scenario": "executing",
+  "headless": true,
+  "browser": "Chrome/157.0.8103.51",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "hardwareAccelerated": true,
+  "webgl": {
+    "vendor": "Google Inc. (Qualcomm)",
+    "renderer": "ANGLE (Qualcomm, Qualcomm(R) Adreno(TM) X1-45 GPU (0x37314430) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "unmasked": true
+  },
+  "idle": {
+    "samples": 238,
+    "meanMs": 18.56,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 17,
+    "maxMs": 383.2,
+    "fps": 53.9,
+    "over33ms": 2
+  },
+  "heap": {
+    "jsHeapUsedMiB": 13.7,
+    "jsHeapTotalMiB": 19.8
+  },
+  "toCommandMs": 87.1,
+  "toPresenceMs": 212.8,
+  "toCommandWarmMs": 32.8,
+  "toPresenceWarmMs": 33.3,
+  "commandVisible": true,
+  "presenceVisible": true,
+  "keystrokeMs": 16.5,
+  "devicePixelRatio": 1,
+  "viewport": {
+    "width": 1838,
+    "height": 804
+  },
+  "presenceState": "EXECUTING",
+  "renderer": "webgl",
+  "reducedMotionIdle": {
+    "frames": 58,
+    "meanMs": 16.67
+  },
+  "caveats": [
+    "Hardware acceleration is inferred from the unmasked WebGL renderer string; it is not a driver-level audit.",
+    "Disconnect/reconnect was not forced: it requires a live Kernel to interrupt."
+  ],
+  "screenshot": "D:\\Projects\\Jarvis-Sentience\\docs\\evidence\\sentience-awakening\\gpu-executing-headless.png"
+}

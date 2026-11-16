@@ -4,6 +4,7 @@ import { HttpVoiceKernel } from './kernel-client.ts'; import { VoiceEngine } fro
 import { WakePhraseActivation } from './activation.ts';
 import { LocalVoiceSidecar } from './local-sidecar.ts';
 import { VoiceQualification } from './qualification.ts';
+import { describeAsr, resolveAsrConfig } from '@jarvis/speech';
 const kernel=new HttpVoiceKernel({url:process.env.JARVIS_CORE_URL??'http://127.0.0.1:7420',bootstrapCredential:process.env.JARVIS_BOOTSTRAP_CREDENTIAL??'dev-bootstrap-secret',principalId:process.env.JARVIS_VOICE_PRINCIPAL??'principal-operator',nodeId:process.env.JARVIS_NODE_ID??'local-server'});
 const node=process.env.JARVIS_NODE_ID??'local-server';
 startTelemetry({serviceName:'jarvis-voice',serviceVersion:'0.43.0',nodeId:node,otlpEndpoint:process.env.JARVIS_OTLP_ENDPOINT,disabled:process.env.JARVIS_TELEMETRY_DISABLED==='true'});
@@ -15,8 +16,9 @@ let engine:VoiceEngine;
 const env:Record<string,string>={};for(const k of ['JARVIS_ASR_MODEL_PATH','JARVIS_TTS_VOICE','PICOVOICE_ACCESS_KEY','HF_HOME'])if(process.env[k])env[k]=process.env[k]!;
 const local=new LocalVoiceSidecar({python:process.env.JARVIS_VOICE_PYTHON,env,onPlayback:a=>engine?.playbackAmplitude(a)});
 const makeEngine=(kind:string)=>new VoiceEngine({input:kind==='local'?local:new WindowsSpeechInput(),output:kind==='local'?local.output:new WindowsSpeechOutput(()=>engine.playbackStarted()),kernel,wakePhrase,activation:new WakePhraseActivation(wakePhrase),onState:s=>log('state.'+s),...(kind==='local'?{onEngaged:(value:boolean)=>local.engaged(value)}:{}),onMeasurement:qualification?.record});
+const asr=resolveAsrConfig();
 engine=makeEngine(requested);
-try{await engine.start();}catch(error){if(requested!=='local'||qualification)throw error;await local.stop();log('local.unavailable.fallback.windows');engine=makeEngine('windows');await engine.start();}log('runtime.ready');
+try{await engine.start();}catch(error){if(requested!=='local'||qualification)throw error;await local.stop();log('local.unavailable.fallback.windows');engine=makeEngine('windows');await engine.start();}log('runtime.ready');log(describeAsr(asr));
 if(qualification)console.log('Qualification: say Jarvis, ask a question, interrupt, then follow up. /mark <wake|partial|reply|barge-in|same-context|self-trigger|device-recovery|input-switch|output-switch> PASS|FAIL. /baseline start|stop /false-wake /self-trigger /report. No raw audio is saved.');
 let publishing=false;const timer=setInterval(()=>{if(publishing)return;publishing=true;void kernel.send({type:'runtime.health',...engine.diagnostics()}).catch(()=>log('telemetry.unavailable')).finally(()=>{publishing=false;});},10000);timer.unref();
 const cli=createInterface({input:process.stdin,output:process.stdout});

@@ -43,7 +43,9 @@
     "vision:qualify": "pnpm --filter @jarvis/vision dev",
     "vision:dev": "pnpm --filter @jarvis/vision dev",
     "hardware:validate": "node scripts/hardware-validate.mjs",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test",
+    "rtc:config": "tsx scripts/rtc-config.ts",
+    "memory": "tsx apps/core/src/kernel/experience/memory-cli.ts"
   },
   "devDependencies": {
     "@opentelemetry/sdk-trace-base": "^2.11.0",

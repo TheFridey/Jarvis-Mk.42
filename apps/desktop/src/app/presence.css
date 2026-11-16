@@ -1,0 +1,273 @@
+/*
+ * SENTIENCE · Presence Mode.
+ * The room around the orb: one word, one sentence, one field, one way back.
+ * Every colour comes from the semantic tokens in globals.css; state colour is
+ * carried by --presence, which the presence-<state> class sets from those tokens.
+ *
+ * Contrast policy: readable text never drops below --c-inkMuted for body copy and
+ * --c-ink for primary words. Dimness is applied to decoration, never to
+ * information.
+ */
+.presence-disconnected{--presence:var(--c-silverDim)}
+.presence-fault{--presence:var(--c-critical)}
+.presence-approval,.presence-executing{--presence:var(--c-execution)}
+.presence-verified{--presence:var(--c-verified)}
+.presence-speaking,.presence-listening,.presence-thinking{--presence:var(--c-cognition)}
+.presence-standby{--presence:var(--c-infra)}
+.presence-layer{--presence:var(--c-infra);--presence-text:var(--c-ink);position:fixed;inset:0;z-index:20;pointer-events:none}
+
+/* ---------- the word ---------- */
+.presence-word-block{position:absolute;transform:translateX(-50%);width:min(620px,calc(100vw - 40px));text-align:center;display:flex;flex-direction:column;align-items:center;gap:9px;pointer-events:none}
+.presence-word{display:flex;align-items:center;justify-content:center;gap:16px}
+.presence-word::before,.presence-word::after{content:'';width:clamp(20px,5vw,56px);height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--presence) 70%,transparent))}
+.presence-word::after{background:linear-gradient(270deg,transparent,color-mix(in srgb,var(--presence) 70%,transparent))}
+.presence-word strong{font:300 clamp(16px,1.55vw,24px)/1.2 var(--f-body);letter-spacing:.38em;padding-left:.38em;text-transform:uppercase;white-space:nowrap;
+  color:color-mix(in srgb,var(--presence) 82%,var(--c-platinum));transition:color var(--m-decay) var(--e-decay)}
+/* Two lines maximum: the sentence is generous, the band it may occupy is fixed
+   (presenceZones reserves it), and the full text stays in the aria-label. */
+.presence-detail{margin:0;font:400 clamp(12px,1.02vw,14px)/1.55 var(--f-body);letter-spacing:.03em;color:color-mix(in srgb,var(--c-ink) 72%,var(--c-inkMuted));
+  max-width:56ch;text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.presence-fallback{margin:0;font:var(--t-data) var(--f-data);letter-spacing:.14em;color:var(--c-degraded)}
+.presence-reconnect{margin-top:4px;padding:9px 15px;background:none;border:1px solid color-mix(in srgb,var(--c-degraded) 55%,transparent);color:var(--c-degraded);font:var(--t-data) var(--f-data);letter-spacing:.2em;pointer-events:auto}
+.presence-reconnect:hover{border-color:var(--c-degraded);color:color-mix(in srgb,var(--c-degraded) 60%,#fff)}
+
+/* ---------- satellite intelligences: real jobs, nothing else ---------- */
+.presence-satellites{position:absolute;inset:0;margin:0;padding:0;list-style:none;pointer-events:none}
+.presence-satellite{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+  font:var(--t-data) var(--f-data);letter-spacing:.14em;color:color-mix(in srgb,var(--c-ink) 62%,var(--c-inkMuted));opacity:.92}
+.presence-orb{position:relative;display:block;width:19px;height:19px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-infra) 78%,transparent) 42%,transparent 74%);
+  box-shadow:0 0 20px color-mix(in srgb,var(--c-infra) 55%,transparent),inset 0 0 8px color-mix(in srgb,#fff 34%,transparent)}
+.presence-orb b{position:absolute;inset:-5px;border-radius:50%;border:1px solid color-mix(in srgb,var(--c-infra) 26%,transparent);opacity:.7}
+.presence-orb b+b{inset:-10px;border-color:color-mix(in srgb,var(--c-infra) 14%,transparent)}
+.presence-satellite-name{font-size:calc(var(--t-data) * 1.08);font-weight:500;color:var(--c-platinum);text-transform:uppercase;white-space:nowrap;letter-spacing:.16em;text-shadow:0 0 12px #000}
+.presence-satellite small{font-size:calc(var(--t-data) * .95);letter-spacing:.1em;color:var(--c-ink);opacity:.8;text-transform:uppercase;white-space:nowrap;text-shadow:0 0 10px #000}
+.presence-satellite.child{opacity:.82}
+.presence-satellite.child .presence-orb{width:10px;height:10px}
+.presence-satellite.state-working{--orb:var(--c-cognition)}
+.presence-satellite.state-working .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--orb) 82%,transparent) 44%,transparent 76%);box-shadow:0 0 24px color-mix(in srgb,var(--orb) 72%,transparent),inset 0 0 8px #ffffff66}
+.presence-satellite.state-working .presence-orb b{border-color:color-mix(in srgb,var(--orb) 34%,transparent)}
+.presence-satellite.state-leased .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-ice) 80%,transparent) 44%,transparent 74%)}
+.presence-satellite.state-blocked .presence-orb,.presence-satellite.state-unconfirmed .presence-orb{background:radial-gradient(circle at 38% 34%,#fff,color-mix(in srgb,var(--c-degraded) 78%,transparent) 44%,transparent 74%);box-shadow:0 0 16px color-mix(in srgb,var(--c-degraded) 55%,transparent)}
+.presence-satellite.state-queued,.presence-satellite.state-waiting{opacity:.68}
+.presence-satellite.live .presence-orb b{animation:presence-breathe 3.6s var(--e-settle) infinite}
+.presence-satellite.live .presence-orb b+b{animation-delay:.9s}
+@keyframes presence-breathe{0%,100%{transform:scale(.9);opacity:.45}50%{transform:scale(1.12);opacity:.85}}
+
+/* ---------- bottom stack: answer → input → footer, never overlapping ---------- */
+/* Centred without a transform: a transformed ancestor would make the docked
+   response column position itself against the stack instead of the viewport. */
+.presence-stack{position:fixed;left:0;right:0;bottom:0;margin:0 auto;width:min(700px,calc(100vw - 32px));max-height:var(--presence-stack-max,72vh);
+  display:flex;flex-direction:column;gap:10px;align-items:stretch;padding-bottom:12px;pointer-events:none}
+.presence-stack>*{pointer-events:auto}
+
+.presence-answer{display:flex;flex-direction:column;gap:8px;padding:14px 16px 12px;background:color-mix(in srgb,var(--c-obsidian1) 94%,transparent);
+  border:1px solid color-mix(in srgb,var(--c-ink) 14%,transparent);backdrop-filter:blur(20px);
+  max-height:var(--presence-answer-max,220px);animation:presence-fade var(--m-unfold) var(--e-unfold)}
+/* Wide screens: the response gets its own reading column, clear of the orb. */
+@media(min-width:1100px){
+  .presence-stack .presence-answer{position:fixed;left:var(--edge);bottom:calc(var(--edge) + 92px);width:min(410px,27vw);z-index:22}
+}
+.presence-answer header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.presence-answer header small{font:var(--t-data) var(--f-data);letter-spacing:.3em;color:var(--presence)}
+.presence-answer-actions{display:flex;align-items:center;gap:4px}
+.presence-answer-actions button{display:flex;align-items:center;gap:5px;padding:4px 7px;background:none;border:1px solid transparent;color:var(--c-inkMuted);
+  font:var(--t-micro) var(--f-data);letter-spacing:.16em;transition:color var(--m-quick),border-color var(--m-quick)}
+.presence-answer-actions button:hover{color:var(--c-ice);border-color:color-mix(in srgb,var(--c-ice) 30%,transparent)}
+.presence-answer-body{flex:1;min-height:0;overflow:auto;white-space:pre-wrap;font:400 13.5px/1.66 var(--f-body);color:color-mix(in srgb,var(--c-ink) 92%,var(--c-platinum));
+  scrollbar-width:thin;scrollbar-color:#46525c transparent;padding-right:4px}
+.presence-answer-body:focus-visible{outline:1px solid var(--presence);outline-offset:4px}
+.answer-expanded .presence-answer{position:fixed;left:50%;bottom:calc(var(--presence-horizon, 420px) * .06 + 96px);transform:translateX(-50%);
+  width:min(860px,calc(100vw - 32px));max-height:min(68vh,720px);z-index:30;box-shadow:0 24px 80px #000c}
+.answer-expanded .presence-answer-body{max-height:min(56vh,600px)}
+@keyframes presence-fade{from{opacity:0}to{opacity:1}}
+@keyframes presence-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.presence-input{display:flex;align-items:center;gap:8px;height:54px;padding:0 8px 0 18px;background:color-mix(in srgb,var(--c-obsidian0) 76%,transparent);
+  border:1px solid color-mix(in srgb,var(--c-ink) 16%,transparent);border-radius:2px;backdrop-filter:blur(18px);
+  transition:border-color var(--m-unfold) var(--e-settle),background var(--m-unfold),box-shadow var(--m-unfold)}
+.presence-input:focus-within{border-color:color-mix(in srgb,var(--presence) 55%,transparent);background:color-mix(in srgb,var(--c-obsidian0) 86%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--presence) 28%,transparent),0 12px 40px #000a}
+.presence-input input{flex:1;min-width:0;background:none;border:0;outline:none;font:400 14px var(--f-body);letter-spacing:.02em;color:var(--c-ink)}
+.presence-input input::placeholder{color:color-mix(in srgb,var(--c-inkMuted) 88%,var(--c-inkFaint));letter-spacing:.03em}
+.presence-input input:disabled{color:var(--c-inkFaint)}
+.presence-send{display:grid;place-items:center;width:38px;height:38px;border:1px solid color-mix(in srgb,var(--c-ink) 16%,transparent);background:none;color:var(--presence);
+  transition:background var(--m-quick),border-color var(--m-quick),color var(--m-quick)}
+.presence-send:hover:not(:disabled){background:color-mix(in srgb,var(--presence) 14%,transparent);border-color:color-mix(in srgb,var(--presence) 50%,transparent)}
+.presence-send:disabled{color:var(--c-inkFaint);opacity:.6}
+
+/* ---------- microphone ---------- */
+.presence-voice{position:relative;display:flex;align-items:center}
+.presence-mic{display:flex;align-items:center;gap:6px;height:38px;padding:0 10px;background:none;border:1px solid color-mix(in srgb,var(--c-ink) 16%,transparent);
+  color:color-mix(in srgb,var(--c-ink) 70%,var(--c-inkMuted));font:var(--t-micro) var(--f-data);letter-spacing:.18em;
+  transition:color var(--m-quick),border-color var(--m-quick),background var(--m-quick)}
+.presence-mic:hover:not(:disabled){color:var(--c-ice);border-color:color-mix(in srgb,var(--c-ice) 40%,transparent)}
+.presence-mic:disabled{color:var(--c-inkFaint);opacity:.55}
+.presence-mic-label{font-size:var(--t-micro)}
+.presence-voice[data-rtc='live'] .presence-mic{color:var(--c-verified);border-color:color-mix(in srgb,var(--c-verified) 55%,transparent);
+  background:color-mix(in srgb,var(--c-verified) 10%,transparent);box-shadow:0 0 16px color-mix(in srgb,var(--c-verified) 22%,transparent)}
+.presence-voice[data-rtc='connecting'] .presence-mic{color:var(--c-degraded);border-color:color-mix(in srgb,var(--c-degraded) 45%,transparent);animation:presence-blink 1.6s steps(2) infinite}
+.presence-voice[data-voice='degraded'] .presence-mic{color:var(--c-degraded)}
+.presence-voice[data-voice='unavailable'] .presence-mic{color:var(--c-inkFaint)}
+.presence-voice-error{position:absolute;right:0;bottom:calc(100% + 8px);width:min(320px,70vw);margin:0;padding:8px 10px;background:var(--c-obsidian2);
+  border:1px solid color-mix(in srgb,var(--c-critical) 40%,transparent);font:var(--t-micro)/1.5 var(--f-data);color:var(--c-ink);z-index:5}
+@keyframes presence-blink{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ---------- footer ---------- */
+.presence-footer{display:flex;align-items:center;gap:16px;padding:0 2px;font:var(--t-data) var(--f-data);letter-spacing:.16em}
+.presence-return{display:flex;align-items:center;gap:7px;padding:5px 8px;background:none;border:1px solid transparent;color:color-mix(in srgb,var(--c-ink) 62%,var(--c-inkMuted));
+  font:var(--t-data) var(--f-data);letter-spacing:.18em;transition:color var(--m-quick),border-color var(--m-quick)}
+.presence-return:hover{color:var(--c-ice);border-color:color-mix(in srgb,var(--c-ice) 32%,transparent)}
+.presence-return kbd{border:1px solid color-mix(in srgb,var(--c-ink) 20%,transparent);padding:1px 5px;color:var(--c-inkMuted)}
+.presence-link{display:flex;align-items:center;gap:7px;color:var(--c-inkMuted)}
+.presence-link i{width:5px;height:5px;border-radius:50%;background:var(--c-verified);box-shadow:0 0 6px var(--c-verified)}
+.presence-link:is(.link-stale,.link-reconnecting,.link-connecting,.link-offline){color:var(--c-degraded)}
+.presence-link:is(.link-stale,.link-reconnecting,.link-connecting,.link-offline) i{background:none;border:1px solid var(--c-degraded);border-radius:0;transform:rotate(45deg);box-shadow:none}
+.presence-mark{margin-left:auto;display:flex;align-items:center;gap:5px;color:var(--c-inkFaint);letter-spacing:.26em}
+
+/* ---------- focus: always visible, never removed for aesthetics ---------- */
+.presence-layer :is(button,input,[tabindex]):focus-visible{outline:2px solid color-mix(in srgb,var(--presence) 85%,#fff);outline-offset:3px;border-radius:1px}
+.presence-layer .presence-answer-body:focus-visible{outline-offset:4px}
+
+/* ---------- approvals: full barrier, docked clear of the word ---------- */
+.presence-open .approval-barrier{left:auto;right:var(--edge);top:calc(50% - 26px);bottom:auto;transform:translateY(-50%);width:min(452px,33vw);
+  max-height:min(68vh,620px);overflow:hidden auto;animation:presence-slide var(--m-unfold) var(--e-unfold)}
+@keyframes presence-slide{from{opacity:0;transform:translate(10px,-50%)}to{opacity:1;transform:translate(0,-50%)}}
+.presence-open .approval-barrier h2{font-size:var(--t-body)}
+.presence-open .quality-control{opacity:.55}
+
+/* ---------- narrower desktop ---------- */
+@media(max-width:1180px){
+  .presence-word strong{letter-spacing:.3em;padding-left:.3em}
+  .presence-open .approval-barrier{width:min(400px,38vw)}
+}
+@media(max-width:1099px){
+  .presence-stack{width:calc(100vw - 24px);gap:8px;padding-bottom:10px}
+  .presence-input{height:50px;padding-left:14px}
+  .presence-satellite-name{font-size:calc(var(--t-data) * .95)}
+  .presence-satellite small{display:none}
+  .presence-return span{display:none}
+  .presence-mark{display:none}
+  .presence-detail{max-width:36ch}
+  .presence-open .approval-barrier{left:12px;right:12px;width:auto;top:auto;bottom:calc(var(--edge) + 104px);transform:none;max-height:56vh;animation:presence-rise-lite var(--m-unfold) var(--e-unfold)}
+  .presence-open.approval-hold .presence-word-block{visibility:hidden}
+  /* A phone cannot hold an answer and a decision at once: the decision wins. */
+  .presence-open.approval-hold .presence-answer{display:none}
+  .answer-expanded .presence-answer{width:calc(100vw - 16px);max-height:64vh}
+}
+@keyframes presence-rise-lite{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ---------- motion & contrast preferences ---------- */
+@media(prefers-reduced-motion:reduce){
+  .presence-satellite.live .presence-orb b,.presence-voice[data-rtc='connecting'] .presence-mic{animation:none}
+  .presence-answer{animation:none}
+  .presence-layer *{transition:none!important}
+}
+@media(prefers-contrast:more){
+  .presence-detail,.presence-satellite,.presence-link{color:var(--c-ink)}
+  .presence-input{border-color:var(--c-inkMuted)}
+  .presence-word strong{color:var(--presence)}
+}
+@media(forced-colors:active){
+  .presence-input,.presence-answer,.presence-return,.presence-mic,.presence-send,.presence-open .approval-barrier{border:1px solid CanvasText}
+}
+
+/* ---------- readability pass: panels are information, not decoration ---------- */
+/* Both surfaces sit over a bright orb. At 90% opacity the halo bled through and
+   pulled the text down; they are now effectively opaque in presence, with the
+   body copy promoted a step and the border strengthened. */
+.presence-open .presence-answer,
+.presence-open .approval-barrier{background:color-mix(in srgb,var(--c-obsidian1) 97%,transparent);backdrop-filter:blur(22px) saturate(1.05)}
+.presence-open .presence-answer{border-color:color-mix(in srgb,var(--c-ink) 22%,transparent);box-shadow:0 18px 60px #000b,inset 0 1px 0 color-mix(in srgb,var(--c-ink) 8%,transparent)}
+.presence-answer-body{color:var(--c-platinum)}
+.presence-answer header small{color:color-mix(in srgb,var(--presence) 88%,#fff)}
+.presence-answer-actions button{color:color-mix(in srgb,var(--c-ink) 82%,var(--c-inkMuted))}
+.presence-open .approval-barrier{border-color:color-mix(in srgb,var(--c-execution) 42%,transparent);box-shadow:0 24px 70px #000c}
+.presence-open .approval-barrier :is(h2,dd,summary){color:var(--c-ink)}
+.presence-open .approval-barrier .approval-summary{color:color-mix(in srgb,var(--c-ink) 78%,var(--c-inkMuted))}
+.presence-open .approval-barrier header strong{color:color-mix(in srgb,var(--c-execution) 88%,#fff)}
+.presence-open .approval-barrier dt{color:var(--c-inkMuted)}
+.presence-open .approval-actions .approve{border-color:color-mix(in srgb,var(--c-execution) 80%,transparent);color:var(--c-forge)}
+.presence-open .approval-actions .deny{color:var(--c-ink)}
+
+/* Response body: prose stays prose, structured evidence becomes collapsible. */
+.presence-answer-body > .presence-prose { margin: 0 0 0.6em; }
+.presence-answer-body > .presence-prose:last-child { margin-bottom: 0; }
+.presence-answer-body { overflow-wrap: anywhere; word-break: break-word; }
+
+.presence-evidence {
+  margin: 0.5em 0 0.7em;
+  border: 1px solid rgba(232, 214, 168, 0.22);
+  border-radius: 8px;
+  background: rgba(12, 10, 8, 0.55);
+}
+.presence-evidence > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0.45em 0.7em;
+  cursor: pointer;
+  color: var(--presence-platinum);
+  font-size: 0.86em;
+  letter-spacing: 0.02em;
+  list-style: none;
+}
+.presence-evidence > summary::-webkit-details-marker { display: none; }
+.presence-evidence > summary::before {
+  content: '▸';
+  color: rgba(232, 214, 168, 0.75);
+  font-size: 0.8em;
+  transition: transform 140ms ease;
+}
+.presence-evidence[open] > summary::before { transform: rotate(90deg); }
+.presence-evidence > summary > small {
+  margin-left: auto;
+  color: var(--presence-muted);
+  font-variant-numeric: tabular-nums;
+}
+.presence-evidence > summary:focus-visible {
+  outline: 2px solid var(--presence-gold);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.presence-evidence > pre {
+  margin: 0;
+  padding: 0 0.7em 0.6em;
+  max-height: 15rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.78em;
+  line-height: 1.5;
+  color: rgba(226, 214, 190, 0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Conversation privacy: one line, always visible, never a settings panel. */
+.presence-privacy {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  align-self: center;
+  padding: 0.25em 0.7em;
+  border: 1px solid rgba(232, 214, 168, 0.2);
+  border-radius: 999px;
+  background: rgba(12, 10, 8, 0.6);
+  font-size: 0.72em;
+  letter-spacing: 0.08em;
+  color: var(--presence-platinum);
+}
+.presence-privacy.regime-cloud_permitted { border-color: rgba(232, 214, 168, 0.55); }
+.presence-privacy-note { color: var(--presence-muted); letter-spacing: 0; text-transform: none; }
+.presence-privacy button {
+  border: 1px solid rgba(232, 214, 168, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--presence-platinum);
+  padding: 0.15em 0.7em;
+  font-size: 0.92em;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.presence-privacy button:hover:not(:disabled) { border-color: var(--presence-gold); color: #fff; }
+.presence-privacy button:focus-visible { outline: 2px solid var(--presence-gold); outline-offset: 2px; }
+.presence-privacy button:disabled { opacity: 0.5; cursor: default; }

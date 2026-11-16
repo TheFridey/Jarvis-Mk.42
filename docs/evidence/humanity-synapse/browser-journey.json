@@ -1,0 +1,124 @@
+{
+  "browser": "Chrome headless via CDP; input typed into the real Presence form and submitted through it",
+  "components": {
+    "real": [
+      "Chrome",
+      "Presence static export",
+      "frontend API client",
+      "kernel auth + grant + cognition",
+      "PostgreSQL",
+      "retrieval",
+      "ContextCompiler",
+      "AgentRuntime",
+      "Gateway",
+      "OpenAICompatibleAdapter"
+    ],
+    "substituted": [
+      "provider (loopback fixture)"
+    ]
+  },
+  "careerPayloadBytes": 16125,
+  "generalPayloadBytes": 0,
+  "checks": [
+    {
+      "name": "real gateway ready",
+      "passed": true
+    },
+    {
+      "name": "real kernel ready",
+      "passed": true
+    },
+    {
+      "name": "static export built against the isolated kernel",
+      "passed": true
+    },
+    {
+      "name": "owner export restored untouched after the build",
+      "passed": true,
+      "detail": "hash unchanged"
+    },
+    {
+      "name": "presence served",
+      "passed": true
+    },
+    {
+      "name": "browser started",
+      "passed": true
+    },
+    {
+      "name": "presence input rendered",
+      "passed": true
+    },
+    {
+      "name": "cloud consent control used",
+      "passed": true
+    },
+    {
+      "name": "browser request reached the provider",
+      "passed": true,
+      "detail": "16125 bytes"
+    },
+    {
+      "name": "multiple career sentinels in the payload",
+      "passed": true
+    },
+    {
+      "name": "protected sentinels absent",
+      "passed": true
+    },
+    {
+      "name": "answer rendered in the browser",
+      "passed": true,
+      "detail": "JARVIS\nEXPAND\n\nBROWSER-FIXTURE-ANSWER"
+    },
+    {
+      "name": "interface left THINKING",
+      "passed": true,
+      "detail": "state=STANDBY"
+    },
+    {
+      "name": "general question sent",
+      "passed": false
+    },
+    {
+      "name": "no personal memory on a general question",
+      "passed": true
+    },
+    {
+      "name": "second answer rendered",
+      "passed": true
+    },
+    {
+      "name": "career turn asked for a deep allowance",
+      "passed": true,
+      "detail": "max_tokens=6144"
+    },
+    {
+      "name": "general question asked for a smaller allowance",
+      "passed": false,
+      "detail": "max_tokens=undefined"
+    },
+    {
+      "name": "gateway received a personal-memory classification",
+      "passed": true,
+      "detail": "observed: \"disclosure\":\"personal-memory\""
+    },
+    {
+      "name": "every turn with history reached the gateway classified as personal",
+      "passed": false,
+      "detail": "observed: \"disclosure\":\"personal-memory\""
+    },
+    {
+      "name": "live desktop export byte-identical before and after the whole journey",
+      "passed": true,
+      "detail": "b3b0ec74256fda8dee588e9a087ebcb2d95a9af3e1466d0cff4669003df5e772 -> b3b0ec74256fda8dee588e9a087ebcb2d95a9af3e1466d0cff4669003df5e772"
+    },
+    {
+      "name": "no acceptance build left where the launcher looks",
+      "passed": true
+    }
+  ],
+  "passed": 19,
+  "total": 22,
+  "generatedAt": "2026-11-15T13:04:30.835Z"
+}

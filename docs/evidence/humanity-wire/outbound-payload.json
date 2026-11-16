@@ -1,0 +1,11 @@
+{
+  "boundary": "http-body captured at the Model Gateway client",
+  "case": "eligible-memory-present",
+  "transport": "POST /v1/stream (SSE), authorization header redacted",
+  "bodyBytes": 7961,
+  "containsEligibleMemory": true,
+  "containsDeletedMarker": false,
+  "containsOtherPrincipal": false,
+  "containsMemoryBlockHeader": true,
+  "excerpt": "{\"task\":\"reason\",\"capabilities\":[\"json\"],\"input\":{\"instruction\":\"How detailed should your technical answers be for me?\\n\\nApproved context about the owner (use only where relevant; never recite it):\\n- response-length-preference: Prefers co"
+}

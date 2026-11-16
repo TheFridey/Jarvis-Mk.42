@@ -1,0 +1,20 @@
+reset: synthetic principals cleared
+PASS import accepts well-formed records — {"imported":2,"duplicates":0,"rejected":[]}
+PASS imported record stays pending despite claiming approval — pending
+PASS imported record is not cloud-eligible despite claiming it
+PASS pending record is not retrievable
+PASS approval persists an active record
+phase1: 5/5 passed; process exiting.
+PASS approved record survived a new process — 1 active
+PASS relevant query retrieves it — - response-length-preference: The synthetic owner prefers concise technical summaries unless requesting a full report.
+PASS a greeting retrieves nothing
+PASS local-only record is excluded from a cloud request — cloud_ineligible
+PASS explicit cloud grant makes it eligible
+PASS revoking cloud disclosure removes it from cloud context
+PASS cross-principal retrieval returns nothing
+PASS cross-principal is reported as such
+PASS correction supersedes the original
+PASS hostile import stays inert and pending
+PASS deleted content is not retrievable
+PASS deletion removes the statement but keeps an audit fact
+phase2: 12/12 passed.

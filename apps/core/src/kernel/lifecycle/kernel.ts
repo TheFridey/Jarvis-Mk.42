@@ -39,6 +39,12 @@ import { createPg, runMigrations, type PgHandle } from '@jarvis/persistence';
 import { startTelemetry, stopTelemetry, structuredLog } from '@jarvis/telemetry';
 import { ExperienceProjection, channelsForEvent } from '../experience/index.ts';
 import { CompanionService } from '../experience/companion-service.ts';
+import { verifyBeforeDispatch, type ConversationGrant } from '../experience/conversation-privacy.ts';
+import { KokoroSpeechService, SELECTABLE_VOICES } from '../voice/kokoro-speech-service.ts';
+import { UtteranceService } from '../voice/utterance-service.ts';
+import { PersonalMemoryStore } from '../experience/personal-memory-store.ts';
+import { synthesiseToWav } from '../voice/speech-synthesis.ts';
+import { resolveAsrConfig, WhisperCppAsrAdapter } from '@jarvis/speech';
 
 import { assertSecureIngressConfig, type KernelConfig } from '../../runtime/config.ts';
 import { SystemClock, type Clock } from '../../runtime/clock.ts';
@@ -375,7 +381,22 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const modelGateway = ov.modelGateway ?? new HttpModelGatewayClient(config.modelGatewayUrl, config.modelGatewayToken);
   const capabilityContracts = (ov.capabilities ?? []).map((entry) => capabilityContract(entry.manifest));
   const agentRuntime = new AgentRuntime(modelGateway, () => clock.nowIso(), new AgentJobStore(pg.sql, events), () => capabilityContracts);
-  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ domains, sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research, businessAnswer:async(principalId,text,correlationId)=>{
+  const cognition: CognitionOrchestrator = new CognitionOrchestrator({ domains, sql: pg.sql, context, runtime: agentRuntime, agency, events, now: () => clock.nowIso(), cloudAllowed: config.modelCloudAllowed, research,
+  // Re-read the grant at the moment of dispatch: revocation must take effect before the
+  // request leaves, not merely on the next turn.
+  verifyAuthorisation: async ref => {
+    const verdict = await verifyBeforeDispatch(async grantId => {
+      const [row] = await pg.sql<{ grant_id:string;conversation_id:string;principal_id:string;provider:string;model:string;purpose:'conversation';ceiling:ConversationGrant['ceiling'];policy_version:number;created_at:string;expires_at:string|null;revoked_at:string|null }[]>`
+        select grant_id, conversation_id, principal_id, provider, model, purpose, ceiling, policy_version,
+               to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at,
+               case when expires_at is null then null else to_char(expires_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end as expires_at,
+               case when revoked_at is null then null else to_char(revoked_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end as revoked_at
+          from experience.conversation_grants where grant_id = ${grantId}`;
+      if (!row) return undefined;
+      return { grantId: row.grant_id, conversationId: row.conversation_id, principalId: row.principal_id, provider: row.provider, model: row.model, purpose: 'conversation', ceiling: row.ceiling, policyVersion: row.policy_version, createdAt: row.created_at, expiresAt: row.expires_at, revokedAt: row.revoked_at } satisfies ConversationGrant;
+    }, ref);
+    return verdict.ok ? { ok: true } : { ok: false, reason: verdict.reason, detail: verdict.detail };
+  }, businessAnswer:async(principalId,text,correlationId)=>{
     if(currentDomainScope()?.kind==='SYSTEM'&&/^(?:jarvis[, ]+)?check production[.!]?$/i.test(text.trim())){
       const telemetry=await systemTelemetry.snapshot();
       const findings=telemetryMonitor.evaluate(telemetry);
@@ -473,7 +494,7 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
   const desktop = new DesktopGateway({ sql: pg.sql, diagnostics, state, sessions, approvals, agency, cognition, business, ids, nodeId: config.nodeId, systemTelemetry, voiceAudio:()=>voice.audioSnapshot(),observeScene:(principalId,nodeId,observation)=>perception.observeScene(principalId,nodeId,observation),referentFocus:()=>perception.focus(config.bootstrapPrincipalId) });
   perception.setSceneProvider(async principalId=>{const snapshot=await desktop.snapshot();if(snapshot.principalId!==principalId)throw new Error('scene principal mismatch');return snapshot.scene;});
   const experience = new ExperienceProjection({ streamId:ids.ulid(), build:()=>desktop.snapshot(), reportError:()=>{void structuredLog({component:'experience-projector',node:config.nodeId,event:'projection.failed',severity:'ERROR'});} });
-  companion=new CompanionService({domains,sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene'])});
+  companion=new CompanionService({domains,sql:pg.sql,snapshot:()=>desktop.snapshot(),cognize:r=>cognition.submit(r),now:()=>clock.nowIso(),id:()=>ids.ulid(),invalidate:()=>experience.invalidate(['cognition','scene']),memory:new PersonalMemoryStore(pg.sql as never)});
   desktop.setCompanion(companion);
   const offExperienceEvents = events.onAppended((event)=>experience.invalidate(channelsForEvent(event.type)));
   const nodeIngress=new NodeIngress({sql:pg.sql,tx,nodes,store:nodeStore,credentials,accessStore,sessions,events,clock,id:()=>ids.ulid(),status:async()=>({mode:await mode.current(),overallHealth:health.report().overall}),health:async(nodeId,online)=>{health.register({subsystem:`node:${nodeId}`,critical:false});await health.heartbeat({subsystem:`node:${nodeId}`,status:online?'HEALTHY':'OFFLINE',message:online?'authenticated heartbeat':'node unavailable'});},reportError:()=>{void structuredLog({component:'node-ingress',node:config.nodeId,event:'transport.failed',severity:'ERROR'});}});
@@ -485,7 +506,26 @@ export function buildKernel(config: KernelConfig, ov: KernelOverrides = {}): Ker
     const apiKey=process.env.JARVIS_LIVEKIT_API_KEY,apiSecret=process.env.JARVIS_LIVEKIT_API_SECRET;if(!apiKey||!apiSecret)throw new Error('RTC requires local LiveKit credentials');
     rtc=new RtcService({url:process.env.JARVIS_LIVEKIT_URL??'ws://127.0.0.1:7880',apiKey,apiSecret,voice,invalidate:()=>experience.invalidate(['system','telemetry','scene']),validate:async binding=>{const auth=await credentials.authenticate('Bearer '+binding.accessToken,{nodeId:binding.nodeId,sessionId:binding.sessionId,scopes:['voice.write']});const node=auth?await nodeStore.get(binding.nodeId):null;return Boolean(auth&&auth.principalId===binding.principalId&&node&&!['revoked','isolated','disconnected'].includes(node.status)&&['kernel-local','owned-secure'].includes(node.trustTier)&&!['mobile','display'].includes(node.nodeType));}});
   }
-  const diagnosticsHttp = new DiagnosticsHttp({ domains,objectives, rtc,diagnostics, state, health, desktop, voice, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
+  // Local speech: the browser sends PCM, this transcribes with the installed ARM64 engine.
+  // Resolved lazily so a missing engine is a reported problem, not a boot failure.
+  const speechConfig = resolveAsrConfig();
+  const speechAdapter = speechConfig.engine === 'whisper-cpp' && speechConfig.config && speechConfig.readiness.ready ? new WhisperCppAsrAdapter(speechConfig.config) : undefined;
+  const utterance = new UtteranceService({ adapter: () => speechAdapter, timeoutMs: 25_000 });
+  // Local neural speech. fp32 on CPU: measured twice as fast as the q8 build on this ARM64 machine.
+  // Warming is deferred to the first request so boot does not block for ~30 s of model loading, and a
+  // machine without the model still starts - it simply reports synthesis unavailable.
+  const kokoro = new KokoroSpeechService({ enabled: process.env.JARVIS_TTS_ENABLED !== '0', ...(process.env.JARVIS_TTS_VOICE ? { voice: process.env.JARVIS_TTS_VOICE } : {}) });
+  // Warm the voice in the background so the first spoken answer is not the one that pays 28 s of model
+  // loading. Deliberately not awaited: Kernel health and startup must not wait on speech.
+  void kokoro.warm();
+  const speech = {
+    utterance,
+    synthesise: (text: string) => synthesiseToWav(text),
+    stream: (text: string, options: { voice?: string; signal: AbortSignal }) => kokoro.speak(text, options),
+    cancel: () => kokoro.cancel(),
+    voices: SELECTABLE_VOICES,
+  };
+  const diagnosticsHttp = new DiagnosticsHttp({ domains,objectives, rtc,diagnostics, state, health, desktop, voice, speech, vision, identity, sessions, credentials, nodes, nodeStore, ids, nodeId:config.nodeId, principalId:config.bootstrapPrincipalId, experience, business, companion,surfaceConnected:()=>{void notifications.retryQueued().catch(()=>undefined);} });
   notifications.setSurfaceProvider(async()=>[...await diagnosticsHttp.deliverySurfaces(),...await nodeIngress.deliverySurfaces()]);
   notifications.registerSink(record=>diagnosticsHttp.deliverNotification(record));
 

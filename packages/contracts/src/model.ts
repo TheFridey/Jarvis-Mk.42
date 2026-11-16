@@ -45,6 +45,12 @@ export interface ModelInput {
 
 export interface ModelRequest {
   task: ModelTask;
+  /**
+   * Set by the Kernel, never by a model or a provider: this request carries personal memory the
+   * owner consented to disclose. A gateway must not retry or fall back on it without fresh
+   * authorisation, because retransmission is a second disclosure.
+   */
+  disclosure?: 'personal-memory';
   capabilities: ModelCapability[];
   input: ModelInput;
   budget: {
@@ -54,6 +60,12 @@ export interface ModelRequest {
     maxLatencyMs?: number;
   };
   locality: Locality;
+  /**
+   * Hard provider binding. When set, only models from this provider are eligible and
+   * no other provider may be used as a fallback — `preferredProviders` is only a score
+   * preference and is not sufficient for an explicit authorisation.
+   */
+  requiredProvider?: string;
   determinism?: 'strict' | 'low-temp' | 'creative';
   /** Opt-in only; TTL'd; content otherwise not persisted. */
   cacheable?: boolean;
